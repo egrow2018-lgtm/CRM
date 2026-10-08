@@ -2,6 +2,9 @@ import { requirePagePermission } from "@/lib/auth";
 import { PageHeader } from "@/components/ui";
 import { ImportForm } from "./import-form";
 
+// La importación de archivos grandes puede tardar más que el límite por defecto.
+export const maxDuration = 60;
+
 export default async function ImportPage() {
   await requirePagePermission("import:run");
   return (
@@ -14,13 +17,13 @@ export default async function ImportPage() {
         </li>
         <li>Importa en este orden: <b>Empresas → Contactos → Negocios</b>, para que las asociaciones queden enlazadas.</li>
         <li>
-          Crea antes los usuarios en <b>Configuración</b> con el mismo nombre que tienen como propietarios en HubSpot (ej. &quot;Andres
-          Poveda&quot;) para que se asignen solos.
+          Los propietarios se asignan por nombre (&quot;Janine Salgado Torres&quot; → Janine Salgado). Si un propietario de HubSpot ya
+          no está en el equipo, sus registros quedan a tu nombre.
         </li>
       </ol>
       <p className="mb-4 text-xs text-slate-500">
-        Los registros duplicados se omiten (empresas y negocios por nombre, contactos por email), así que puedes volver a importar sin
-        miedo. La línea de negocio de cada negocio se deduce del nombre (ej. &quot;… - Ludus&quot;, &quot;… - HUMAND&quot;, &quot;Curso
+        Los contactos se enlazan a su empresa por el dominio del email corporativo o por el nombre. Los duplicados se omiten
+        (empresas y negocios por nombre, contactos por email), así que puedes volver a importar sin miedo. La línea de negocio de cada negocio se deduce del nombre (ej. &quot;… - Ludus&quot;, &quot;… - HUMAND&quot;, &quot;Curso
         Virtual&quot;).
       </p>
       <ImportForm />

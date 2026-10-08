@@ -4,12 +4,12 @@ import { login } from "./actions";
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 via-white to-cyan-50 p-4">
       <div className="card w-full max-w-sm p-8">
         <div className="mb-6 text-center">
-          <div className="text-3xl font-bold tracking-tight text-brand-700">
-            e-grow <span className="font-light text-slate-500">CRM</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/egrow-logo.png" alt="e-grow" className="mx-auto h-16 w-auto" />
+          <div className="mt-2 text-sm font-semibold tracking-widest text-egrow-magenta">CRM</div>
           <p className="mt-1 text-sm text-slate-500">Inicia sesión para continuar</p>
         </div>
         <ActionForm action={login} className="space-y-4">

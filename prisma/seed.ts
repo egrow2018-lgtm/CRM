@@ -1,7 +1,14 @@
-import { PrismaClient, ProductType } from "@prisma/client";
+import { PrismaClient, ProductType, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+/** Equipo de e-grow. Cada persona puede cambiar su contraseña en "Mi perfil". */
+const TEAM: { name: string; email: string; role: Role }[] = [
+  { name: "Andrés Poveda", email: "apoveda@e-growonline.com", role: "ADMIN" },
+  { name: "María Isabel Piñeiros", email: "mipineiros@e-growonline.com", role: "COMERCIAL" },
+  { name: "Janine Salgado", email: "mjsalgado@e-growonline.com", role: "PROYECTOS" },
+];
 
 const STAGES = [
   { name: "Contacto", probability: 10 },
@@ -18,7 +25,7 @@ const LINES: { name: string; description: string; color: string; products: [stri
   {
     name: "E-learning",
     description: "Plataformas LMS, cursos virtuales y producción audiovisual",
-    color: "#0f766e",
+    color: "#087d93",
     products: [
       ["Plataforma LMS", ProductType.SERVICIO],
       ["Curso virtual", ProductType.SERVICIO],
@@ -28,7 +35,7 @@ const LINES: { name: string; description: string; color: string; products: [stri
   {
     name: "Rutalink",
     description: "Rastreo satelital: GPS, candados, equipos móviles, cámaras y tags Bluetooth",
-    color: "#1d4ed8",
+    color: "#b85d0f",
     products: [
       ["GPS vehicular", ProductType.PRODUCTO],
       ["Candado satelital", ProductType.PRODUCTO],
@@ -41,7 +48,7 @@ const LINES: { name: string; description: string; color: string; products: [stri
   {
     name: "Ludus",
     description: "Representación de Ludus – plataforma de realidad virtual (ludusglobal.com)",
-    color: "#7c3aed",
+    color: "#b0106d",
     products: [
       ["Licencia plataforma Ludus VR", ProductType.SERVICIO],
       ["Gafas de realidad virtual", ProductType.PRODUCTO],
@@ -50,7 +57,7 @@ const LINES: { name: string; description: string; color: string; products: [stri
   {
     name: "Humand",
     description: "Representación de Humand – app de comunicación interna y RR.HH. (humand.co)",
-    color: "#db2777",
+    color: "#5f7a12",
     products: [
       ["Licencia Humand (por usuario)", ProductType.SERVICIO],
       ["Implementación Humand", ProductType.SERVICIO],
@@ -59,13 +66,16 @@ const LINES: { name: string; description: string; color: string; products: [stri
 ];
 
 async function main() {
-  const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@e-grow.com").toLowerCase();
-  const password = process.env.SEED_ADMIN_PASSWORD ?? "CambiaEsta123!";
-  await prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: { email, name: "Administrador", role: "ADMIN", passwordHash: await bcrypt.hash(password, 10) },
-  });
+  // Los usuarios se crean solo si no existen: nunca se sobrescriben contraseñas ya cambiadas.
+  const password = process.env.SEED_INITIAL_PASSWORD;
+  if (!password || password.length < 8) {
+    console.warn("SEED_INITIAL_PASSWORD no está definida (mín. 8 caracteres): no se crearán usuarios.");
+  } else {
+    const passwordHash = await bcrypt.hash(password, 10);
+    for (const u of TEAM) {
+      await prisma.user.upsert({ where: { email: u.email }, update: {}, create: { ...u, passwordHash } });
+    }
+  }
 
   if ((await prisma.pipelineStage.count()) === 0) {
     await prisma.pipelineStage.createMany({
@@ -86,7 +96,7 @@ async function main() {
     });
   }
 
-  console.log(`Seed listo. Admin: ${email}`);
+  console.log("Seed listo.");
 }
 
 main()

@@ -1,3 +1,5 @@
+<p align="center"><img src="public/egrow-logo.png" alt="e-grow" width="260"></p>
+
 # e-grow CRM
 
 Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un pipeline de negocios en tablero Kanban, contactos, empresas, actividades y tareas. A eso le suma un catálogo de productos y servicios por **línea de negocio**: E-learning, Rutalink, Ludus, Humand y las representaciones que vengan.
@@ -16,12 +18,14 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 
 ### Perfiles
 
-| Perfil | Permisos |
-|---|---|
-| **Administrador** | Todo, incluidos usuarios y etapas del pipeline. |
-| **Gerente** | Ve y edita todo, elimina, administra el catálogo e importa datos. |
-| **Gestor comercial** | Crea y edita contactos, empresas y negocios, y registra actividades. |
-| **Proyectos** | Consulta todo, registra actividades y mueve negocios solo entre *Firma de Contrato*, *En Producción* y *Cerrado Ganado*. |
+| Perfil | Permisos | Equipo |
+|---|---|---|
+| **Administrador** | Todo, incluidos usuarios, etapas del pipeline e importación. | Andrés Poveda |
+| **Gerente** | Ve y edita todo, elimina, administra el catálogo e importa datos. Todo menos gestionar usuarios. | — |
+| **Gestión de negocios** | Crea clientes (contactos y empresas), negocios y productos, y da seguimiento a cada negocio. | María Isabel Piñeiros |
+| **Gestión de proyectos** | Consulta todo y da seguimiento a la producción: mueve negocios entre *Firma de Contrato*, *En Producción* y *Cerrado Ganado*, y registra actividades y tareas. | Janine Salgado |
+
+Los tres usuarios se crean automáticamente (`prisma/seed.ts`) con la contraseña temporal `SEED_INITIAL_PASSWORD`. Cada persona la cambia en **Mi perfil**, haciendo clic en su nombre abajo a la izquierda.
 
 La matriz de permisos está en `src/lib/permissions.ts`.
 
@@ -36,38 +40,52 @@ Contacto (10 %) → Presentación (30 %) → Cotización-Envío (40 %) → Revis
 - Tailwind CSS 4.
 - Autenticación propia: contraseñas con bcrypt y sesión JWT en una cookie httpOnly.
 
-## Puesta en marcha (desarrollo)
+## Publicación en Supabase + Vercel
 
-Requisitos: Node.js 20 o superior y PostgreSQL 14 o superior.
+Supabase guarda la base de datos y Vercel ejecuta la aplicación web. Los dos tienen plan gratuito.
+
+### 1. Base de datos en Supabase
+
+1. En [supabase.com](https://supabase.com), crea un proyecto (por ejemplo, `egrow-crm`; región *South America (São Paulo)* o *US East*) y guarda la contraseña de la base de datos.
+2. Pulsa **Connect** (arriba) y copia dos cadenas de conexión, reemplazando `[YOUR-PASSWORD]` por la contraseña:
+   - **Transaction pooler** (puerto 6543). Agrega al final `?pgbouncer=true&connection_limit=1` y úsala como `DATABASE_URL`.
+   - **Session pooler** (puerto 5432). Úsala como `DIRECT_URL`.
+
+### 2. Aplicación en Vercel
+
+1. En [vercel.com](https://vercel.com), ingresa con GitHub, pulsa **Add New → Project** e importa el repositorio `egrow2018-lgtm/crm`.
+2. En **Environment Variables** agrega:
+
+   | Variable | Valor |
+   |---|---|
+   | `DATABASE_URL` | La cadena del *Transaction pooler* (paso 1) |
+   | `DIRECT_URL` | La cadena del *Session pooler* (paso 1) |
+   | `AUTH_SECRET` | Un texto largo y aleatorio (por ejemplo, el resultado de `openssl rand -base64 32`) |
+   | `SEED_INITIAL_PASSWORD` | Contraseña temporal para los tres usuarios (mínimo 8 caracteres) |
+
+3. Pulsa **Deploy**. El script `vercel-build` crea las tablas, carga las etapas, las líneas de negocio y los usuarios, y compila la aplicación.
+4. Entra a la URL que te da Vercel (puedes conectar un dominio como `crm.e-growonline.com` en *Settings → Domains*).
+
+### 3. Migrar desde HubSpot
+
+1. Ingresa como Andrés y ve a **Importar HubSpot**.
+2. Sube los CSV en este orden: **Empresas → Contactos → Negocios**. Hazlo primero con "Solo simular" y luego de verdad.
+   - Los contactos se asocian a su empresa por el dominio del email corporativo (como en HubSpot) o por el nombre de la empresa.
+   - Los duplicados se omiten, así que puedes volver a importar sin riesgo.
+   - Los propietarios se emparejan por nombre ("Janine Salgado Torres" se asigna a "Janine Salgado"). Los registros de propietarios que ya no existen quedan a nombre de quien importa.
+3. Cada persona cambia su contraseña en **Mi perfil**.
+
+## Desarrollo local
+
+Requisitos: Node.js 20 o superior y PostgreSQL 14 o superior (o una base de Supabase de pruebas).
 
 ```bash
 npm install
-cp .env.example .env          # edita DATABASE_URL, AUTH_SECRET y el admin inicial
+cp .env.example .env          # completa DATABASE_URL, DIRECT_URL, AUTH_SECRET y SEED_INITIAL_PASSWORD
 npm run db:migrate            # crea las tablas
-npm run db:seed               # crea el admin, las etapas y las líneas de negocio con productos de ejemplo
+npm run db:seed               # usuarios del equipo, etapas, líneas de negocio y productos de ejemplo
 npm run dev                   # http://localhost:3000
 ```
-
-Inicia sesión con `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`, y **cambia la contraseña** desde *Configuración*.
-
-## Migrar desde HubSpot
-
-1. En *Configuración*, crea los usuarios con el **mismo nombre** que tienen como propietarios en HubSpot (por ejemplo, "Andres Poveda").
-2. En HubSpot, exporta en formato CSV las **Empresas**, los **Contactos** y los **Negocios**.
-3. En *Importar HubSpot*, sube los archivos en ese orden. Primero con "Solo simular" y después de verdad.
-
-## Producción
-
-Cualquier hosting de Node.js con PostgreSQL sirve. Algunas opciones de bajo costo son Vercel con Neon o Supabase, Railway y Render.
-
-```bash
-npm run build
-npm run db:deploy   # aplica migraciones
-npm run db:seed     # solo la primera vez
-npm start
-```
-
-Variables necesarias: `DATABASE_URL` y `AUTH_SECRET` (genera uno con `openssl rand -base64 32`).
 
 ## Scripts
 

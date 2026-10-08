@@ -93,7 +93,7 @@ export function ActivityPanel({
           <ol className="relative space-y-4 border-l border-slate-200 pl-4">
             {history.map((a) => (
               <li key={a.id} className="relative">
-                <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-brand-500" />
+                <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-egrow-cyan" />
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`badge ${COLORS[a.type]}`}>{ACTIVITY_LABELS[a.type]}</span>
                   <span className="text-sm font-medium">{a.subject}</span>

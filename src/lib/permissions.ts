@@ -3,8 +3,8 @@ import type { Role } from "@prisma/client";
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Administrador",
   GERENTE: "Gerente",
-  COMERCIAL: "Gestor comercial",
-  PROYECTOS: "Proyectos",
+  COMERCIAL: "Gestión de negocios",
+  PROYECTOS: "Gestión de proyectos",
 };
 
 export type Permission =
@@ -29,7 +29,9 @@ const MATRIX: Record<Role, Permission[]> = {
     "import:run",
   ],
   GERENTE: ["catalog:manage", "crm:write", "crm:delete", "deals:production", "activities:write", "import:run"],
-  COMERCIAL: ["crm:write", "deals:production", "activities:write"],
+  // Gestión de negocios: crea clientes y productos y da seguimiento a cada negocio
+  COMERCIAL: ["crm:write", "catalog:manage", "deals:production", "activities:write"],
+  // Gestión de proyectos: seguimiento de la producción con el equipo de desarrollo
   PROYECTOS: ["deals:production", "activities:write"],
 };
 

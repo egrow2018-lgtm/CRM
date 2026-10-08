@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalize, parseAmount, parseCsv, parseDate } from "./csv";
+import { companyKey, corporateDomain, normalize, parseAmount, parseCsv, parseDate, samePerson, websiteDomain } from "./csv";
 
 test("parseCsv maneja comillas, separador ; y BOM", () => {
   const rows = parseCsv('﻿Nombre;Valor\n"Holcim; Ltd";"10.150"\r\n"Dice ""hola""";5\n');
@@ -26,4 +26,22 @@ test("parseDate", () => {
 
 test("normalize quita tildes y mayúsculas", () => {
   assert.equal(normalize("  Cotización-Envío "), "cotizacion-envio");
+});
+
+test("companyKey ignora sufijos legales y puntuación", () => {
+  assert.equal(companyKey("FLP PROCESADOS S.A.S."), "flp procesados");
+  assert.equal(companyKey("Holcim Ecuador S.A."), "holcim ecuador");
+  assert.equal(companyKey("Duragas Cía. Ltda."), "duragas");
+});
+
+test("dominios", () => {
+  assert.equal(websiteDomain("https://www.holcim.com/ec"), "holcim.com");
+  assert.equal(corporateDomain("ana@holcim.com"), "holcim.com");
+  assert.equal(corporateDomain("ana@gmail.com"), null);
+});
+
+test("samePerson", () => {
+  assert.ok(samePerson("Janine Salgado Torres", "Janine Salgado"));
+  assert.ok(samePerson("Andres Poveda", "Andrés Poveda"));
+  assert.ok(!samePerson("Santiago Poveda", "Andrés Poveda"));
 });

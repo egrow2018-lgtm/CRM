@@ -79,3 +79,39 @@ export function parseDate(raw: string | undefined): Date | null {
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+
+/** Clave para comparar nombres de empresa ignorando tildes, puntuación y sufijos legales (S.A., Cía. Ltda., Inc…). */
+export function companyKey(name: string) {
+  return normalize(name)
+    .replace(/[.,]/g, " ")
+    .replace(/\b(s a s|s a|cia|ltda|c a|inc|ltd|llc|corp|sas|sa|ep|s de rl)\b/g, " ")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Dominio de un sitio web ("https://www.holcim.com/ec" → "holcim.com"). */
+export function websiteDomain(url: string | null | undefined) {
+  if (!url) return null;
+  const d = url.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0];
+  return d || null;
+}
+
+const FREE_EMAIL = new Set([
+  "gmail.com", "hotmail.com", "hotmail.es", "yahoo.com", "yahoo.es", "outlook.com", "outlook.es",
+  "live.com", "icloud.com", "msn.com", "aol.com", "protonmail.com",
+]);
+
+/** Dominio corporativo del email, o null si es un proveedor gratuito (gmail, hotmail…). */
+export function corporateDomain(email: string | null | undefined) {
+  const d = email?.toLowerCase().split("@")[1]?.trim();
+  return d && !FREE_EMAIL.has(d) ? d : null;
+}
+
+/** ¿Corresponde el nombre de propietario de HubSpot a este usuario? ("Janine Salgado Torres" ↔ "Janine Salgado") */
+export function samePerson(a: string, b: string) {
+  const ta = normalize(a).split(" ");
+  const tb = normalize(b).split(" ");
+  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return short.length >= 2 && short.every((t) => long.includes(t));
+}

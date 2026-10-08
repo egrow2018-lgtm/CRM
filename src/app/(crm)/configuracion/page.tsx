@@ -9,8 +9,8 @@ import { createUser, deleteStage, saveStage, updateUser } from "./actions";
 const ROLE_HELP: Record<keyof typeof ROLE_LABELS, string> = {
   ADMIN: "Todo, incluida la gestión de usuarios y etapas del pipeline.",
   GERENTE: "Ve y edita todo, administra el catálogo e importa datos. No gestiona usuarios.",
-  COMERCIAL: "Crea y edita contactos, empresas y negocios. Registra actividades.",
-  PROYECTOS: "Consulta todo; mueve negocios entre Firma de Contrato, Producción y Ganado; registra actividades.",
+  COMERCIAL: "Crea clientes (contactos y empresas), negocios y productos, y da seguimiento a cada negocio.",
+  PROYECTOS: "Consulta todo y da seguimiento a la producción: mueve negocios entre Firma de Contrato, En Producción y Ganado, y registra actividades y tareas.",
 };
 
 function RoleSelect({ value }: { value?: string }) {
