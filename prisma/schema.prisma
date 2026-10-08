@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  GERENTE
+  COMERCIAL
+  PROYECTOS
+}
+
+enum ProductType {
+  PRODUCTO
+  SERVICIO
+}
+
+enum ActivityType {
+  NOTA
+  LLAMADA
+  REUNION
+  EMAIL
+  TAREA
+  CAMBIO_ETAPA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(COMERCIAL)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  companies          Company[]
+  contacts           Contact[]
+  deals              Deal[]
+  activitiesCreated  Activity[] @relation("ActivityAuthor")
+  activitiesAssigned Activity[] @relation("ActivityAssignee")
+}
+
+/// Línea de negocio: e-learning, Rutalink, Ludus, Humand, nuevas representaciones…
+model BusinessLine {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String   @default("#0f766e")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  products Product[]
+  deals    Deal[]
+}
+
+model Product {
+  id             String      @id @default(cuid())
+  name           String
+  description    String?
+  sku            String?
+  type           ProductType @default(SERVICIO)
+  unitPrice      Decimal     @default(0) @db.Decimal(14, 2)
+  active         Boolean     @default(true)
+  businessLineId String
+  businessLine   BusinessLine @relation(fields: [businessLineId], references: [id])
+  createdAt      DateTime    @default(now())
+
+  dealItems DealItem[]
+
+  @@index([businessLineId])
+}
+
+/// Etapas del pipeline (configurables por el administrador)
+model PipelineStage {
+  id          String  @id @default(cuid())
+  name        String
+  order       Int
+  probability Int     @default(0) // 0-100, usado para la cantidad ponderada
+  isWon       Boolean @default(false)
+  isLost      Boolean @default(false)
+
+  deals Deal[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  taxId     String?  // RUC / NIT
+  industry  String?
+  website   String?
+  phone     String?
+  address   String?
+  city      String?
+  country   String?
+  notes     String?
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts   Contact[]
+  deals      Deal[]
+  activities Activity[]
+
+  @@index([name])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String?
+  email     String?
+  phone     String?
+  jobTitle  String?
+  source    String?
+  notes     String?
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deals      Deal[]
+  activities Activity[]
+
+  @@index([companyId])
+  @@index([email])
+}
+
+model Deal {
+  id             String        @id @default(cuid())
+  name           String
+  amount         Decimal       @default(0) @db.Decimal(14, 2)
+  currency       String        @default("USD")
+  description    String?
+  closeDate      DateTime?
+  lostReason     String?
+  stageId        String
+  stage          PipelineStage @relation(fields: [stageId], references: [id])
+  businessLineId String?
+  businessLine   BusinessLine? @relation(fields: [businessLineId], references: [id], onDelete: SetNull)
+  companyId      String?
+  company        Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId      String?
+  contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  owner          User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  stageChangedAt DateTime      @default(now())
+  lastActivityAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items      DealItem[]
+  activities Activity[]
+
+  @@index([stageId])
+  @@index([ownerId])
+  @@index([businessLineId])
+}
+
+/// Productos / servicios cotizados dentro de un negocio
+model DealItem {
+  id          String   @id @default(cuid())
+  dealId      String
+  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  description String
+  quantity    Decimal  @default(1) @db.Decimal(12, 2)
+  unitPrice   Decimal  @default(0) @db.Decimal(14, 2)
+  discount    Decimal  @default(0) @db.Decimal(5, 2) // porcentaje
+
+  @@index([dealId])
+}
+
+/// Notas, llamadas, reuniones, correos, tareas y cambios de etapa
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  subject     String
+  body        String?
+  dueDate     DateTime?
+  completed   Boolean      @default(false)
+  completedAt DateTime?
+  dealId      String?
+  deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  authorId    String?
+  author      User?        @relation("ActivityAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  assigneeId  String?
+  assignee    User?        @relation("ActivityAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+
+  @@index([dealId])
+  @@index([contactId])
+  @@index([companyId])
+  @@index([assigneeId, completed])
+}
