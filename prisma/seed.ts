@@ -19,6 +19,7 @@ const STAGES = [
   { name: "En Producción", probability: 90 },
   { name: "Cerrado Ganado", probability: 100, isWon: true },
   { name: "Cerrado Perdido", probability: 0, isLost: true },
+  { name: "StandBy", probability: 0 },
 ];
 
 const LINES: { name: string; description: string; color: string; products: [string, ProductType][] }[] = [

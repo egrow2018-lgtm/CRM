@@ -77,8 +77,8 @@ function mapColumns(header: string[], kind: ImportKind) {
 const LINE_HINTS: [RegExp, string][] = [
   [/ludus|realidad virtual|\bvr\b/, "ludus"],
   [/humand/, "humand"],
-  [/rutalink|gps|rastreo|candado|satelital|tag|sticker/, "rutalink"],
-  [/curso|lms|video|e-?learning|virtual|induccion|animad|produccion|capacitacion|plataforma/, "e-learning"],
+  [/rutalink|\bsesa\b|gps|rastreo|candado|satelital|\btags?\b|sticker/, "rutalink"],
+  [/curso|lms|video|e-?learning|virtual|induccion|animad|produccion|capacitacion|plataforma|microlearning|tutorial|podcast|escuela|taller|instruccional|academy|codigo de etica/, "e-learning"],
 ];
 
 const CHUNK = 500;
@@ -217,14 +217,14 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
       if (!raw) return stages[0];
       const n = normalize(raw);
       if (/closed ?won|cerrado ganado|ganado/.test(n)) return stages.find((s) => s.isWon) ?? stages[0];
-      if (/closed ?lost|cerrado perdido|perdido/.test(n)) return stages.find((s) => s.isLost) ?? stages[0];
+      if (/closed ?lost|cerrado perdido|perdido|no concretado/.test(n)) return stages.find((s) => s.isLost) ?? stages[0];
       const first = (x: string) => x.split(/[\s-]/)[0];
       const match =
         stages.find((s) => normalize(s.name) === n) ??
         stages.find((s) => first(normalize(s.name)) === first(n)) ??
         stages.find((s) => n.includes(first(normalize(s.name))));
-      if (!match) unknownStages.add(raw);
-      return match ?? stages[0];
+      if (!match) unknownStages.add(raw.trim());
+      return match;
     };
     const findLine = (explicit: string | undefined, name: string) => {
       if (explicit) {
@@ -245,23 +245,32 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         continue;
       }
       existing.add(normalize(name));
-      const company = get(row, "company");
-      wantCompany(company);
+      let company = get(row, "company");
+      if (company) wantCompany(company);
+      else {
+        // Sin columna de empresa: se deduce del nombre ("Duragas - Curso conductores" → Duragas),
+        // solo si esa empresa ya existe (para no crear empresas a partir de nombres de personas).
+        const prefix = name.split(/\s+-\s*|\s*-\s+/)[0];
+        if (prefix !== name && companyIds.has(companyKey(prefix))) company = prefix;
+      }
       const createdAt = parseDate(get(row, "createdAt"));
       list.push({
         name,
-        stageId: findStage(get(row, "stage")).id,
+        // Etapa desconocida: se marca con su nombre y se crea antes de guardar
+        stageId: findStage(get(row, "stage"))?.id ?? `new:${get(row, "stage")!.trim()}`,
         amount: parseAmount(get(row, "amount")),
         closeDate: parseDate(get(row, "closeDate")),
         description: get(row, "description"),
-        ownerId: ownerOf(row),
+        ownerId: ownerOf(row) ?? userId,
         businessLineId: findLine(get(row, "line"), name),
         _company: company,
         ...(createdAt ? { createdAt, stageChangedAt: createdAt } : {}),
       });
     }
     if (unknownStages.size) {
-      result.warnings.push(`Etapas no reconocidas (se asignaron a "${stages[0]?.name}"): ${[...unknownStages].join(", ")}`);
+      result.warnings.push(
+        `Etapas de HubSpot que no existían ${dryRun ? "(se crearán" : "(se crearon"} al final del pipeline; ajústalas en Configuración): ${[...unknownStages].join(", ")}`,
+      );
     }
     records = list;
   }
@@ -293,6 +302,14 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         const list = (records as (Prisma.ContactCreateManyInput & { _company?: string })[]).map(withCompany);
         await inChunks(list, (chunk) => tx.contact.createMany({ data: chunk }));
       } else {
+        const stageIds = new Map<string, string>();
+        let order = (await tx.pipelineStage.aggregate({ _max: { order: true } }))._max.order ?? 0;
+        for (const r of records as Prisma.DealCreateManyInput[]) {
+          if (!r.stageId.startsWith("new:")) continue;
+          const name = r.stageId.slice(4);
+          if (!stageIds.has(name)) stageIds.set(name, (await tx.pipelineStage.create({ data: { name, order: ++order, probability: 0 } })).id);
+          r.stageId = stageIds.get(name)!;
+        }
         const list = (records as (Prisma.DealCreateManyInput & { _company?: string })[]).map(withCompany);
         await inChunks(list, (chunk) => tx.deal.createMany({ data: chunk }));
       }
