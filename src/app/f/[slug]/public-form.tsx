@@ -46,13 +46,13 @@ export function PublicForm({
           {f.type === "checkbox" ? (
             <label className="flex items-start gap-2 text-sm text-slate-700">
               <input type="checkbox" name={f.key} required={f.required} className="mt-0.5" />
-              <span>{f.label}{f.required && <span className="text-egrow-magenta"> *</span>}</span>
+              <span>{f.label}{f.required && <span className="text-red-600"> *</span>}</span>
             </label>
           ) : (
             <label className="block">
               <span className="mb-1 block text-sm font-medium text-slate-700">
                 {f.label}
-                {f.required && <span className="text-egrow-magenta"> *</span>}
+                {f.required && <span className="text-red-600"> *</span>}
               </span>
               {f.type === "textarea" ? (
                 <textarea name={f.key} required={f.required} rows={4} placeholder={f.placeholder} className="input py-2 text-base" />

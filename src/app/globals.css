@@ -1,26 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  /* Azul marino del logotipo de e-grow */
-  --color-brand-50: #eef1f8;
-  --color-brand-100: #dbe2f0;
-  --color-brand-200: #b8c4e0;
-  --color-brand-500: #3a5199;
-  --color-brand-600: #2a3f7d;
-  --color-brand-700: #1f305e;
-  --color-brand-800: #18264b;
-  --color-brand-900: #111b36;
-  /* Colores de los puntos del logotipo */
-  --color-egrow-magenta: #e31b8d;
-  --color-egrow-lime: #b8d43a;
-  --color-egrow-cyan: #15b7d5;
-  --color-egrow-orange: #f5933f;
+  /* Colores de e-grow: blanco, azul #1c315e (principal) y verde #b9d43a (acento) */
+  --color-brand-50: #eef1f7;
+  --color-brand-100: #dce3ef;
+  --color-brand-200: #b7c4dc;
+  --color-brand-500: #3b5487;
+  --color-brand-600: #2a416f;
+  --color-brand-700: #1c315e;
+  --color-brand-800: #16274b;
+  --color-brand-900: #0f1b35;
+  /* Verde: como fondo o relleno (con texto azul encima); para texto verde usar accent-700 */
+  --color-accent-50: #f7fae8;
+  --color-accent-100: #eef5cf;
+  --color-accent-200: #dcea9d;
+  --color-accent-400: #c7de5e;
+  --color-accent-500: #b9d43a;
+  --color-accent-600: #9db82a;
+  --color-accent-700: #5f7317;
+  /* Semáforo de alertas (distinto del verde de marca): rojo = vencido, amarillo = atención, verde = al día */
+  --color-alert-red: #dc2626;
+  --color-alert-amber: #f59e0b;
+  --color-alert-green: #16a34a;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply bg-white text-slate-800 antialiased;
   }
   h1 {
     @apply text-2xl font-semibold text-slate-900;
@@ -44,7 +51,7 @@
     @apply px-2 py-1 text-xs;
   }
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm shadow-sm outline-none placeholder:text-slate-400 focus:border-egrow-cyan focus:ring-2 focus:ring-cyan-100;
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm shadow-sm outline-none placeholder:text-slate-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-100;
   }
   .label {
     @apply mb-1 block text-xs font-medium text-slate-600;
@@ -65,6 +72,6 @@
     @apply border-b border-slate-100 px-3 py-2 align-middle;
   }
   .link {
-    @apply font-medium text-brand-600 hover:text-egrow-magenta hover:underline;
+    @apply font-medium text-brand-600 hover:text-brand-800 hover:underline;
   }
 }

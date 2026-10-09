@@ -14,9 +14,9 @@ import { NewMeetingButton } from "./new-meeting";
 
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const CHIP: Record<string, string> = {
-  REUNION: "bg-blue-100 text-blue-900",
+  REUNION: "bg-brand-100 text-brand-800",
   LLAMADA: "bg-sky-100 text-sky-900",
-  TAREA: "bg-amber-100 text-amber-900",
+  TAREA: "bg-accent-100 text-brand-800",
 };
 
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ month?: string; who?: string }> }) {
@@ -114,7 +114,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
               return (
                 <div key={d} className={`min-h-28 border-b border-r border-slate-100 p-1.5 ${inMonth ? "" : "bg-slate-50/70"}`}>
                   <div className={`mb-1 text-right text-xs ${d === today ? "font-bold" : inMonth ? "text-slate-600" : "text-slate-300"}`}>
-                    <span className={d === today ? "rounded-full bg-egrow-magenta px-1.5 py-0.5 text-white" : ""}>{Number(d.slice(8))}</span>
+                    <span className={d === today ? "rounded-full bg-accent-500 px-1.5 py-0.5 text-brand-800" : ""}>{Number(d.slice(8))}</span>
                   </div>
                   <div className="space-y-1">
                     {list.slice(0, 4).map((it) => {
@@ -149,11 +149,11 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
               const related = mt.deal ? { href: `/negocios/${mt.deal.id}`, name: mt.deal.name } : mt.contact ? { href: `/contactos/${mt.contact.id}`, name: contactName(mt.contact) } : mt.company ? { href: `/empresas/${mt.company.id}`, name: mt.company.name } : null;
               return (
                 <div key={mt.id} className="card p-3">
-                  <div className="text-xs font-medium text-blue-700 first-letter:uppercase">{formatDateTimeTz(mt.startAt!)}</div>
+                  <div className="text-xs font-medium text-brand-600 first-letter:uppercase">{formatDateTimeTz(mt.startAt!)}</div>
                   <div className="text-sm font-semibold text-slate-800">{mt.subject}</div>
                   <div className="text-xs text-slate-500">
                     {mt.durationMinutes} min · Anfitrión: {mt.assignee?.name ?? "—"}
-                    {mt.zoomMeetingId && <span className="ml-1 font-medium text-blue-700">· Zoom</span>}
+                    {mt.zoomMeetingId && <span className="ml-1 font-medium text-brand-600">· Zoom</span>}
                   </div>
                   {related && <Link href={related.href} className="block truncate text-xs text-brand-600 hover:underline">{related.name}</Link>}
                   <MeetingActions

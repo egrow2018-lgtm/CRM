@@ -10,6 +10,8 @@ import { IconPlus } from "@/components/icons";
 import { Pager, SortHeader, hrefWith, pageParams } from "@/components/pager";
 import { ContactFilters } from "./filters";
 import { ContactBoard } from "./board";
+import { lastActivityAlert } from "@/lib/alerts";
+import { SemaforoDot } from "@/components/semaforo";
 
 type SP = { tab?: string; issue?: string; q?: string; owner?: string; lead?: string; view?: string; page?: string; per?: string; sort?: string };
 
@@ -192,7 +194,16 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
                       <td className="max-w-48 truncate">{c.company ? <Link className="hover:underline" href={`/empresas/${c.company.id}`}>{c.company.name}</Link> : "—"}</td>
                       <td>{status ? <span className={`badge ${status.className}`}>{status.label}</span> : <span className="text-slate-400">—</span>}</td>
                       <td className="whitespace-nowrap">{c.owner?.name ?? <span className="text-slate-400">Sin asignar</span>}</td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{timeAgo(c.lastActivityAt)}</td>
+                      <td className="whitespace-nowrap text-xs text-slate-500">
+                        {(() => {
+                          const a = lastActivityAlert(c.lastActivityAt, { warnDays: 30, dangerDays: 90 });
+                          return (
+                            <span className="inline-flex items-center gap-1">
+                              <SemaforoDot level={a.level} title={a.label} /> {timeAgo(c.lastActivityAt)}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>
                     </tr>
                   );

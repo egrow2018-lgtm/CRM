@@ -43,10 +43,10 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   );
 
   const buckets = [
-    { key: "vencidas", label: "Vencidas", tone: "bg-rose-100", test: (t: number | null) => t !== null && t < today },
-    { key: "hoy", label: "Hoy", tone: "bg-amber-100", test: (t: number | null) => t === today },
-    { key: "semana", label: "Próximos 7 días", tone: "bg-cyan-100", test: (t: number | null) => t !== null && t > today && t <= today + 7 * DAY },
-    { key: "despues", label: "Más adelante", tone: "bg-brand-100", test: (t: number | null) => t !== null && t > today + 7 * DAY },
+    { key: "vencidas", label: "🔴 Vencidas", tone: "bg-red-100 text-red-900", test: (t: number | null) => t !== null && t < today },
+    { key: "hoy", label: "🟡 Hoy", tone: "bg-amber-100 text-amber-900", test: (t: number | null) => t === today },
+    { key: "semana", label: "🟢 Próximos 7 días", tone: "bg-green-100 text-green-900", test: (t: number | null) => t !== null && t > today && t <= today + 7 * DAY },
+    { key: "despues", label: "🟢 Más adelante", tone: "bg-green-50 text-green-900", test: (t: number | null) => t !== null && t > today + 7 * DAY },
     { key: "sinfecha", label: "Sin fecha", tone: "bg-slate-200", test: (t: number | null) => t === null },
   ];
   const isBoard = sp.view === "board" && done !== "1";

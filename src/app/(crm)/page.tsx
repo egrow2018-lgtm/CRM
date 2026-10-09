@@ -6,6 +6,9 @@ import { dealWhere, getFilterOptions, PENDING, type DealFilters } from "@/lib/qu
 import { TaskRow } from "@/components/activity-panel";
 import { DealFiltersBar } from "@/components/deal-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { SEMAFORO, SemaforoDot } from "@/components/semaforo";
+import { dealAlerts, lastActivityAlert } from "@/lib/alerts";
+import { parseCustomData } from "@/lib/custom-fields";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -62,6 +65,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       select: {
         id: true, name: true, amount: true, stageId: true, closeDate: true, stageChangedAt: true,
         lastActivityAt: true, createdAt: true, businessLineId: true, owner: { select: { name: true } },
+        customData: true,
+        activities: { where: PENDING, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1, select: { dueDate: true } },
       },
     }),
     prisma.businessLine.findMany({ orderBy: { name: "asc" } }),
@@ -151,6 +156,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         .map((y) => ({ label: String(y), value: sum(won.filter((d) => wonDate(d).getUTCFullYear() === y)) }));
   const maxWon = Math.max(1, ...wonSeries.map((m) => m.value));
 
+  // Semáforo de los negocios abiertos
+  const health = { rojo: 0, amarillo: 0, verde: 0 };
+  for (const d of open) {
+    const data = parseCustomData(d.customData);
+    const h = dealAlerts({ open: true, closeDate: d.closeDate, next: d.activities[0] ?? null, entrega: data.fechaEntrega, avance: data.avance }).health;
+    if (h) health[h]++;
+  }
+  const qs = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
+  const alertHref = (level: string) => `/negocios?${new URLSearchParams([...qs, ["alerta", level]])}`;
+
   const closingSoon = open
     .filter((d) => d.closeDate && d.closeDate <= in30)
     .sort((a, b) => a.closeDate!.getTime() - b.closeDate!.getTime())
@@ -170,6 +185,30 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Kpi label="Pipeline ponderado" value={formatMoney(weighted)} hint="Según probabilidad de cada etapa" />
         <Kpi label={`Ganado · ${periodLabel}`} value={formatMoney(sum(won))} hint={`${won.length} negocios`} />
         <Kpi label="Tasa de cierre" value={winRate == null ? "—" : `${winRate}%`} hint={`${won.length} ganados · ${lost.length} perdidos`} />
+      </div>
+
+      <div className="card p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base">Semáforo del pipeline</h2>
+          <span className="text-xs text-slate-500">Negocios abiertos según actividades, fecha de cierre y entrega</span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {(
+            [
+              ["rojo", "Vencidos", "Actividad o cierre vencido, o entrega atrasada"],
+              ["amarillo", "Requieren atención", "Sin próximas actividades o por vencer"],
+              ["verde", "Al día", "Con seguimiento programado"],
+            ] as const
+          ).map(([level, label, hint]) => (
+            <Link key={level} href={alertHref(level)} className={`rounded-xl border p-4 transition hover:shadow-md ${SEMAFORO[level].chip}`}>
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <SemaforoDot level={level} /> {label}
+              </div>
+              <div className="mt-1 text-3xl font-semibold tabular-nums">{health[level]}</div>
+              <div className="text-xs opacity-80">{hint}</div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -194,7 +233,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 <span className="h-4 truncate text-[11px] tabular-nums text-slate-500">{m.value > 0 ? formatMoney(m.value) : ""}</span>
                 <div className="flex h-32 w-full items-end">
                   <div
-                    className="w-full rounded-t bg-brand-600 transition-opacity hover:opacity-80"
+                    className="w-full rounded-t bg-accent-500 transition-opacity hover:opacity-80"
                     style={{ height: `${(m.value / maxWon) * 100}%`, minHeight: m.value > 0 ? 4 : 0 }}
                   />
                 </div>
@@ -246,8 +285,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               {closingSoon.map((d) => (
                 <li key={d.id} className="flex justify-between gap-2">
                   <Link className="link truncate" href={`/negocios/${d.id}`}>{d.name}</Link>
-                  <span className={`shrink-0 text-xs ${d.closeDate! < now ? "font-semibold text-red-600" : "text-slate-500"}`}>
+                  <span className={`flex shrink-0 items-center gap-1 text-xs ${d.closeDate! < now ? "font-semibold text-red-700" : "text-slate-500"}`}>
                     {formatDate(d.closeDate)}
+                    <SemaforoDot level={d.closeDate! < now ? "rojo" : "amarillo"} title={d.closeDate! < now ? "Fecha de cierre vencida" : "Cierra pronto"} />
                   </span>
                 </li>
               ))}
@@ -263,7 +303,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               {stale.map((d) => (
                 <li key={d.id} className="flex justify-between gap-2">
                   <Link className="link truncate" href={`/negocios/${d.id}`}>{d.name}</Link>
-                  <span className="shrink-0 text-xs text-slate-500">{d.owner?.name ?? "—"}</span>
+                  <span className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
+                    {d.owner?.name ?? "—"}
+                    {(() => {
+                      const a = lastActivityAlert(d.lastActivityAt ?? d.createdAt);
+                      return <SemaforoDot level={a.level} title={a.label} />;
+                    })()}
+                  </span>
                 </li>
               ))}
             </ul>

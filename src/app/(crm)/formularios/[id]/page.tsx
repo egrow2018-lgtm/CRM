@@ -40,7 +40,7 @@ export default async function FormPage({ params }: { params: Promise<{ id: strin
   ]);
   if (!form) notFound();
   const url = `${await publicBaseUrl()}/f/${form.slug}`;
-  const qrSvg = await QRCode.toString(url, { type: "svg", margin: 1, color: { dark: "#1f305e", light: "#ffffff" } });
+  const qrSvg = await QRCode.toString(url, { type: "svg", margin: 1, color: { dark: "#1c315e", light: "#ffffff" } });
   const fields = parseFormFields(form.fields);
 
   return (

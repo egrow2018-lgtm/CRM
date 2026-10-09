@@ -59,7 +59,7 @@ model BusinessLine {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
-  color       String   @default("#1f305e")
+  color       String   @default("#1c315e")
   active      Boolean  @default(true)
   /// Campos adicionales que se activan en los negocios de esta línea (ver src/lib/custom-fields.ts)
   customFields Json    @default("[]")

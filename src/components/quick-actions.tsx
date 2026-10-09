@@ -73,7 +73,7 @@ export function QuickActions({
             </button>
           ) : (
             <button key={type} type="button" onClick={() => setOpen(type)} className="group flex w-16 flex-col items-center gap-1 text-xs text-slate-600">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-brand-700 transition group-hover:border-egrow-cyan group-hover:bg-cyan-50">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-brand-700 transition group-hover:border-accent-500 group-hover:bg-accent-50">
                 <Icon />
               </span>
               {label}

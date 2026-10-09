@@ -14,7 +14,7 @@ export async function saveBusinessLine(id: string | null, _: ActionState, form: 
     const data = {
       name: reqStr(form, "name", "Nombre"),
       description: str(form, "description"),
-      color: str(form, "color") ?? "#1f305e",
+      color: str(form, "color") ?? "#1c315e",
       active: id ? bool(form, "active") : true,
     };
     if (id) await prisma.businessLine.update({ where: { id }, data });

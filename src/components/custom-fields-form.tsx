@@ -2,6 +2,8 @@ import type { CustomField } from "@/lib/custom-fields";
 import type { ActionState } from "@/lib/forms";
 import { formatDate } from "@/lib/format";
 import { ActionForm, SubmitButton } from "./action-form";
+import { deliveryAlert } from "@/lib/alerts";
+import { Semaforo } from "./semaforo";
 
 /** Ficha de los campos adicionales de la línea (ej. "Datos del proyecto · E-learning"). */
 export function CustomFieldsCard({
@@ -28,10 +30,12 @@ export function CustomFieldsCard({
     return f.suffix ? `${v} ${f.suffix}` : v;
   };
   const avance = Number(values.avance);
+  const delivery = deliveryAlert(values.fechaEntrega, values.avance);
 
   return (
-    <div className="card border-t-4 border-t-egrow-cyan p-4">
+    <div className="card border-t-4 border-t-accent-500 p-4">
       <h2 className="mb-3 text-base">{title}</h2>
+      {delivery && <Semaforo level={delivery.level} label={delivery.label} className="mb-3" />}
       {Number.isFinite(avance) && values.avance && (
         <div className="mb-3">
           <div className="mb-1 flex justify-between text-xs text-slate-600">
@@ -39,7 +43,7 @@ export function CustomFieldsCard({
             <span className="font-semibold">{Math.min(100, avance)}%</span>
           </div>
           <div className="h-2 rounded bg-slate-100">
-            <div className="h-2 rounded bg-egrow-cyan" style={{ width: `${Math.min(100, Math.max(0, avance))}%` }} />
+            <div className="h-2 rounded bg-accent-500" style={{ width: `${Math.min(100, Math.max(0, avance))}%` }} />
           </div>
         </div>
       )}

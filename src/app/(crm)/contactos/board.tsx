@@ -22,7 +22,7 @@ export type BoardContact = {
 
 const COLUMNS: { key: LeadStatus | "none"; label: string; tone: string }[] = [
   { key: "none", label: "Sin estado", tone: "bg-slate-200" },
-  { key: "NUEVO", label: LEAD_STATUS.NUEVO.label, tone: "bg-pink-100" },
+  { key: "NUEVO", label: LEAD_STATUS.NUEVO.label, tone: "bg-accent-100" },
   { key: "EN_SEGUIMIENTO", label: LEAD_STATUS.EN_SEGUIMIENTO.label, tone: "bg-amber-100" },
   { key: "CALIFICADO", label: LEAD_STATUS.CALIFICADO.label, tone: "bg-emerald-100" },
   { key: "DESCARTADO", label: LEAD_STATUS.DESCARTADO.label, tone: "bg-slate-100" },

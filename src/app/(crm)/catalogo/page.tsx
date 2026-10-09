@@ -32,7 +32,7 @@ export default async function CatalogPage() {
           <ActionForm action={saveBusinessLine.bind(null, null)} resetOnSuccess className="mt-3 grid gap-3 sm:grid-cols-6">
             <input name="name" required placeholder="Nombre" className="input sm:col-span-2" />
             <input name="description" placeholder="Descripción" className="input sm:col-span-3" />
-            <input name="color" type="color" defaultValue="#1f305e" className="input h-9 p-1 sm:col-span-1" title="Color" />
+            <input name="color" type="color" defaultValue="#1c315e" className="input h-9 p-1 sm:col-span-1" title="Color" />
             <div className="sm:col-span-6"><SubmitButton>Crear línea</SubmitButton></div>
           </ActionForm>
         </details>

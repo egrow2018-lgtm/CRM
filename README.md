@@ -21,6 +21,22 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | **Importar HubSpot** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés. Tiene modo simulación, omite duplicados y deduce la línea de negocio a partir del nombre. |
 | **Configuración** | Usuarios, perfiles y etapas del pipeline (nombre, orden y probabilidad). |
 
+### Colores y semáforo
+
+- **Marca:** fondo blanco, azul `#1c315e` como color principal (menú, botones, títulos) y verde `#b9d43a` como acento (indicadores, avance, «hoy»). El verde se usa como fondo o relleno con texto azul encima, porque como texto sobre blanco no se lee bien. Los colores están definidos en `src/app/globals.css`.
+- **Semáforo de alertas** (`src/lib/alerts.ts`): 🔴 **rojo** = vencido o urgente, 🟡 **amarillo** = requiere atención, 🟢 **verde** = al día. Usa un verde estándar, distinto del de la marca, y cada alerta lleva un símbolo (✕ ! ✓) y un texto, así no depende solo del color.
+
+| Dónde | 🔴 Rojo | 🟡 Amarillo | 🟢 Verde |
+|---|---|---|---|
+| Negocio: próxima actividad | Vencida | Sin próximas actividades o vence hoy | Programada |
+| Negocio: fecha de cierre | Vencida | Cierra en 30 días o menos | A tiempo |
+| Proyecto: fecha de entrega | Atrasada | Se entrega en 7 días o menos | A tiempo o 100 % |
+| Tareas | Vencidas | Hoy | Próximas |
+| Leads | Sin atender más de 24 h | Nuevo de hoy | — |
+| Contactos: última actividad | Más de 90 días o nunca | Más de 30 días | Reciente |
+
+El borde de cada tarjeta del tablero toma el color de su alerta más grave. Inicio muestra el **Semáforo del pipeline**, y cada número abre esos negocios.
+
 ### Perfiles
 
 | Perfil | Permisos | Equipo |

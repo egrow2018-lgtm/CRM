@@ -47,7 +47,7 @@ export function DealFiltersBar({ options, variant = "board" }: { options: Option
   const products = line && line !== "none" ? options.products.filter((p) => p.lineId === line) : options.products;
   const groups = new Map<string, typeof products>();
   for (const p of products) groups.set(p.lineName, [...(groups.get(p.lineName) ?? []), p]);
-  const active = ["year", "line", "product", "owner", "q", "from", "to"].some((k) => params.get(k));
+  const active = ["year", "line", "product", "owner", "q", "from", "to", "alerta"].some((k) => params.get(k));
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -100,6 +100,12 @@ export function DealFiltersBar({ options, variant = "board" }: { options: Option
       </select>
       {variant === "board" && (
         <>
+          <select aria-label="Semáforo" className="input w-auto" value={params.get("alerta") ?? ""} onChange={(e) => update({ alerta: e.target.value })}>
+            <option value="">Semáforo: todos</option>
+            <option value="rojo">🔴 Vencidos</option>
+            <option value="amarillo">🟡 Requieren atención</option>
+            <option value="verde">🟢 Al día</option>
+          </select>
           <label className="flex items-center gap-1 text-xs text-slate-500">
             Cierre desde
             <input type="date" className="input w-auto" value={params.get("from") ?? ""} onChange={(e) => update({ from: e.target.value })} />
@@ -115,7 +121,7 @@ export function DealFiltersBar({ options, variant = "board" }: { options: Option
           className="text-xs font-medium text-brand-600 hover:underline"
           onClick={() => {
             setQ("");
-            update({ year: "", line: "", product: "", owner: "", q: "", from: "", to: "" });
+            update({ year: "", line: "", product: "", owner: "", q: "", from: "", to: "", alerta: "" });
           }}
         >
           Limpiar filtros

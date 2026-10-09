@@ -7,6 +7,8 @@ import { contactName, formatDateTime } from "@/lib/format";
 import { LEAD_STATUS } from "@/lib/leads";
 import { EmptyState, LineBadge, PageHeader } from "@/components/ui";
 import { setLeadStatus, takeLead } from "./actions";
+import { leadAlert } from "@/lib/alerts";
+import { Semaforo } from "@/components/semaforo";
 
 const TABS: { key: string; label: string; where: (userId: string) => Prisma.ContactWhereInput }[] = [
   { key: "nuevos", label: "Nuevos sin asignar", where: () => ({ leadStatus: "NUEVO" }) },
@@ -75,6 +77,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     <Link href={`/contactos/${c.id}`} className="link text-base">{contactName(c)}</Link>
                     {status && <span className={`badge ${status.className}`}>{status.label}</span>}
                     <LineBadge line={line} />
+                    {(() => {
+                      const a = leadAlert(sub?.createdAt ?? c.createdAt, c.leadStatus);
+                      return a && <Semaforo level={a.level} label={a.label} />;
+                    })()}
                   </div>
                   <div className="mt-0.5 text-sm text-slate-600">
                     {[c.jobTitle, c.company?.name].filter(Boolean).join(" · ")}

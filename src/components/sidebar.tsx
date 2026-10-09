@@ -49,7 +49,7 @@ export function Sidebar({
       <div className="flex items-end gap-2 px-5 py-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/egrow-logo.png" alt="e-grow" className="h-9 w-auto" />
-        <span className="pb-0.5 text-sm font-semibold tracking-wide text-egrow-magenta">CRM</span>
+        <span className="pb-0.5 rounded bg-accent-500 px-1.5 text-xs font-bold tracking-wide text-brand-800">CRM</span>
       </div>
       <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-1 md:flex-col md:overflow-visible">
         {items.map(({ href, label, icon: Icon, ...rest }) => {
@@ -60,13 +60,13 @@ export function Sidebar({
               key={href}
               href={href}
               className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
-                active ? "bg-brand-50 font-semibold text-brand-700" : "hover:bg-slate-100 hover:text-slate-900"
+                active ? "bg-brand-700 font-semibold text-white [&>svg]:text-accent-400" : "hover:bg-brand-50 hover:text-brand-700"
               }`}
             >
               <Icon />
               {label}
               {!!badge && (
-                <span className="ml-auto rounded-full bg-egrow-magenta px-1.5 text-[11px] font-semibold text-white">{badge}</span>
+                <span className="ml-auto rounded-full bg-accent-500 px-1.5 text-[11px] font-bold text-brand-800">{badge}</span>
               )}
             </Link>
           );

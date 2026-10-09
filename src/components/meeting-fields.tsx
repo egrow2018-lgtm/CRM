@@ -44,7 +44,7 @@ export function MeetingFields({
           ))}
         </select>
       </label>
-      <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm sm:col-span-3 ${zoom ? "border-blue-300 bg-blue-50 text-blue-900" : "border-slate-200"}`}>
+      <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm sm:col-span-3 ${zoom ? "border-accent-500 bg-accent-50 text-brand-800" : "border-slate-200"}`}>
         <input type="checkbox" name="zoom" checked={zoom} disabled={!zoomEnabled} onChange={(e) => setZoom(e.target.checked)} />
         <span>
           <b>Crear reunión de Zoom</b>

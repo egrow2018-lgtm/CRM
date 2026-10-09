@@ -29,12 +29,12 @@ export function MeetingActions({
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
       {hostUrl && (
-        <a href={hostUrl} target="_blank" rel="noreferrer" className="btn btn-sm border-blue-600 bg-blue-600 text-white hover:bg-blue-700">
+        <a href={hostUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-primary">
           Iniciar {isZoom ? "Zoom" : "reunión"}
         </a>
       )}
       {joinUrl && (
-        <a href={joinUrl} target="_blank" rel="noreferrer" className={`btn btn-sm ${hostUrl ? "" : "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"}`}>
+        <a href={joinUrl} target="_blank" rel="noreferrer" className={`btn btn-sm ${hostUrl ? "" : "btn-primary"}`}>
           Unirse
         </a>
       )}

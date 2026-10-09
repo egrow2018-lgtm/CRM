@@ -5,6 +5,8 @@ import { useState, useTransition } from "react";
 import { formatDate, formatMoney, timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/ui";
 import { QuickActions } from "@/components/quick-actions";
+import { Semaforo, SemaforoDot, SEMAFORO } from "@/components/semaforo";
+import { dealAlerts } from "@/lib/alerts";
 import { moveDeal } from "./actions";
 
 export type BoardStage = { id: string; name: string; probability: number; isWon: boolean; isLost: boolean };
@@ -38,7 +40,6 @@ export function DealBoard({
   users: { id: string; name: string }[];
   zoomEnabled: boolean;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
   const [deals, setDeals] = useState(initial);
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
@@ -75,7 +76,7 @@ export function DealBoard({
         const items = deals.filter((d) => d.stageId === stage.id);
         const total = items.reduce((s, d) => s + d.amount, 0);
         const weighted = (total * stage.probability) / 100;
-        const headerColor = stage.isWon ? "bg-emerald-100" : stage.isLost ? "bg-rose-100" : "bg-orange-50";
+        const headerColor = stage.isWon ? "bg-accent-200" : stage.isLost ? "bg-rose-100" : "bg-brand-50";
         return (
           <div
             key={stage.id}
@@ -96,13 +97,16 @@ export function DealBoard({
               </div>
             </div>
             <div className="flex-1 space-y-2 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 290px)" }}>
-              {items.map((d) => (
+              {items.map((d) => {
+                const open = !stage.isWon && !stage.isLost;
+                const alerts = dealAlerts({ open, closeDate: d.closeDate, next: d.next, entrega: d.project?.entrega, avance: d.project?.avance });
+                return (
                 <div
                   key={d.id}
                   draggable
                   onDragStart={() => setDragging(d.id)}
                   onDragEnd={() => setDragging(null)}
-                  className={`card cursor-grab p-3 text-xs active:cursor-grabbing ${dragging === d.id ? "opacity-40" : ""}`}
+                  className={`card cursor-grab p-3 text-xs active:cursor-grabbing ${alerts.health ? `border-l-4 ${SEMAFORO[alerts.health].border}` : ""} ${dragging === d.id ? "opacity-40" : ""}`}
                 >
                   <Link href={`/negocios/${d.id}`} className="block text-sm font-semibold leading-snug text-brand-800 hover:underline">
                     {d.name}
@@ -115,34 +119,36 @@ export function DealBoard({
                   <dl className="mt-2 space-y-0.5 text-slate-600">
                     <div>Valor: <span className="font-medium text-slate-800">{formatMoney(d.amount)}</span></div>
                     {d.company && <div className="truncate">Empresa: {d.company}</div>}
-                    <div>Fecha de cierre: {formatDate(d.closeDate ? new Date(d.closeDate) : null)}</div>
+                    <div className="flex items-center gap-1">
+                      Fecha de cierre: {formatDate(d.closeDate ? new Date(d.closeDate) : null)}
+                      {alerts.close && alerts.close.level !== "verde" && <SemaforoDot level={alerts.close.level} title={alerts.close.label} />}
+                    </div>
                     <div>Creado: {formatDate(new Date(d.createdAt))}</div>
-                    {d.project?.entrega && <div>Entrega: {formatDate(new Date(`${d.project.entrega}T00:00:00Z`))}</div>}
+                    {d.project?.entrega && (
+                      <div className="flex items-center gap-1">
+                        Entrega: {formatDate(new Date(`${d.project.entrega}T00:00:00Z`))}
+                        {alerts.delivery && <SemaforoDot level={alerts.delivery.level} title={alerts.delivery.label} />}
+                      </div>
+                    )}
                   </dl>
                   {d.project?.avance && (
                     <div className="mt-1.5 h-1.5 rounded bg-slate-100" title={`Avance ${d.project.avance}%`}>
-                      <div className="h-1.5 rounded bg-egrow-cyan" style={{ width: `${Math.min(100, Number(d.project.avance))}%` }} />
+                      <div className="h-1.5 rounded bg-accent-500" style={{ width: `${Math.min(100, Number(d.project.avance))}%` }} />
                     </div>
                   )}
-                  <div
-                    className={`mt-2 truncate rounded-md border px-2 py-1 ${
-                      !d.next
-                        ? "border-slate-200 text-slate-400"
-                        : d.next.dueDate && d.next.dueDate.slice(0, 10) < today
-                          ? "border-red-200 bg-red-50 text-red-700"
-                          : "border-amber-200 bg-amber-50 text-amber-800"
-                    }`}
-                    title={d.next ? `${NEXT_LABEL[d.next.type] ?? ""}: ${d.next.subject}` : undefined}
-                  >
-                    {d.next ? (
-                      <>
-                        {NEXT_LABEL[d.next.type]} {d.next.dueDate ? formatDate(new Date(d.next.dueDate)) : ""} · {d.next.subject}
-                        {d.pending > 1 && <span className="text-slate-500"> (+{d.pending - 1})</span>}
-                      </>
-                    ) : (
-                      "No hay próximas actividades"
-                    )}
-                  </div>
+                  {open && alerts.next && (
+                    <div className="mt-2" title={d.next ? `${NEXT_LABEL[d.next.type] ?? ""}: ${d.next.subject}` : undefined}>
+                      <Semaforo
+                        level={alerts.next.level}
+                        className="w-full"
+                        label={
+                          d.next
+                            ? `${NEXT_LABEL[d.next.type] ?? ""} ${d.next.dueDate ? formatDate(new Date(d.next.dueDate)) : ""} · ${d.next.subject}${d.pending > 1 ? ` (+${d.pending - 1})` : ""}`
+                            : alerts.next.label
+                        }
+                      />
+                    </div>
+                  )}
                   <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-slate-500">
                     <span className="flex items-center gap-1.5">
                       {d.owner ? <Avatar name={d.owner} /> : <span className="italic">Sin propietario</span>}
@@ -153,7 +159,8 @@ export function DealBoard({
                     <QuickActions compact target={{ dealId: d.id }} users={users} contact={d.contact} zoomEnabled={zoomEnabled} />
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             <div className="rounded-b-xl border-t border-slate-200 bg-white/60 px-3 py-2 text-xs text-slate-600">
               <div><span className="font-semibold text-slate-800">{formatMoney(total)}</span> · Cantidad total</div>

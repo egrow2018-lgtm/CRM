@@ -6,6 +6,8 @@ import { QuickActions } from "./quick-actions";
 import { MeetingActions } from "./meeting-actions";
 import { googleCalendarUrl, meetingInvitation } from "@/lib/meetings";
 import { formatTimeTz } from "@/lib/timezone";
+import { nextActivityAlert } from "@/lib/alerts";
+import { SemaforoDot } from "./semaforo";
 
 export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   NOTA: "Nota",
@@ -82,7 +84,7 @@ export function ActivityPanel({
           <ol className="relative space-y-4 border-l border-slate-200 pl-4">
             {history.map((a) => (
               <li key={a.id} className="relative">
-                <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-egrow-cyan" />
+                <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-accent-500" />
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`badge ${COLORS[a.type]}`}>{ACTIVITY_LABELS[a.type]}</span>
                   <span className="text-sm font-medium">{a.subject}</span>
@@ -123,7 +125,7 @@ export function TaskRow({
   viewerId?: string;
   inviteEmail?: string | null;
 }) {
-  const overdue = task.dueDate && !task.completed && task.dueDate < new Date(new Date().toISOString().slice(0, 10));
+  const alert = !task.completed && task.dueDate ? nextActivityAlert(task.dueDate, true) : null;
   return (
     <li className="flex items-start gap-3 py-2">
       <form action={toggleTask.bind(null, task.id)}>
@@ -144,11 +146,12 @@ export function TaskRow({
         </div>
         {task.body && <div className="text-xs text-slate-500">{task.body}</div>}
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
-          <span className={overdue ? "font-semibold text-red-600" : ""}>
+          <span className={`inline-flex items-center gap-1 ${alert?.level === "rojo" ? "font-semibold text-red-700" : ""}`}>
+            {alert && <SemaforoDot level={alert.level} title={alert.label} />}
             {task.type === "TAREA" ? "Vence" : "Fecha"}: {formatDate(task.dueDate)}
             {task.startAt && ` · ${formatTimeTz(task.startAt)}${task.durationMinutes ? ` (${task.durationMinutes} min)` : ""}`}
           </span>
-          {task.zoomMeetingId && <span className="font-medium text-blue-700">Zoom</span>}
+          {task.zoomMeetingId && <span className="font-medium text-brand-600">Zoom</span>}
           {task.assignee && <span>{task.type === "REUNION" ? "Anfitrión" : "Asignada a"}: {task.assignee.name}</span>}
           {showDeal && task.deal && (
             <Link className="text-brand-700 hover:underline" href={`/negocios/${task.deal.id}`}>{task.deal.name}</Link>
