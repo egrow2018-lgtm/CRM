@@ -8,8 +8,8 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 
 | Módulo | Qué hace |
 |---|---|
-| **Inicio** | Indicadores (pipeline abierto, ponderado, ganado del año, tasa de cierre), valor por etapa, pipeline por línea de negocio, ganado por mes, mis tareas, negocios por cerrar y negocios sin actividad hace más de 30 días. |
-| **Negocios** | Tablero Kanban con arrastrar y soltar, totales y cantidad ponderada por etapa (igual que en HubSpot), filtros por propietario, línea de negocio y fecha de cierre, búsqueda y vista de lista. Ficha con barra de etapas, productos cotizados (el valor se calcula solo), historial y tareas. |
+| **Inicio** | Indicadores (pipeline abierto, ponderado, ganado, tasa de cierre), valor por etapa, pipeline y ganado por línea de negocio, ganado por producto o servicio, ganado por año o por mes, mis tareas, negocios por cerrar y negocios sin actividad hace más de 30 días. Todo se puede filtrar por **año de cierre, línea de negocio, producto o servicio y propietario**. |
+| **Negocios** | Tablero Kanban con arrastrar y soltar, totales y cantidad ponderada por etapa (igual que en HubSpot), filtros por año de cierre, línea de negocio, producto o servicio, propietario y rango de fechas, búsqueda y vista de lista. Ficha con barra de etapas, productos cotizados (el valor se calcula solo), historial y tareas. |
 | **Contactos / Empresas** | Fichas con negocios asociados, historial de actividades, enlace a WhatsApp y búsqueda. |
 | **Actividades y tareas** | Notas, llamadas, reuniones, correos y tareas con fecha límite y responsable. Cada cambio de etapa queda registrado automáticamente. |
 | **Líneas y productos** | Alta de nuevas líneas o representaciones y de su catálogo (producto o servicio, SKU y precio de lista). |

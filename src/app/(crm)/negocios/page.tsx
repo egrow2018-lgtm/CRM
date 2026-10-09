@@ -2,21 +2,20 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { dealCardInclude, dealWhere, type DealFilters } from "@/lib/queries";
+import { dealCardInclude, dealWhere, getFilterOptions, type DealFilters } from "@/lib/queries";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { LineBadge, PageHeader } from "@/components/ui";
 import { IconPlus } from "@/components/icons";
-import { DealFiltersBar } from "./filters";
+import { DealFiltersBar } from "@/components/deal-filters";
 import { DealBoard } from "./board";
 
 export default async function DealsPage({ searchParams }: { searchParams: Promise<DealFilters & { view?: string }> }) {
   const user = await requireUser();
   const sp = await searchParams;
-  const [stages, deals, users, lines] = await Promise.all([
+  const [stages, deals, filterOptions] = await Promise.all([
     prisma.pipelineStage.findMany({ orderBy: { order: "asc" } }),
     prisma.deal.findMany({ where: dealWhere(sp, user.id), include: dealCardInclude, orderBy: { createdAt: "desc" } }),
-    prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.businessLine.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    getFilterOptions(),
   ]);
 
   const openDeals = deals.filter((d) => !d.stage.isWon && !d.stage.isLost);
@@ -36,7 +35,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           )
         }
       />
-      <DealFiltersBar users={users} lines={lines} />
+      <DealFiltersBar options={filterOptions} />
       {sp.view === "list" ? (
         <div className="card overflow-x-auto">
           <table className="table">

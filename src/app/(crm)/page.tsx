@@ -2,8 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
+import { dealWhere, getFilterOptions, type DealFilters } from "@/lib/queries";
 import { TaskRow } from "@/components/activity-panel";
-import { PageHeader } from "@/components/ui";
+import { DealFiltersBar } from "@/components/deal-filters";
+import { EmptyState, PageHeader } from "@/components/ui";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -43,16 +45,20 @@ function HBars({ rows }: { rows: { label: string; value: number; sub?: string; c
   );
 }
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<DealFilters> }) {
   const user = await requireUser();
+  const sp = await searchParams;
+  const filters: DealFilters = { year: sp.year, line: sp.line, product: sp.product, owner: sp.owner };
+  const where = dealWhere(filters, user.id);
+  const year = Number(sp.year) || null;
   const now = new Date();
-  const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
   const in30 = new Date(now.getTime() + 30 * 86400000);
   const ago30 = new Date(now.getTime() - 30 * 86400000);
 
-  const [stages, deals, lines, myTasks] = await Promise.all([
+  const [stages, deals, lines, myTasks, filterOptions, wonItems] = await Promise.all([
     prisma.pipelineStage.findMany({ orderBy: { order: "asc" } }),
     prisma.deal.findMany({
+      where,
       select: {
         id: true, name: true, amount: true, stageId: true, closeDate: true, stageChangedAt: true,
         lastActivityAt: true, createdAt: true, businessLineId: true, owner: { select: { name: true } },
@@ -65,6 +71,15 @@ export default async function Dashboard() {
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
       take: 8,
     }),
+    getFilterOptions(),
+    // Productos y servicios de los negocios ganados (respetando los filtros)
+    prisma.dealItem.findMany({
+      where: { deal: { AND: [where, { stage: { isWon: true } }] }, ...(sp.product ? { productId: sp.product } : {}) },
+      select: {
+        description: true, quantity: true, unitPrice: true, discount: true,
+        product: { select: { id: true, name: true, businessLine: { select: { color: true } } } },
+      },
+    }),
   ]);
 
   const stageById = new Map(stages.map((s) => [s.id, s]));
@@ -73,14 +88,14 @@ export default async function Dashboard() {
     return s && !s.isWon && !s.isLost;
   });
   const wonDate = (d: (typeof deals)[number]) => d.closeDate ?? d.stageChangedAt;
-  const wonThisYear = deals.filter((d) => stageById.get(d.stageId)?.isWon && wonDate(d) >= yearStart);
-  const lostThisYear = deals.filter((d) => stageById.get(d.stageId)?.isLost && d.stageChangedAt >= yearStart);
+  // Los filtros (incluido el año de cierre) ya se aplicaron en la consulta
+  const won = deals.filter((d) => stageById.get(d.stageId)?.isWon);
+  const lost = deals.filter((d) => stageById.get(d.stageId)?.isLost);
   const sum = (xs: typeof deals) => xs.reduce((s, d) => s + toNumber(d.amount), 0);
   const openTotal = sum(open);
   const weighted = open.reduce((s, d) => s + (toNumber(d.amount) * (stageById.get(d.stageId)?.probability ?? 0)) / 100, 0);
-  const winRate = wonThisYear.length + lostThisYear.length > 0
-    ? Math.round((wonThisYear.length / (wonThisYear.length + lostThisYear.length)) * 100)
-    : null;
+  const winRate = won.length + lost.length > 0 ? Math.round((won.length / (won.length + lost.length)) * 100) : null;
+  const periodLabel = year ? String(year) : sp.year === "none" ? "sin fecha de cierre" : "todos los años";
 
   const byStage = stages
     .filter((s) => !s.isLost)
@@ -99,11 +114,37 @@ export default async function Dashboard() {
       : []),
   ];
 
-  const wonByMonth = MONTHS.map((m, i) => ({
-    label: m,
-    value: sum(wonThisYear.filter((d) => wonDate(d).getUTCMonth() === i)),
-  }));
-  const maxMonth = Math.max(1, ...wonByMonth.map((m) => m.value));
+  const wonByLine = [
+    ...lines.map((l) => {
+      const items = won.filter((d) => d.businessLineId === l.id);
+      return { label: l.name, value: sum(items), sub: `${items.length} neg.`, color: l.color };
+    }),
+    ...(won.some((d) => !d.businessLineId)
+      ? [{ label: "Sin línea", value: sum(won.filter((d) => !d.businessLineId)), sub: `${won.filter((d) => !d.businessLineId).length} neg.`, color: "#94a3b8" }]
+      : []),
+  ].filter((r) => r.value > 0 || r.sub !== "0 neg.");
+
+  const byProduct = new Map<string, { label: string; value: number; qty: number; color?: string }>();
+  for (const it of wonItems) {
+    const key = it.product?.id ?? `d:${it.description}`;
+    const subtotal = toNumber(it.quantity) * toNumber(it.unitPrice) * (1 - toNumber(it.discount) / 100);
+    const row = byProduct.get(key) ?? { label: it.product?.name ?? it.description, value: 0, qty: 0, color: it.product?.businessLine.color };
+    row.value += subtotal;
+    row.qty += toNumber(it.quantity);
+    byProduct.set(key, row);
+  }
+  const productRows = [...byProduct.values()]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10)
+    .map((r) => ({ label: r.label, value: r.value, sub: `${r.qty} u.`, color: r.color }));
+
+  // Con un año elegido: ganado por mes. Sin año: ganado por año.
+  const wonSeries = year
+    ? MONTHS.map((m, i) => ({ label: m, value: sum(won.filter((d) => wonDate(d).getUTCMonth() === i)) }))
+    : [...new Set(won.map((d) => wonDate(d).getUTCFullYear()))]
+        .sort((a, b) => a - b)
+        .map((y) => ({ label: String(y), value: sum(won.filter((d) => wonDate(d).getUTCFullYear() === y)) }));
+  const maxWon = Math.max(1, ...wonSeries.map((m) => m.value));
 
   const closingSoon = open
     .filter((d) => d.closeDate && d.closeDate <= in30)
@@ -117,12 +158,13 @@ export default async function Dashboard() {
   return (
     <div className="space-y-5">
       <PageHeader title={`Hola, ${user.name.split(" ")[0]} 👋`} subtitle="Resumen comercial de e-grow" />
+      <DealFiltersBar options={filterOptions} variant="dashboard" />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Pipeline abierto" value={formatMoney(openTotal)} hint={`${open.length} negocios abiertos`} />
         <Kpi label="Pipeline ponderado" value={formatMoney(weighted)} hint="Según probabilidad de cada etapa" />
-        <Kpi label={`Ganado ${now.getUTCFullYear()}`} value={formatMoney(sum(wonThisYear))} hint={`${wonThisYear.length} negocios`} />
-        <Kpi label="Tasa de cierre" value={winRate == null ? "—" : `${winRate}%`} hint={`${wonThisYear.length} ganados · ${lostThisYear.length} perdidos este año`} />
+        <Kpi label={`Ganado · ${periodLabel}`} value={formatMoney(sum(won))} hint={`${won.length} negocios`} />
+        <Kpi label="Tasa de cierre" value={winRate == null ? "—" : `${winRate}%`} hint={`${won.length} ganados · ${lost.length} perdidos`} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -137,20 +179,42 @@ export default async function Dashboard() {
       </div>
 
       <div className="card p-4">
-        <h2 className="mb-3 text-base">Ganado por mes ({now.getUTCFullYear()})</h2>
-        <div className="flex items-end gap-2">
-          {wonByMonth.map((m) => (
-            <div key={m.label} className="flex flex-1 flex-col items-center gap-1" title={`${m.label}: ${formatMoney(m.value)}`}>
-              <span className="h-4 text-[11px] tabular-nums text-slate-500">{m.value > 0 ? formatMoney(m.value) : ""}</span>
-              <div className="flex h-32 w-full items-end">
-                <div
-                  className="w-full rounded-t bg-brand-600 transition-opacity hover:opacity-80"
-                  style={{ height: `${(m.value / maxMonth) * 100}%`, minHeight: m.value > 0 ? 4 : 0 }}
-                />
+        <h2 className="mb-3 text-base">{year ? `Ganado por mes (${year})` : "Ganado por año"}</h2>
+        {wonSeries.length === 0 ? (
+          <p className="text-sm text-slate-500">No hay negocios ganados con estos filtros.</p>
+        ) : (
+          <div className="flex items-end gap-2">
+            {wonSeries.map((m) => (
+              <div key={m.label} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`${m.label}: ${formatMoney(m.value)}`}>
+                <span className="h-4 truncate text-[11px] tabular-nums text-slate-500">{m.value > 0 ? formatMoney(m.value) : ""}</span>
+                <div className="flex h-32 w-full items-end">
+                  <div
+                    className="w-full rounded-t bg-brand-600 transition-opacity hover:opacity-80"
+                    style={{ height: `${(m.value / maxWon) * 100}%`, minHeight: m.value > 0 ? 4 : 0 }}
+                  />
+                </div>
+                <span className="text-[11px] text-slate-500">{m.label}</span>
               </div>
-              <span className="text-[11px] text-slate-500">{m.label}</span>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="card p-4">
+          <h2 className="mb-3 text-base">Ganado por línea de negocio</h2>
+          {wonByLine.length === 0 ? <p className="text-sm text-slate-500">Sin negocios ganados.</p> : <HBars rows={wonByLine} />}
+        </div>
+        <div className="card p-4">
+          <h2 className="mb-3 text-base">Ganado por producto o servicio</h2>
+          {productRows.length === 0 ? (
+            <EmptyState>
+              Aún no hay negocios ganados con productos cargados. Agrega productos en la ficha de cada negocio para ver este
+              desglose.
+            </EmptyState>
+          ) : (
+            <HBars rows={productRows} />
+          )}
         </div>
       </div>
 
