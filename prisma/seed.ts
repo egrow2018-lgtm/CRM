@@ -23,6 +23,14 @@ const STAGES = [
   { name: "StandBy", probability: 0 },
 ];
 
+/** Servicios recurrentes y cada cuántos meses se renuevan */
+const RENEWALS: Record<string, number> = {
+  "Plataforma LMS": 12,
+  "Servicio de monitoreo mensual": 12,
+  "Licencia plataforma Ludus VR": 12,
+  "Licencia Humand (por usuario)": 12,
+};
+
 const LINES: { name: string; description: string; color: string; products: [string, ProductType][] }[] = [
   {
     name: "E-learning",
@@ -100,9 +108,17 @@ async function main() {
         description: line.description,
         color: line.color,
         customFields: line.name === "E-learning" ? ELEARNING_FIELDS : [],
-        products: { create: line.products.map(([name, type]) => ({ name, type })) },
+        products: { create: line.products.map(([name, type]) => ({ name, type, renewalMonths: RENEWALS[name] ?? null })) },
       },
     });
+  }
+
+  // Una sola vez: marca como recurrentes los servicios conocidos (después se editan en el catálogo)
+  if (!(await prisma.appSetting.findUnique({ where: { key: "seed:renewals" } }))) {
+    for (const [name, months] of Object.entries(RENEWALS)) {
+      await prisma.product.updateMany({ where: { name, renewalMonths: null }, data: { renewalMonths: months } });
+    }
+    await prisma.appSetting.create({ data: { key: "seed:renewals", value: true } });
   }
 
   console.log("Seed listo.");

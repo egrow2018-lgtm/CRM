@@ -9,6 +9,7 @@ import { can, canMoveDeal } from "@/lib/permissions";
 import { date, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { parseCustomData, parseCustomFields } from "@/lib/custom-fields";
+import { createRenewalDeal, setRenewalOnWin } from "@/lib/renewals";
 
 function dealData(form: FormData) {
   return {
@@ -21,6 +22,7 @@ function dealData(form: FormData) {
     closeDate: date(form, "closeDate"),
     description: str(form, "description"),
     lostReason: str(form, "lostReason"),
+    renewalDate: date(form, "renewalDate"),
   };
 }
 
@@ -63,11 +65,20 @@ export async function updateDeal(id: string, _: ActionState, form: FormData) {
           ...(current.stageId !== data.stageId ? { stageChangedAt: new Date() } : {}),
         },
       });
-      if (current.stageId !== data.stageId) await logStageChange(tx, id, current.stageId, data.stageId, user.id);
+      if (current.stageId !== data.stageId) {
+        await logStageChange(tx, id, current.stageId, data.stageId, user.id);
+        await onStageChanged(tx, id, data.stageId);
+      }
     });
     revalidatePath("/negocios");
     return `/negocios/${id}`;
   });
+}
+
+/** Al pasar a ganado se calcula la fecha de renovación de los productos recurrentes. */
+async function onStageChanged(tx: Prisma.TransactionClient, dealId: string, stageId: string) {
+  const stage = await tx.pipelineStage.findUnique({ where: { id: stageId } });
+  if (stage?.isWon) await setRenewalOnWin(tx, dealId);
 }
 
 async function logStageChange(tx: Prisma.TransactionClient, dealId: string, fromId: string, toId: string, userId: string) {
@@ -91,6 +102,7 @@ export async function moveDeal(dealId: string, stageId: string): Promise<ActionS
   await prisma.$transaction(async (tx) => {
     await tx.deal.update({ where: { id: dealId }, data: { stageId, stageChangedAt: new Date() } });
     await logStageChange(tx, dealId, deal.stageId, stageId, user.id);
+    await onStageChanged(tx, dealId, stageId);
   });
   revalidatePath("/negocios");
   revalidatePath(`/negocios/${dealId}`);
@@ -165,4 +177,15 @@ export async function updateDealCustomData(dealId: string, _: ActionState, form:
     revalidatePath(`/negocios/${dealId}`);
     revalidatePath("/negocios");
   });
+}
+
+/** Crea ahora el negocio de renovación (sin esperar el aviso automático). */
+export async function createRenewalNow(dealId: string) {
+  const user = await requirePermission("crm:write");
+  const existing = await prisma.deal.count({ where: { renewalOfId: dealId } });
+  if (existing > 0) throw new Error("Este negocio ya tiene un negocio de renovación.");
+  const renewal = await prisma.$transaction((tx) => createRenewalDeal(tx, dealId, user.id));
+  revalidatePath("/negocios");
+  revalidatePath("/");
+  redirect(`/negocios/${renewal.id}`);
 }

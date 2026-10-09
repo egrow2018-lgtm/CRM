@@ -11,8 +11,13 @@ import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { DealForm } from "../deal-form";
 import { StageBar } from "../stage-bar";
-import { addDealItem, deleteDeal, removeDealItem, updateDeal, updateDealCustomData } from "../actions";
+import { addDealItem, createRenewalNow, deleteDeal, removeDealItem, updateDeal, updateDealCustomData } from "../actions";
+import { renewalAlert } from "@/lib/alerts";
+import { Semaforo } from "@/components/semaforo";
 import { CustomFieldsCard } from "@/components/custom-fields-form";
+import { QuotesCard } from "@/components/quotes-card";
+import { getCompanySettings } from "@/lib/settings";
+import { appUrl, emailConfigured } from "@/lib/email";
 import { parseCustomData, parseCustomFields } from "@/lib/custom-fields";
 
 export default async function DealPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
@@ -29,6 +34,9 @@ export default async function DealPage({ params, searchParams }: { params: Promi
       businessLine: true,
       items: { include: { product: { include: { businessLine: true } } }, orderBy: { id: "asc" } },
       activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
+      quotes: { orderBy: { createdAt: "desc" } },
+      renewalOf: { select: { id: true, name: true } },
+      renewals: { select: { id: true, name: true, stage: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!deal) notFound();
@@ -42,6 +50,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const canWrite = can(user.role, "crm:write");
   const editing = edit === "1" && canWrite;
   const weighted = (toNumber(deal.amount) * deal.stage.probability) / 100;
+  const renewal = renewalAlert(deal.renewalDate);
 
   // Productos agrupados por línea, mostrando primero la línea del negocio
   const groups = new Map<string, typeof products>();
@@ -107,6 +116,31 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                 <InfoRow label="Contacto">
                   {deal.contact && <Link className="link" href={`/contactos/${deal.contact.id}`}>{contactName(deal.contact)}</Link>}
                 </InfoRow>
+                {(deal.renewalDate || deal.stage.isWon) && (
+                  <InfoRow label="Renovación">
+                    {deal.renewalDate ? (
+                      <span className="flex flex-wrap items-center gap-2">
+                        {formatDate(deal.renewalDate)}
+                        {deal.renewals.length === 0 && renewal && <Semaforo level={renewal.level} label={renewal.label} />}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Sin fecha (edita el negocio si es un servicio recurrente)</span>
+                    )}
+                    {deal.renewals.map((r) => (
+                      <Link key={r.id} href={`/negocios/${r.id}`} className="link mt-1 block text-xs">↻ {r.name} · {r.stage.name}</Link>
+                    ))}
+                    {canWrite && deal.renewalDate && deal.renewals.length === 0 && (
+                      <form action={createRenewalNow.bind(null, id)} className="mt-1">
+                        <button className="btn btn-sm">Crear negocio de renovación</button>
+                      </form>
+                    )}
+                  </InfoRow>
+                )}
+                {deal.renewalOf && (
+                  <InfoRow label="Renovación de">
+                    <Link className="link" href={`/negocios/${deal.renewalOf.id}`}>{deal.renewalOf.name}</Link>
+                  </InfoRow>
+                )}
                 <InfoRow label="Fecha de creación">{formatDate(deal.createdAt)}</InfoRow>
                 <InfoRow label="En la etapa actual desde">{formatDate(deal.stageChangedAt)}</InfoRow>
                 {deal.lostReason && <InfoRow label="Motivo de pérdida">{deal.lostReason}</InfoRow>}
@@ -202,6 +236,17 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               </ActionForm>
             )}
           </div>
+
+          <QuotesCard
+            dealId={id}
+            quotes={deal.quotes}
+            hasItems={deal.items.length > 0}
+            canWrite={canWrite}
+            defaults={await getCompanySettings()}
+            baseUrl={appUrl()}
+            contactEmail={deal.contact?.email ?? null}
+            emailEnabled={emailConfigured()}
+          />
 
           <ActivityPanel
             zoomEnabled={zoomConfigured()}

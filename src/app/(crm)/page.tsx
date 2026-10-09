@@ -6,8 +6,8 @@ import { dealWhere, getFilterOptions, PENDING, type DealFilters } from "@/lib/qu
 import { TaskRow } from "@/components/activity-panel";
 import { DealFiltersBar } from "@/components/deal-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
-import { SEMAFORO, SemaforoDot } from "@/components/semaforo";
-import { dealAlerts, lastActivityAlert } from "@/lib/alerts";
+import { SEMAFORO, Semaforo, SemaforoDot } from "@/components/semaforo";
+import { dealAlerts, lastActivityAlert, renewalAlert } from "@/lib/alerts";
 import { parseCustomData } from "@/lib/custom-fields";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -58,7 +58,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const in30 = new Date(now.getTime() + 30 * 86400000);
   const ago30 = new Date(now.getTime() - 30 * 86400000);
 
-  const [stages, deals, lines, myTasks, filterOptions, wonItems] = await Promise.all([
+  // Renovaciones: negocios ganados que renuevan en los próximos 60 días (o ya vencidos) y aún sin negocio de renovación
+  const renewalsWhere = dealWhere({ line: sp.line, product: sp.product, owner: sp.owner }, user.id);
+  const [stages, deals, lines, myTasks, filterOptions, wonItems, renewals] = await Promise.all([
     prisma.pipelineStage.findMany({ orderBy: { order: "asc" } }),
     prisma.deal.findMany({
       where,
@@ -89,6 +91,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         description: true, quantity: true, unitPrice: true, discount: true,
         product: { select: { id: true, name: true, businessLine: { select: { color: true } } } },
       },
+    }),
+    prisma.deal.findMany({
+      where: {
+        AND: [renewalsWhere, { stage: { isWon: true } }, { renewalDate: { lte: new Date(Date.now() + 60 * 86400000) } }, { renewals: { none: {} } }],
+      },
+      select: { id: true, name: true, amount: true, renewalDate: true, owner: { select: { name: true } }, company: { select: { name: true } } },
+      orderBy: { renewalDate: "asc" },
+      take: 10,
     }),
   ]);
 
@@ -261,6 +271,32 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )}
         </div>
       </div>
+
+      {renewals.length > 0 && (
+        <div className="card p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base">↻ Próximas renovaciones</h2>
+            <span className="text-xs text-slate-500">Servicios recurrentes ganados que renuevan en 60 días o menos. El negocio de renovación se crea solo 30 días antes.</span>
+          </div>
+          <ul className="divide-y divide-slate-100 text-sm">
+            {renewals.map((r) => {
+              const a = renewalAlert(r.renewalDate)!;
+              return (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span className="min-w-0">
+                    <Link className="link" href={`/negocios/${r.id}`}>{r.name}</Link>
+                    <span className="text-xs text-slate-500"> · {r.company?.name ?? "—"} · {r.owner?.name ?? "Sin responsable"}</span>
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className="tabular-nums">{formatMoney(r.amount)}</span>
+                    <Semaforo level={a.level} label={`${formatDate(r.renewalDate)} · ${a.label}`} />
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="card p-4">

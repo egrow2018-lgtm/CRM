@@ -43,6 +43,8 @@ model User {
   passwordHash String
   role         Role     @default(COMERCIAL)
   active       Boolean  @default(true)
+  /// Recibe el resumen diario por correo
+  digestEnabled Boolean @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -52,6 +54,7 @@ model User {
   activitiesCreated  Activity[] @relation("ActivityAuthor")
   activitiesAssigned Activity[] @relation("ActivityAssignee")
   formsAssigned      Form[]     @relation("FormAssignee")
+  quotes             Quote[]
 }
 
 /// Línea de negocio: e-learning, Rutalink, Ludus, Humand, nuevas representaciones…
@@ -77,6 +80,8 @@ model Product {
   sku            String?
   type           ProductType @default(SERVICIO)
   unitPrice      Decimal     @default(0) @db.Decimal(14, 2)
+  /// Servicio recurrente (licencias, monitoreo…): se renueva cada N meses
+  renewalMonths  Int?
   active         Boolean     @default(true)
   businessLineId String
   businessLine   BusinessLine @relation(fields: [businessLineId], references: [id])
@@ -169,6 +174,11 @@ model Deal {
   owner          User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   /// Valores de los campos adicionales de la línea de negocio
   customData     Json          @default("{}")
+  /// Renovación (ingresos recurrentes): fecha y negocio del que proviene
+  renewalDate    DateTime?
+  renewalOfId    String?
+  renewalOf      Deal?         @relation("Renewals", fields: [renewalOfId], references: [id], onDelete: SetNull)
+  renewals       Deal[]        @relation("Renewals")
   stageChangedAt DateTime      @default(now())
   lastActivityAt DateTime?
   createdAt      DateTime      @default(now())
@@ -176,8 +186,10 @@ model Deal {
 
   items      DealItem[]
   activities Activity[]
+  quotes     Quote[]
 
   @@index([stageId])
+  @@index([renewalDate])
   @@index([ownerId])
   @@index([businessLineId])
 }
@@ -264,4 +276,32 @@ model FormSubmission {
   createdAt DateTime @default(now())
 
   @@index([formId, createdAt])
+}
+
+/// Cotización generada desde un negocio (los datos quedan congelados al generarla)
+model Quote {
+  id          String   @id @default(cuid())
+  year        Int
+  number      Int
+  dealId      String
+  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  /// Token aleatorio para el enlace público del PDF (para WhatsApp o correo)
+  publicToken String   @unique
+  validUntil  DateTime
+  /// Cliente, ítems, totales y condiciones tal como se cotizaron
+  snapshot    Json
+  total       Decimal  @db.Decimal(14, 2)
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([year, number])
+  @@index([dealId])
+}
+
+/// Ajustes generales (datos de la empresa para cotizaciones, etc.)
+model AppSetting {
+  key   String @id
+  value Json
 }

@@ -18,6 +18,9 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | **Agenda y Zoom** | Calendario mensual (mi agenda o todo el equipo) y próximas reuniones. Al agendar una reunión desde la Agenda o con el ícono «Reunión» de un negocio, contacto o empresa, se crea en la **cuenta de Zoom de e-grow**. La reunión muestra los botones «Iniciar Zoom» (anfitrión), «Unirse», copiar invitación, Correo, WhatsApp, Google Calendar y «Cancelar», que también la elimina en Zoom. |
 | **Tareas y agenda** | Tareas, llamadas y reuniones programadas, en lista o en tarjetas por vencimiento (vencidas, hoy, próximos 7 días, más adelante, sin fecha). |
 | **Líneas y productos** | Alta de líneas o representaciones, su catálogo de productos y servicios, y los campos adicionales que activan en sus negocios. |
+| **Cotizaciones** | Desde los productos del negocio se genera la cotización en **PDF** con el logo, numeración `COT-2026-0001`, IVA (15 % por defecto), validez y condiciones. Se puede ver, enviar por **correo** con el PDF adjunto (con copia a quien envía) o compartir por **WhatsApp** con un enlace seguro. Al generarla, el negocio pasa a «Cotización-Envío». Los datos de la empresa se editan en Configuración. |
+| **Avisos por correo** | Aviso inmediato cuando llega un **lead** de un formulario, y **resumen diario** de lunes a viernes a las 8:00 con reuniones, tareas vencidas, negocios en rojo, leads sin atender y renovaciones. Cada persona puede desactivarlo o ver la vista previa en «Mi perfil». |
+| **Renovaciones** | Los productos recurrentes (licencias Humand, monitoreo Rutalink, Ludus, LMS) se renuevan cada N meses. Al **ganar** el negocio se calcula su fecha de renovación (también editable a mano). **30 días antes** se crea solo el negocio de renovación, con los mismos productos y una tarea para el responsable. Inicio muestra las próximas renovaciones con semáforo. |
 | **Importar HubSpot** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés. Tiene modo simulación, omite duplicados y deduce la línea de negocio a partir del nombre. |
 | **Configuración** | Usuarios, perfiles y etapas del pipeline (nombre, orden y probabilidad). |
 
@@ -109,6 +112,19 @@ Supabase guarda la base de datos y Vercel ejecuta la aplicación web. Los dos ti
 
 Las reuniones se crean a nombre del anfitrión elegido, usando su email del CRM. Si esa persona no está en la cuenta de Zoom, se usa `ZOOM_DEFAULT_HOST`. Sin Zoom configurado, la Agenda sigue funcionando y permite pegar un enlace de Meet o Teams.
 
+### 5. Conectar el correo y la tarea diaria (opcional)
+
+1. Crea una cuenta en [resend.com](https://resend.com) (plan gratuito: 3.000 correos al mes).
+2. En **Domains** agrega `e-growonline.com` y crea los registros DNS que indica (SPF y DKIM) en el proveedor del dominio. Así los correos salen desde `@e-growonline.com` y no llegan a spam.
+3. En **API Keys** crea una clave con permiso de envío.
+4. En Vercel agrega:
+   - `RESEND_API_KEY`: la clave;
+   - `EMAIL_FROM`: por ejemplo `e-grow CRM <crm@e-growonline.com>`;
+   - `APP_URL`: la URL del CRM;
+   - `CRON_SECRET`: un texto aleatorio largo.
+5. Vuelve a publicar. El archivo `vercel.json` programa la tarea diaria `/api/cron/diario` de lunes a viernes a las 13:00 UTC (8:00 en Ecuador). Esa tarea crea las renovaciones y envía los resúmenes.
+6. En **Configuración → Correo** pulsa «Enviarme un correo de prueba».
+
 ## Desarrollo local
 
 Requisitos: Node.js 20 o superior y PostgreSQL 14 o superior (o una base de Supabase de pruebas).
@@ -133,8 +149,6 @@ npm run dev                   # http://localhost:3000
 
 ## Próximas fases sugeridas
 
-- Generación de cotizaciones en PDF desde los productos del negocio.
 - Integración con correo (Gmail u Outlook) y WhatsApp.
 - Automatizaciones: por ejemplo, crear una tarea al pasar a "Firma de Contrato".
 - Reportes por vendedor y por línea de negocio con rangos de fechas.
-- Notificaciones por correo cuando llega un lead nuevo.

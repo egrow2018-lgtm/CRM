@@ -81,6 +81,9 @@ export function DealForm({
           ))}
         </select>
       </Field>
+      <Field label="Fecha de renovación (servicios recurrentes)">
+        <input name="renewalDate" type="date" defaultValue={toDateInput(deal?.renewalDate)} className="input" />
+      </Field>
       <Field label="Motivo de pérdida (si aplica)">
         <input name="lostReason" defaultValue={deal?.lostReason ?? ""} className="input" />
       </Field>

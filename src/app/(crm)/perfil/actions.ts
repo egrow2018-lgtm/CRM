@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { reqStr, str, type ActionState } from "@/lib/forms";
+import { bool, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 
 export async function updateProfile(_: ActionState, form: FormData) {
@@ -24,7 +24,7 @@ export async function updateProfile(_: ActionState, form: FormData) {
     }
     await prisma.user.update({
       where: { id: me.id },
-      data: { name: reqStr(form, "name", "Nombre"), ...(passwordHash ? { passwordHash } : {}) },
+      data: { name: reqStr(form, "name", "Nombre"), digestEnabled: bool(form, "digestEnabled"), ...(passwordHash ? { passwordHash } : {}) },
     });
     revalidatePath("/", "layout");
   });

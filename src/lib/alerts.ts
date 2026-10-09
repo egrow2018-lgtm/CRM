@@ -86,3 +86,12 @@ export function dealAlerts(d: {
   const delivery = deliveryAlert(d.entrega, d.avance);
   return { next, close, delivery, health: worst(next?.level, close?.level, delivery?.level) };
 }
+
+/** Renovación de un negocio ganado: rojo si ya venció, amarillo si faltan 30 días o menos. */
+export function renewalAlert(renewalDate: Date | string | null | undefined): { level: AlertLevel; label: string } | null {
+  if (!renewalDate) return null;
+  const d = daysFromToday(renewalDate);
+  if (d < 0) return { level: "rojo", label: `Renovación vencida hace ${-d} días` };
+  if (d <= 30) return { level: "amarillo", label: d === 0 ? "Renueva hoy" : `Renueva en ${d} días` };
+  return { level: "verde", label: "Renovación a tiempo" };
+}

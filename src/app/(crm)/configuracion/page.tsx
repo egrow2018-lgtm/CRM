@@ -4,7 +4,10 @@ import { ROLE_LABELS } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
-import { createUser, deleteStage, saveStage, updateUser } from "./actions";
+import { createUser, deleteStage, saveCompany, saveStage, sendTestEmail, updateUser } from "./actions";
+import { getCompanySettings } from "@/lib/settings";
+import { emailConfigured } from "@/lib/email";
+import { Field } from "@/components/ui";
 import { ZoomTest } from "./zoom-test";
 import { zoomConfigured } from "@/lib/zoom";
 
@@ -27,6 +30,7 @@ function RoleSelect({ value }: { value?: string }) {
 
 export default async function SettingsPage() {
   await requirePagePermission("users:manage");
+  const company = await getCompanySettings();
   const [users, stages] = await Promise.all([
     prisma.user.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
     prisma.pipelineStage.findMany({ orderBy: { order: "asc" }, include: { _count: { select: { deals: true } } } }),
@@ -72,6 +76,50 @@ export default async function SettingsPage() {
             <RoleSelect />
             <input name="password" type="password" required placeholder="Contraseña (mín. 8)" className="input" autoComplete="new-password" />
             <SubmitButton>Crear usuario</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-1">Datos de la empresa (cotizaciones)</h2>
+        <p className="mb-3 text-xs text-slate-500">Aparecen en el encabezado y las condiciones de cada cotización en PDF.</p>
+        <div className="card p-4">
+          <ActionForm action={saveCompany} successMessage="Datos guardados." className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nombre comercial"><input name="name" required defaultValue={company.name} className="input" /></Field>
+            <Field label="Razón social"><input name="legalName" defaultValue={company.legalName} className="input" /></Field>
+            <Field label="RUC"><input name="taxId" defaultValue={company.taxId} className="input" /></Field>
+            <Field label="Teléfono"><input name="phone" defaultValue={company.phone} className="input" /></Field>
+            <Field label="Email"><input name="email" type="email" defaultValue={company.email} className="input" /></Field>
+            <Field label="Sitio web"><input name="website" defaultValue={company.website} className="input" /></Field>
+            <Field label="Dirección" className="sm:col-span-2"><input name="address" defaultValue={company.address} className="input" /></Field>
+            <Field label="IVA por defecto (%)"><input name="ivaPercent" type="number" step="0.01" min="0" max="100" defaultValue={company.ivaPercent} className="input" /></Field>
+            <Field label="Validez por defecto (días)"><input name="validityDays" type="number" min="1" max="365" defaultValue={company.validityDays} className="input" /></Field>
+            <Field label="Condiciones comerciales por defecto (una por línea)" className="sm:col-span-2">
+              <textarea name="conditions" rows={4} defaultValue={company.conditions} className="input" />
+            </Field>
+            <div className="sm:col-span-2"><SubmitButton>Guardar</SubmitButton></div>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-1">Correo</h2>
+        <div className="card p-4 text-sm">
+          {emailConfigured() ? (
+            <p className="mb-3 text-emerald-700">
+              ✓ El correo está conectado. Se envían cotizaciones, avisos de leads nuevos y el resumen diario de las 8:00.
+            </p>
+          ) : (
+            <div className="mb-3 space-y-1 text-slate-600">
+              <p className="font-medium text-amber-700">El correo aún no está conectado.</p>
+              <p>
+                Crea una cuenta en <a className="link" href="https://resend.com" target="_blank" rel="noreferrer">resend.com</a>, verifica el dominio
+                e-growonline.com y agrega las variables <code>RESEND_API_KEY</code> y <code>EMAIL_FROM</code> en Vercel. Los pasos están en el README.
+              </p>
+            </div>
+          )}
+          <ActionForm action={sendTestEmail} successMessage="Correo de prueba enviado a tu email.">
+            <SubmitButton className="btn btn-sm" pendingText="Enviando…">Enviarme un correo de prueba</SubmitButton>
           </ActionForm>
         </div>
       </section>

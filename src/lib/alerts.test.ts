@@ -32,3 +32,11 @@ test("worst toma la alerta más grave", () => {
   assert.equal(worst("amarillo", "rojo"), "rojo");
   assert.equal(worst(null, undefined), null);
 });
+
+test("renovaciones", async () => {
+  const { renewalAlert } = await import("./alerts");
+  assert.equal(renewalAlert(inDays(-1))?.level, "rojo");
+  assert.equal(renewalAlert(inDays(20))?.level, "amarillo");
+  assert.equal(renewalAlert(inDays(90))?.level, "verde");
+  assert.equal(renewalAlert(null), null);
+});

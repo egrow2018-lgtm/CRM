@@ -33,6 +33,11 @@ export async function saveProduct(id: string | null, _: ActionState, form: FormD
       sku: str(form, "sku"),
       type,
       unitPrice: num(form, "unitPrice") ?? 0,
+      // Servicio recurrente: se renueva cada N meses (vacío = no recurrente)
+      renewalMonths: (() => {
+        const m = Math.round(num(form, "renewalMonths") ?? 0);
+        return m > 0 ? Math.min(m, 120) : null;
+      })(),
       businessLineId: reqStr(form, "businessLineId", "Línea de negocio"),
       active: id ? bool(form, "active") : true,
     };

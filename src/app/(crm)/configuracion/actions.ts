@@ -9,6 +9,8 @@ import { bool, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { checkZoomUser, zoomConfigured } from "@/lib/zoom";
+import { saveCompanySettings } from "@/lib/settings";
+import { emailConfigured, emailLayout, escapeHtml, sendEmail } from "@/lib/email";
 
 function role(form: FormData): Role {
   const r = str(form, "role") as Role;
@@ -120,4 +122,36 @@ export async function testZoom(): Promise<ZoomTestState> {
   } catch (e) {
     return { error: e instanceof Error ? e.message : "No se pudo conectar con Zoom." };
   }
+}
+
+export async function saveCompany(_: ActionState, form: FormData) {
+  return runAction(async () => {
+    await requirePermission("users:manage");
+    await saveCompanySettings({
+      name: reqStr(form, "name", "Nombre comercial"),
+      legalName: str(form, "legalName") ?? "",
+      taxId: str(form, "taxId") ?? "",
+      address: str(form, "address") ?? "",
+      phone: str(form, "phone") ?? "",
+      email: str(form, "email") ?? "",
+      website: str(form, "website") ?? "",
+      ivaPercent: Math.min(100, Math.max(0, num(form, "ivaPercent") ?? 15)),
+      validityDays: Math.min(365, Math.max(1, Math.round(num(form, "validityDays") ?? 15))),
+      conditions: str(form, "conditions") ?? "",
+    });
+    revalidatePath("/configuracion");
+  });
+}
+
+/** Envía un correo de prueba al administrador. */
+export async function sendTestEmail() {
+  return runAction(async () => {
+    const me = await requirePermission("users:manage");
+    if (!emailConfigured()) throw new Error("Faltan RESEND_API_KEY y EMAIL_FROM.");
+    await sendEmail({
+      to: me.email,
+      subject: "Prueba de correo del CRM de e-grow",
+      html: emailLayout("¡El correo funciona!", `<p>Hola ${escapeHtml(me.name)}, este es un correo de prueba del CRM.</p>`),
+    });
+  });
 }

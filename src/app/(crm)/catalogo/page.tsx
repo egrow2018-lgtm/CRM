@@ -53,7 +53,7 @@ export default async function CatalogPage() {
             <div className="overflow-x-auto">
               <table className="table">
                 <thead>
-                  <tr><th>Producto / servicio</th><th>Tipo</th><th>SKU</th><th className="text-right">Precio de lista</th><th>Estado</th>{canManage && <th />}</tr>
+                  <tr><th>Producto / servicio</th><th>Tipo</th><th>SKU</th><th className="text-right">Precio de lista</th><th>Renovación</th><th>Estado</th>{canManage && <th />}</tr>
                 </thead>
                 <tbody>
                   {line.products.map((p) => (
@@ -65,6 +65,7 @@ export default async function CatalogPage() {
                       <td>{p.type === "PRODUCTO" ? "Producto" : "Servicio"}</td>
                       <td>{p.sku ?? "—"}</td>
                       <td className="text-right tabular-nums">{toNumber(p.unitPrice) > 0 ? formatMoneyExact(p.unitPrice) : "—"}</td>
+                      <td>{p.renewalMonths ? <span className="badge bg-accent-100 text-brand-800">↻ cada {p.renewalMonths} meses</span> : "—"}</td>
                       <td>{p.active ? "Activo" : "Inactivo"}</td>
                       {canManage && (
                         <td className="text-right">
@@ -81,6 +82,10 @@ export default async function CatalogPage() {
                                 </select>
                                 <input name="sku" defaultValue={p.sku ?? ""} placeholder="SKU" className="input" />
                                 <input name="unitPrice" type="number" step="0.01" min="0" defaultValue={toNumber(p.unitPrice)} className="input" />
+                                <label className="text-xs text-slate-500 sm:col-span-2">
+                                  Renovar cada (meses; vacío si no es recurrente)
+                                  <input name="renewalMonths" type="number" min="1" max="120" defaultValue={p.renewalMonths ?? ""} className="input mt-1" />
+                                </label>
                                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={p.active} /> Activo</label>
                                 <div className="sm:col-span-2"><SubmitButton className="btn btn-primary btn-sm">Guardar</SubmitButton></div>
                               </ActionForm>
@@ -105,6 +110,7 @@ export default async function CatalogPage() {
                   </select>
                   <input name="unitPrice" type="number" step="0.01" min="0" placeholder="Precio US$" className="input sm:col-span-2" />
                   <SubmitButton className="btn btn-primary sm:col-span-1" pendingText="…">Agregar</SubmitButton>
+                  <input name="renewalMonths" type="number" min="1" max="120" placeholder="↻ Renovar cada N meses (opcional)" className="input sm:col-span-4" />
                 </ActionForm>
                 <details className="mt-2">
                   <summary className="cursor-pointer text-xs text-slate-500">
