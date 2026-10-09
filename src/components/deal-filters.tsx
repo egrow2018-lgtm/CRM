@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { IconBoard, IconList, IconSearch } from "./icons";
+import { IconSearch } from "./icons";
+import { ViewToggle } from "./view-toggle";
 
 type Options = {
   users: { id: string; name: string }[];
@@ -23,6 +24,7 @@ export function DealFiltersBar({ options, variant = "board" }: { options: Option
 
   function update(changes: Record<string, string>) {
     const next = new URLSearchParams(params.toString());
+    next.delete("page");
     for (const [key, value] of Object.entries(changes)) {
       if (value) next.set(key, value);
       else next.delete(key);
@@ -46,7 +48,6 @@ export function DealFiltersBar({ options, variant = "board" }: { options: Option
   const groups = new Map<string, typeof products>();
   for (const p of products) groups.set(p.lineName, [...(groups.get(p.lineName) ?? []), p]);
   const active = ["year", "line", "product", "owner", "q", "from", "to"].some((k) => params.get(k));
-  const view = params.get("view") ?? "board";
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -121,13 +122,8 @@ export function DealFiltersBar({ options, variant = "board" }: { options: Option
         </button>
       )}
       {variant === "board" && (
-        <div className="ml-auto flex overflow-hidden rounded-lg border border-slate-300 bg-white">
-          <button title="Tablero" onClick={() => update({ view: "" })} className={`px-2.5 py-1.5 ${view === "board" ? "bg-brand-50 text-brand-700" : "text-slate-500"}`}>
-            <IconBoard />
-          </button>
-          <button title="Lista" onClick={() => update({ view: "list" })} className={`border-l border-slate-300 px-2.5 py-1.5 ${view === "list" ? "bg-brand-50 text-brand-700" : "text-slate-500"}`}>
-            <IconList />
-          </button>
+        <div className="ml-auto">
+          <ViewToggle />
         </div>
       )}
     </div>

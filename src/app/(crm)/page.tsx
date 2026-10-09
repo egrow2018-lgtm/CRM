@@ -67,7 +67,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     prisma.businessLine.findMany({ orderBy: { name: "asc" } }),
     prisma.activity.findMany({
       where: { ...PENDING, assigneeId: user.id },
-      include: { author: true, assignee: true, deal: { select: { id: true, name: true } } },
+      include: {
+        author: true,
+        assignee: true,
+        deal: { select: { id: true, name: true } },
+        contact: { select: { id: true, firstName: true, lastName: true } },
+      },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
       take: 8,
     }),

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { LeadStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
@@ -18,6 +19,7 @@ function contactData(form: FormData) {
     notes: str(form, "notes"),
     companyId: str(form, "companyId"),
     ownerId: str(form, "ownerId"),
+    leadStatus: (str(form, "leadStatus") as LeadStatus | null) ?? null,
   };
 }
 

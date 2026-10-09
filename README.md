@@ -9,10 +9,14 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | Módulo | Qué hace |
 |---|---|
 | **Inicio** | Indicadores (pipeline abierto, ponderado, ganado, tasa de cierre), valor por etapa, pipeline y ganado por línea de negocio, ganado por producto o servicio, ganado por año o por mes, mis tareas, negocios por cerrar y negocios sin actividad hace más de 30 días. Todo se puede filtrar por **año de cierre, línea de negocio, producto o servicio y propietario**. |
-| **Negocios** | Tablero Kanban con arrastrar y soltar, totales y cantidad ponderada por etapa (igual que en HubSpot), filtros por año de cierre, línea de negocio, producto o servicio, propietario y rango de fechas, búsqueda y vista de lista. Ficha con barra de etapas, productos cotizados (el valor se calcula solo), historial y tareas. |
-| **Contactos / Empresas** | Fichas con negocios asociados, historial de actividades, enlace a WhatsApp y búsqueda. |
-| **Actividades y tareas** | Notas, llamadas, reuniones, correos y tareas con fecha límite y responsable. Cada cambio de etapa queda registrado automáticamente. |
-| **Líneas y productos** | Alta de nuevas líneas o representaciones y de su catálogo (producto o servicio, SKU y precio de lista). |
+| **Negocios** | Vista de **tarjetas** (Kanban con arrastrar y soltar, totales y cantidad ponderada por etapa) o de **lista** (columnas ordenables y paginación de 25/50/100). Filtros por año de cierre, línea de negocio, producto o servicio, propietario y rango de fechas. Cada tarjeta muestra la próxima actividad y los **íconos de seguimiento** (nota, correo, llamada, tarea y reunión). |
+| **Ficha del negocio** | Barra de etapas, productos cotizados (el valor se calcula solo), íconos de seguimiento, historial y **campos propios de la línea de negocio**. Por ejemplo, E-learning tiene tipo de proyecto, tiempo de desarrollo, equipo de desarrollo, responsable, fechas y avance. |
+| **Leads** | Bandeja con las personas que llenaron un formulario. Desde aquí se toma el lead (queda como propietario con una tarea), se califica, se descarta o se convierte en negocio. |
+| **Formularios** | Formularios públicos (`/f/nombre`) para compartir en redes, publicaciones o un sitio web, con enlace, botones de WhatsApp, LinkedIn, Facebook y X, código QR e iframe. Cada respuesta crea o actualiza el contacto y lo envía a la bandeja de leads o al usuario asignado. |
+| **Contactos** | Pestañas como en HubSpot (Mis contactos, No asignados, Mis no contactados, Todos), indicadores de calidad de datos (falta propietario, falta email, falta estado del lead, sin actividad reciente) que filtran al hacer clic, filtro por estado del lead, lista paginada o tarjetas por estado del lead con arrastrar y soltar. |
+| **Empresas** | Fichas con contactos, negocios e historial de actividades. |
+| **Tareas y agenda** | Tareas, llamadas y reuniones programadas, en lista o en tarjetas por vencimiento (vencidas, hoy, próximos 7 días, más adelante, sin fecha). |
+| **Líneas y productos** | Alta de líneas o representaciones, su catálogo de productos y servicios, y los campos adicionales que activan en sus negocios. |
 | **Importar HubSpot** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés. Tiene modo simulación, omite duplicados y deduce la línea de negocio a partir del nombre. |
 | **Configuración** | Usuarios, perfiles y etapas del pipeline (nombre, orden y probabilidad). |
 
@@ -100,7 +104,7 @@ npm run dev                   # http://localhost:3000
 ## Próximas fases sugeridas
 
 - Generación de cotizaciones en PDF desde los productos del negocio.
-- Formularios web y captura de leads.
 - Integración con correo (Gmail u Outlook) y WhatsApp.
 - Automatizaciones: por ejemplo, crear una tarea al pasar a "Firma de Contrato".
 - Reportes por vendedor y por línea de negocio con rangos de fechas.
+- Notificaciones por correo cuando llega un lead nuevo.

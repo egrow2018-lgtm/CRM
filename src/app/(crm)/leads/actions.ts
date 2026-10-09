@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { LeadStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
+import { LEAD_STATUS } from "@/lib/leads";
 
 function refresh(contactId: string) {
   ["/leads", "/contactos", `/contactos/${contactId}`, "/", "/tareas"].forEach((p) => revalidatePath(p));
@@ -31,11 +32,27 @@ export async function takeLead(contactId: string) {
   refresh(contactId);
 }
 
-export async function setLeadStatus(contactId: string, status: LeadStatus) {
+export async function setLeadStatus(contactId: string, status: LeadStatus | null) {
   const user = await requirePermission("leads:take");
   await prisma.contact.update({ where: { id: contactId }, data: { leadStatus: status } });
   await prisma.activity.create({
-    data: { type: "NOTA", subject: `Estado del lead: ${status.replace("_", " ").toLowerCase()}`, contactId, authorId: user.id },
+    data: {
+      type: "NOTA",
+      subject: `Estado del lead: ${status ? LEAD_STATUS[status].label : "sin estado"}`,
+      contactId,
+      authorId: user.id,
+      completed: true,
+    },
   });
   refresh(contactId);
+}
+
+/** Usado por el tablero de contactos (arrastrar y soltar). */
+export async function moveContactStatus(contactId: string, status: LeadStatus | null): Promise<{ error?: string }> {
+  try {
+    await setLeadStatus(contactId, status);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo cambiar el estado." };
+  }
 }

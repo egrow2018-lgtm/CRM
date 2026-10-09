@@ -2,6 +2,7 @@ import type { Contact } from "@prisma/client";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field } from "@/components/ui";
 import type { ActionState } from "@/lib/forms";
+import { LEAD_STATUS } from "@/lib/leads";
 
 export const CONTACT_SOURCES = ["Referido", "Sitio web", "LinkedIn", "Evento", "Llamada en frío", "Partner", "HubSpot", "Otro"];
 
@@ -48,6 +49,14 @@ export function ContactForm({
           <option value="">— Yo —</option>
           {users.map((u) => (
             <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Estado del lead">
+        <select name="leadStatus" defaultValue={contact?.leadStatus ?? ""} className="input">
+          <option value="">— Sin estado —</option>
+          {Object.entries(LEAD_STATUS).map(([k, v]) => (
+            <option key={k} value={k}>{v.label}</option>
           ))}
         </select>
       </Field>

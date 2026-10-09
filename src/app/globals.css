@@ -53,7 +53,7 @@
     @apply rounded-xl border border-slate-200 bg-white shadow-sm;
   }
   .badge {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium;
   }
   .table {
     @apply w-full text-left text-sm;

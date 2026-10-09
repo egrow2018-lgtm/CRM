@@ -26,6 +26,7 @@ type Item = Activity & {
   author: { name: string } | null;
   assignee: { name: string } | null;
   deal?: { id: string; name: string } | null;
+  contact?: { id: string; firstName: string; lastName: string | null } | null;
 };
 
 export function ActivityPanel({
@@ -130,6 +131,11 @@ export function TaskRow({ task, canWrite, showDeal }: { task: Item; canWrite: bo
           {task.assignee && <span>Asignada a {task.assignee.name}</span>}
           {showDeal && task.deal && (
             <Link className="text-brand-700 hover:underline" href={`/negocios/${task.deal.id}`}>{task.deal.name}</Link>
+          )}
+          {showDeal && task.contact && (
+            <Link className="text-brand-700 hover:underline" href={`/contactos/${task.contact.id}`}>
+              {[task.contact.firstName, task.contact.lastName].filter(Boolean).join(" ")}
+            </Link>
           )}
         </div>
       </div>
