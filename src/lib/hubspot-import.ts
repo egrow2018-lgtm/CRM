@@ -39,6 +39,7 @@ const ALIASES: Record<ImportKind, Record<string, string[]>> = {
     company: ["nombre de la empresa", "company name", "empresa asociada", "associated company", "empresa"],
     owner: ["propietario del contacto", "contact owner", "propietario"],
     createdAt: ["fecha de creacion", "create date"],
+    lastActivity: ["ultima actividad", "last activity date"],
   },
   deals: {
     name: ["nombre del negocio", "deal name", "negocio"],
@@ -200,6 +201,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         phone: get(row, "phone"),
         jobTitle: get(row, "jobTitle"),
         source: "HubSpot",
+        lastActivityAt: parseDate(get(row, "lastActivity")),
         ownerId: ownerOf(row) ?? userId,
         _company: company,
         ...createdAtOf(row),

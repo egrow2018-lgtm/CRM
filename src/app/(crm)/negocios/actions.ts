@@ -8,6 +8,7 @@ import { requirePermission, requireUser } from "@/lib/auth";
 import { can, canMoveDeal } from "@/lib/permissions";
 import { date, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
+import { parseCustomData, parseCustomFields } from "@/lib/custom-fields";
 
 function dealData(form: FormData) {
   return {
@@ -35,6 +36,13 @@ export async function createDeal(_: ActionState, form: FormData) {
         activities: { create: { type: "NOTA", subject: "Negocio creado", authorId: user.id } },
       },
     });
+    // Un lead que pasa a negocio queda como calificado
+    if (data.contactId) {
+      await prisma.contact.updateMany({
+        where: { id: data.contactId, leadStatus: { in: ["NUEVO", "EN_SEGUIMIENTO"] } },
+        data: { leadStatus: "CALIFICADO" },
+      });
+    }
     revalidatePath("/negocios");
     return `/negocios/${deal.id}`;
   });
@@ -133,4 +141,28 @@ export async function removeDealItem(itemId: string) {
   await prisma.$transaction((tx) => recalcAmount(tx, item.dealId));
   revalidatePath(`/negocios/${item.dealId}`);
   revalidatePath("/negocios");
+}
+
+/** Guarda los campos adicionales de la línea de negocio (ej. datos del proyecto E-learning). */
+export async function updateDealCustomData(dealId: string, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    const user = await requireUser();
+    if (!can(user.role, "crm:write") && !can(user.role, "deals:production")) {
+      throw new Error("No tienes permisos para editar los datos del proyecto.");
+    }
+    const deal = await prisma.deal.findUniqueOrThrow({ where: { id: dealId }, include: { businessLine: true } });
+    const fields = parseCustomFields(deal.businessLine?.customFields);
+    const data: Record<string, string> = { ...parseCustomData(deal.customData) };
+    for (const f of fields) {
+      const v = str(form, `cf_${f.key}`);
+      if (v && f.type === "number" && !Number.isFinite(Number(v.replace(",", ".")))) {
+        throw new Error(`"${f.label}" debe ser un número.`);
+      }
+      if (v) data[f.key] = f.type === "number" ? String(Number(v.replace(",", "."))) : v;
+      else delete data[f.key];
+    }
+    await prisma.deal.update({ where: { id: dealId }, data: { customData: data } });
+    revalidatePath(`/negocios/${dealId}`);
+    revalidatePath("/negocios");
+  });
 }

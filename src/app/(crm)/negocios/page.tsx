@@ -3,7 +3,13 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { dealCardInclude, dealWhere, getFilterOptions, type DealFilters } from "@/lib/queries";
-import { formatDate, formatMoney, toNumber } from "@/lib/format";
+import { contactName, formatDate, formatMoney, toNumber } from "@/lib/format";
+import { parseCustomData } from "@/lib/custom-fields";
+
+function projectSummary(customData: unknown) {
+  const data = parseCustomData(customData);
+  return data.fechaEntrega || data.avance ? { entrega: data.fechaEntrega, avance: data.avance } : null;
+}
 import { LineBadge, PageHeader } from "@/components/ui";
 import { IconPlus } from "@/components/icons";
 import { DealFiltersBar } from "@/components/deal-filters";
@@ -79,8 +85,14 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             owner: d.owner?.name ?? null,
             company: d.company?.name ?? null,
             line: d.businessLine,
-            openTasks: d._count.activities,
+            contact: d.contact && { name: contactName(d.contact), email: d.contact.email, phone: d.contact.phone },
+            next: d.activities[0]
+              ? { type: d.activities[0].type, subject: d.activities[0].subject, dueDate: d.activities[0].dueDate?.toISOString() ?? null }
+              : null,
+            pending: d._count.activities,
+            project: projectSummary(d.customData),
           }))}
+          users={filterOptions.users}
         />
       )}
     </div>

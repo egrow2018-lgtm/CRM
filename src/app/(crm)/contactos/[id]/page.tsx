@@ -8,6 +8,7 @@ import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { ContactForm } from "../contact-form";
+import { LEAD_STATUS } from "@/lib/leads";
 import { deleteContact, updateContact } from "../actions";
 
 export default async function ContactPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
@@ -36,7 +37,14 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
     <div>
       <div className="mb-2 text-sm"><Link href="/contactos" className="text-slate-500 hover:underline">← Contactos</Link></div>
       <PageHeader
-        title={contactName(contact)}
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            {contactName(contact)}
+            {contact.leadStatus && (
+              <span className={`badge text-xs ${LEAD_STATUS[contact.leadStatus].className}`}>Lead: {LEAD_STATUS[contact.leadStatus].label}</span>
+            )}
+          </span>
+        }
         subtitle={[contact.jobTitle, contact.company?.name].filter(Boolean).join(" · ")}
         actions={
           canWrite && (
@@ -105,7 +113,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
               </table>
             )}
           </div>
-          <ActivityPanel target={{ contactId: id }} activities={contact.activities} users={users} canWrite={can(user.role, "activities:write")} />
+          <ActivityPanel target={{ contactId: id }} activities={contact.activities} users={users} canWrite={can(user.role, "activities:write")} contact={{ name: contactName(contact), email: contact.email, phone: contact.phone }} />
         </div>
       </div>
     </div>

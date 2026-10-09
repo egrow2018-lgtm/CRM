@@ -8,6 +8,7 @@ type Props = Omit<React.FormHTMLAttributes<HTMLFormElement>, "action"> & {
   action: (state: ActionState, form: FormData) => Promise<ActionState>;
   resetOnSuccess?: boolean;
   successMessage?: string;
+  onSuccess?: () => void;
   children: React.ReactNode;
 };
 
@@ -18,14 +19,17 @@ const PendingContext = createContext(false);
  * Se envía con onSubmit (y no con la prop `action`) para que React no vacíe
  * los campos cuando la acción devuelve un error de validación.
  */
-export function ActionForm({ action, resetOnSuccess, successMessage, children, ...rest }: Props) {
+export function ActionForm({ action, resetOnSuccess, successMessage, onSuccess, children, ...rest }: Props) {
   const [state, formAction] = useActionState(action, undefined);
   const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (state?.ok && resetOnSuccess) ref.current?.reset();
-  }, [state, resetOnSuccess]);
+    if (!state?.ok) return;
+    if (resetOnSuccess) ref.current?.reset();
+    onSuccess?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   return (
     <form

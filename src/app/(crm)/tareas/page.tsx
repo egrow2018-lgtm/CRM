@@ -10,9 +10,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const user = await requireUser();
   const { who = "me", done } = await searchParams;
   const where: Prisma.ActivityWhereInput = {
-    type: "TAREA",
+    type: { in: ["TAREA", "LLAMADA", "REUNION"] },
     completed: done === "1",
-    ...(who === "me" ? { assigneeId: user.id } : {}),
+    assigneeId: who === "me" ? user.id : { not: null },
   };
   const tasks = await prisma.activity.findMany({
     where,
@@ -32,7 +32,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="max-w-4xl">
-      <PageHeader title="Tareas" subtitle="Las tareas se crean desde un negocio, contacto o empresa." />
+      <PageHeader title="Tareas y agenda" subtitle="Tareas, llamadas y reuniones programadas. Se crean con los íconos de seguimiento de cada negocio, contacto o empresa." />
       <div className="mb-4 flex flex-wrap gap-2">
         {tab("Mis tareas", "/tareas", who === "me" && done !== "1")}
         {tab("Todas las pendientes", "/tareas?who=all", who === "all" && done !== "1")}

@@ -20,6 +20,13 @@ enum ProductType {
   SERVICIO
 }
 
+enum LeadStatus {
+  NUEVO
+  EN_SEGUIMIENTO
+  CALIFICADO
+  DESCARTADO
+}
+
 enum ActivityType {
   NOTA
   LLAMADA
@@ -44,6 +51,7 @@ model User {
   deals              Deal[]
   activitiesCreated  Activity[] @relation("ActivityAuthor")
   activitiesAssigned Activity[] @relation("ActivityAssignee")
+  formsAssigned      Form[]     @relation("FormAssignee")
 }
 
 /// Línea de negocio: e-learning, Rutalink, Ludus, Humand, nuevas representaciones…
@@ -53,10 +61,13 @@ model BusinessLine {
   description String?
   color       String   @default("#1f305e")
   active      Boolean  @default(true)
+  /// Campos adicionales que se activan en los negocios de esta línea (ver src/lib/custom-fields.ts)
+  customFields Json    @default("[]")
   createdAt   DateTime @default(now())
 
   products Product[]
   deals    Deal[]
+  forms    Form[]
 }
 
 model Product {
@@ -118,19 +129,23 @@ model Contact {
   email     String?
   phone     String?
   jobTitle  String?
-  source    String?
-  notes     String?
-  companyId String?
+  source     String?
+  notes      String?
+  leadStatus     LeadStatus?
+  lastActivityAt DateTime?
+  companyId      String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   ownerId   String?
   owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  deals      Deal[]
-  activities Activity[]
+  deals       Deal[]
+  activities  Activity[]
+  submissions FormSubmission[]
 
   @@index([companyId])
+  @@index([leadStatus])
   @@index([email])
 }
 
@@ -152,6 +167,8 @@ model Deal {
   contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
   ownerId        String?
   owner          User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  /// Valores de los campos adicionales de la línea de negocio
+  customData     Json          @default("{}")
   stageChangedAt DateTime      @default(now())
   lastActivityAt DateTime?
   createdAt      DateTime      @default(now())
@@ -205,4 +222,38 @@ model Activity {
   @@index([contactId])
   @@index([companyId])
   @@index([assigneeId, completed])
+}
+
+/// Formulario público (para redes, publicaciones o sitio web) que alimenta la base de contactos
+model Form {
+  id             String        @id @default(cuid())
+  name           String
+  slug           String        @unique
+  title          String
+  description    String?
+  /// Campos del formulario (ver src/lib/forms-builder.ts)
+  fields         Json          @default("[]")
+  submitLabel    String        @default("Enviar")
+  successMessage String        @default("¡Gracias! Te contactaremos pronto.")
+  active         Boolean       @default(true)
+  businessLineId String?
+  businessLine   BusinessLine? @relation(fields: [businessLineId], references: [id], onDelete: SetNull)
+  /// Usuario que recibe automáticamente los leads (vacío = bandeja de leads para que alguien los tome)
+  assigneeId     String?
+  assignee       User?         @relation("FormAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  submissions FormSubmission[]
+}
+
+model FormSubmission {
+  id        String   @id @default(cuid())
+  formId    String
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  data      Json
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([formId, createdAt])
 }

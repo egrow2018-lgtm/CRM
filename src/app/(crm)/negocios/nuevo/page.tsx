@@ -7,7 +7,7 @@ import { createDeal } from "../actions";
 export default async function NewDealPage({
   searchParams,
 }: {
-  searchParams: Promise<{ companyId?: string; contactId?: string }>;
+  searchParams: Promise<{ companyId?: string; contactId?: string; businessLineId?: string }>;
 }) {
   await requirePagePermission("crm:write");
   const [options, sp] = await Promise.all([getFormOptions(), searchParams]);

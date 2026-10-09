@@ -15,7 +15,9 @@ export type Permission =
   | "crm:delete" // eliminar registros
   | "deals:production" // mover negocios entre Firma de contrato, Producción y Ganado
   | "activities:write" // notas, llamadas, tareas
-  | "import:run"; // importar datos desde HubSpot
+  | "import:run" // importar datos desde HubSpot
+  | "forms:manage" // crear formularios públicos
+  | "leads:take"; // tomar leads de la bandeja
 
 const MATRIX: Record<Role, Permission[]> = {
   ADMIN: [
@@ -27,10 +29,21 @@ const MATRIX: Record<Role, Permission[]> = {
     "deals:production",
     "activities:write",
     "import:run",
+    "forms:manage",
+    "leads:take",
   ],
-  GERENTE: ["catalog:manage", "crm:write", "crm:delete", "deals:production", "activities:write", "import:run"],
+  GERENTE: [
+    "catalog:manage",
+    "crm:write",
+    "crm:delete",
+    "deals:production",
+    "activities:write",
+    "import:run",
+    "forms:manage",
+    "leads:take",
+  ],
   // Gestión de negocios: crea clientes y productos y da seguimiento a cada negocio
-  COMERCIAL: ["crm:write", "catalog:manage", "deals:production", "activities:write"],
+  COMERCIAL: ["crm:write", "catalog:manage", "deals:production", "activities:write", "forms:manage", "leads:take"],
   // Gestión de proyectos: seguimiento de la producción con el equipo de desarrollo
   PROYECTOS: ["deals:production", "activities:write"],
 };

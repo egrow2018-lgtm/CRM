@@ -11,21 +11,33 @@ import {
   IconContacts,
   IconDeals,
   IconHome,
+  IconForm,
   IconImport,
+  IconInbox,
   IconLogout,
   IconSettings,
   IconTasks,
 } from "./icons";
 
-export function Sidebar({ user, logout }: { user: { name: string; role: Role }; logout: () => Promise<void> }) {
+export function Sidebar({
+  user,
+  logout,
+  newLeads,
+}: {
+  user: { name: string; role: Role };
+  logout: () => Promise<void>;
+  newLeads: number;
+}) {
   const pathname = usePathname();
   const items = [
     { href: "/", label: "Inicio", icon: IconHome },
     { href: "/negocios", label: "Negocios", icon: IconDeals },
+    { href: "/leads", label: "Leads", icon: IconInbox, badge: newLeads },
     { href: "/contactos", label: "Contactos", icon: IconContacts },
     { href: "/empresas", label: "Empresas", icon: IconCompany },
     { href: "/tareas", label: "Tareas", icon: IconTasks },
     { href: "/catalogo", label: "Líneas y productos", icon: IconCatalog },
+    ...(can(user.role, "forms:manage") ? [{ href: "/formularios", label: "Formularios", icon: IconForm }] : []),
     ...(can(user.role, "import:run") ? [{ href: "/importar", label: "Importar HubSpot", icon: IconImport }] : []),
     ...(can(user.role, "users:manage") ? [{ href: "/configuracion", label: "Configuración", icon: IconSettings }] : []),
   ];
@@ -38,7 +50,8 @@ export function Sidebar({ user, logout }: { user: { name: string; role: Role }; 
         <span className="pb-0.5 text-sm font-semibold tracking-wide text-egrow-magenta">CRM</span>
       </div>
       <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-1 md:flex-col md:overflow-visible">
-        {items.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon, ...rest }) => {
+          const badge = "badge" in rest ? rest.badge : 0;
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link
@@ -50,6 +63,9 @@ export function Sidebar({ user, logout }: { user: { name: string; role: Role }; 
             >
               <Icon />
               {label}
+              {!!badge && (
+                <span className="ml-auto rounded-full bg-egrow-magenta px-1.5 text-[11px] font-semibold text-white">{badge}</span>
+              )}
             </Link>
           );
         })}

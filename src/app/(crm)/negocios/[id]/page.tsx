@@ -10,7 +10,9 @@ import { ActivityPanel } from "@/components/activity-panel";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { DealForm } from "../deal-form";
 import { StageBar } from "../stage-bar";
-import { addDealItem, deleteDeal, removeDealItem, updateDeal } from "../actions";
+import { addDealItem, deleteDeal, removeDealItem, updateDeal, updateDealCustomData } from "../actions";
+import { CustomFieldsCard } from "@/components/custom-fields-form";
+import { parseCustomData, parseCustomFields } from "@/lib/custom-fields";
 
 export default async function DealPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
   const user = await requireUser();
@@ -113,6 +115,16 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               </dl>
             )}
           </div>
+          {deal.businessLine && (
+            <CustomFieldsCard
+              title={`Datos del proyecto · ${deal.businessLine.name}`}
+              fields={parseCustomFields(deal.businessLine.customFields)}
+              values={parseCustomData(deal.customData)}
+              users={options.users}
+              action={updateDealCustomData.bind(null, id)}
+              canEdit={can(user.role, "crm:write") || can(user.role, "deals:production")}
+            />
+          )}
         </div>
 
         <div className="space-y-4 lg:col-span-2">
@@ -195,6 +207,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             activities={deal.activities}
             users={options.users}
             canWrite={can(user.role, "activities:write")}
+            contact={deal.contact && { name: contactName(deal.contact), email: deal.contact.email, phone: deal.contact.phone }}
           />
         </div>
       </div>

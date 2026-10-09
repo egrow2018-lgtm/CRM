@@ -1,5 +1,6 @@
 import { PrismaClient, ProductType, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { ELEARNING_FIELDS } from "../src/lib/custom-fields";
 
 const prisma = new PrismaClient();
 
@@ -86,12 +87,19 @@ async function main() {
 
   for (const line of LINES) {
     const existing = await prisma.businessLine.findUnique({ where: { name: line.name } });
-    if (existing) continue;
+    if (existing) {
+      // Activa los campos de proyecto de E-learning si la línea aún no tiene campos configurados
+      if (line.name === "E-learning" && Array.isArray(existing.customFields) && existing.customFields.length === 0) {
+        await prisma.businessLine.update({ where: { id: existing.id }, data: { customFields: ELEARNING_FIELDS } });
+      }
+      continue;
+    }
     await prisma.businessLine.create({
       data: {
         name: line.name,
         description: line.description,
         color: line.color,
+        customFields: line.name === "E-learning" ? ELEARNING_FIELDS : [],
         products: { create: line.products.map(([name, type]) => ({ name, type })) },
       },
     });

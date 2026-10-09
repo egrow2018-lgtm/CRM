@@ -4,7 +4,9 @@ import { can } from "@/lib/permissions";
 import { formatMoneyExact, toNumber } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
-import { saveBusinessLine, saveProduct } from "./actions";
+import { saveBusinessLine, saveLineFields, saveProduct } from "./actions";
+import { LineFieldsEditor } from "./line-fields-editor";
+import { parseCustomFields } from "@/lib/custom-fields";
 
 export default async function CatalogPage() {
   const user = await requireUser();
@@ -104,6 +106,15 @@ export default async function CatalogPage() {
                   <input name="unitPrice" type="number" step="0.01" min="0" placeholder="Precio US$" className="input sm:col-span-2" />
                   <SubmitButton className="btn btn-primary sm:col-span-1" pendingText="…">Agregar</SubmitButton>
                 </ActionForm>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs text-slate-500">
+                    Campos de los negocios de esta línea ({parseCustomFields(line.customFields).length})
+                  </summary>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Se activan en la ficha de cada negocio de {line.name} (ej. tiempo de desarrollo, equipo, fecha de entrega).
+                  </p>
+                  <LineFieldsEditor initial={parseCustomFields(line.customFields)} action={saveLineFields.bind(null, line.id)} />
+                </details>
                 <details className="mt-2">
                   <summary className="cursor-pointer text-xs text-slate-500">Editar línea</summary>
                   <ActionForm action={saveBusinessLine.bind(null, line.id)} className="mt-2 grid gap-2 sm:grid-cols-6">

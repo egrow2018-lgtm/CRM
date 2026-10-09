@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { formatDate, formatMoney, timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/ui";
+import { QuickActions } from "@/components/quick-actions";
 import { moveDeal } from "./actions";
 
 export type BoardStage = { id: string; name: string; probability: number; isWon: boolean; isLost: boolean };
@@ -18,10 +19,24 @@ export type BoardDeal = {
   owner: string | null;
   company: string | null;
   line: { name: string; color: string } | null;
-  openTasks: number;
+  contact: { name: string; email: string | null; phone: string | null } | null;
+  next: { type: string; subject: string; dueDate: string | null } | null;
+  pending: number;
+  project: { entrega?: string; avance?: string } | null;
 };
 
-export function DealBoard({ stages, deals: initial }: { stages: BoardStage[]; deals: BoardDeal[] }) {
+const NEXT_LABEL: Record<string, string> = { TAREA: "Tarea", LLAMADA: "Llamada", REUNION: "Reunión" };
+
+export function DealBoard({
+  stages,
+  deals: initial,
+  users,
+}: {
+  stages: BoardStage[];
+  deals: BoardDeal[];
+  users: { id: string; name: string }[];
+}) {
+  const today = new Date().toISOString().slice(0, 10);
   const [deals, setDeals] = useState(initial);
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
@@ -100,19 +115,40 @@ export function DealBoard({ stages, deals: initial }: { stages: BoardStage[]; de
                     {d.company && <div className="truncate">Empresa: {d.company}</div>}
                     <div>Fecha de cierre: {formatDate(d.closeDate ? new Date(d.closeDate) : null)}</div>
                     <div>Creado: {formatDate(new Date(d.createdAt))}</div>
+                    {d.project?.entrega && <div>Entrega: {formatDate(new Date(`${d.project.entrega}T00:00:00Z`))}</div>}
                   </dl>
+                  {d.project?.avance && (
+                    <div className="mt-1.5 h-1.5 rounded bg-slate-100" title={`Avance ${d.project.avance}%`}>
+                      <div className="h-1.5 rounded bg-egrow-cyan" style={{ width: `${Math.min(100, Number(d.project.avance))}%` }} />
+                    </div>
+                  )}
+                  <div
+                    className={`mt-2 truncate rounded-md border px-2 py-1 ${
+                      !d.next
+                        ? "border-slate-200 text-slate-400"
+                        : d.next.dueDate && d.next.dueDate.slice(0, 10) < today
+                          ? "border-red-200 bg-red-50 text-red-700"
+                          : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                    title={d.next ? `${NEXT_LABEL[d.next.type] ?? ""}: ${d.next.subject}` : undefined}
+                  >
+                    {d.next ? (
+                      <>
+                        {NEXT_LABEL[d.next.type]} {d.next.dueDate ? formatDate(new Date(d.next.dueDate)) : ""} · {d.next.subject}
+                        {d.pending > 1 && <span className="text-slate-500"> (+{d.pending - 1})</span>}
+                      </>
+                    ) : (
+                      "No hay próximas actividades"
+                    )}
+                  </div>
                   <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-slate-500">
                     <span className="flex items-center gap-1.5">
                       {d.owner ? <Avatar name={d.owner} /> : <span className="italic">Sin propietario</span>}
                     </span>
-                    <span className="flex items-center gap-2">
-                      {d.openTasks > 0 && (
-                        <span className="badge bg-amber-100 text-amber-800" title="Tareas pendientes">
-                          {d.openTasks} tarea{d.openTasks > 1 ? "s" : ""}
-                        </span>
-                      )}
-                      <span title="Última actividad">{timeAgo(d.lastActivityAt ? new Date(d.lastActivityAt) : null)}</span>
-                    </span>
+                    <span title="Última actividad">{timeAgo(d.lastActivityAt ? new Date(d.lastActivityAt) : null)}</span>
+                  </div>
+                  <div className="mt-1 flex justify-end border-t border-slate-100 pt-1">
+                    <QuickActions compact target={{ dealId: d.id }} users={users} contact={d.contact} />
                   </div>
                 </div>
               ))}

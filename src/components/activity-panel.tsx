@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Activity, ActivityType } from "@prisma/client";
-import { ActionForm, SubmitButton } from "./action-form";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { createActivity, deleteActivity, toggleTask, type ActivityTarget } from "@/app/(crm)/actividades/actions";
+import { deleteActivity, toggleTask, type ActivityTarget } from "@/app/(crm)/actividades/actions";
+import { QuickActions } from "./quick-actions";
 
 export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   NOTA: "Nota",
@@ -33,50 +33,31 @@ export function ActivityPanel({
   activities,
   users,
   canWrite,
+  contact,
 }: {
   target: ActivityTarget;
   activities: Item[];
   users: { id: string; name: string }[];
   canWrite: boolean;
+  contact?: { name: string; email?: string | null; phone?: string | null } | null;
 }) {
-  const tasks = activities.filter((a) => a.type === "TAREA" && !a.completed);
-  const history = activities.filter((a) => !(a.type === "TAREA" && !a.completed));
+  const isPending = (a: Item) => !a.completed && ["TAREA", "LLAMADA", "REUNION"].includes(a.type);
+  const tasks = activities
+    .filter(isPending)
+    .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity));
+  const history = activities.filter((a) => !isPending(a));
   return (
     <div className="space-y-4">
       {canWrite && (
         <div className="card p-4">
-          <h2 className="mb-3 text-base">Registrar actividad</h2>
-          <ActionForm action={createActivity.bind(null, target)} resetOnSuccess className="grid gap-3 sm:grid-cols-4">
-            <select name="type" className="input" defaultValue="NOTA">
-              {(["NOTA", "LLAMADA", "REUNION", "EMAIL", "TAREA"] as const).map((t) => (
-                <option key={t} value={t}>{ACTIVITY_LABELS[t]}</option>
-              ))}
-            </select>
-            <input name="subject" required placeholder="Asunto" className="input sm:col-span-3" />
-            <textarea name="body" rows={2} placeholder="Detalle (opcional)" className="input sm:col-span-4" />
-            <label className="text-xs text-slate-500 sm:col-span-2">
-              Fecha límite (para tareas)
-              <input name="dueDate" type="date" className="input mt-1" />
-            </label>
-            <label className="text-xs text-slate-500 sm:col-span-2">
-              Asignar a (para tareas)
-              <select name="assigneeId" className="input mt-1" defaultValue="">
-                <option value="">Yo</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-            </label>
-            <div className="sm:col-span-4">
-              <SubmitButton>Guardar actividad</SubmitButton>
-            </div>
-          </ActionForm>
+          <h2 className="mb-3 text-base">Registrar seguimiento</h2>
+          <QuickActions target={target} users={users} contact={contact} />
         </div>
       )}
 
       {tasks.length > 0 && (
         <div className="card p-4">
-          <h2 className="mb-2 text-base">Tareas pendientes</h2>
+          <h2 className="mb-2 text-base">Próximas actividades</h2>
           <ul className="divide-y divide-slate-100">
             {tasks.map((t) => (
               <TaskRow key={t.id} task={t} canWrite={canWrite} />
@@ -137,10 +118,15 @@ export function TaskRow({ task, canWrite, showDeal }: { task: Item; canWrite: bo
         </button>
       </form>
       <div className="min-w-0 flex-1">
-        <div className={`text-sm ${task.completed ? "text-slate-400 line-through" : "font-medium"}`}>{task.subject}</div>
+        <div className={`text-sm ${task.completed ? "text-slate-400 line-through" : "font-medium"}`}>
+          {task.type !== "TAREA" && <span className={`badge mr-1.5 ${COLORS[task.type]}`}>{ACTIVITY_LABELS[task.type]}</span>}
+          {task.subject}
+        </div>
         {task.body && <div className="text-xs text-slate-500">{task.body}</div>}
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
-          <span className={overdue ? "font-semibold text-red-600" : ""}>Vence: {formatDate(task.dueDate)}</span>
+          <span className={overdue ? "font-semibold text-red-600" : ""}>
+            {task.type === "TAREA" ? "Vence" : "Fecha"}: {formatDate(task.dueDate)}
+          </span>
           {task.assignee && <span>Asignada a {task.assignee.name}</span>}
           {showDeal && task.deal && (
             <Link className="text-brand-700 hover:underline" href={`/negocios/${task.deal.id}`}>{task.deal.name}</Link>

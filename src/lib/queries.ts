@@ -65,13 +65,23 @@ export async function getFilterOptions() {
 
 export type FilterOptions = Awaited<ReturnType<typeof getFilterOptions>>;
 
+/** Actividades pendientes: tareas y llamadas o reuniones programadas (las notas nunca quedan pendientes). */
+export const PENDING = { completed: false, type: { in: ["TAREA", "LLAMADA", "REUNION"] } } satisfies Prisma.ActivityWhereInput;
+
 export const dealCardInclude = {
   stage: true,
   owner: { select: { id: true, name: true } },
   company: { select: { id: true, name: true } },
-  contact: { select: { id: true, firstName: true, lastName: true } },
+  contact: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
   businessLine: { select: { id: true, name: true, color: true } },
-  _count: { select: { activities: { where: { type: "TAREA", completed: false } } } },
+  // Próxima actividad pendiente (tarea, llamada o reunión programada)
+  activities: {
+    where: PENDING,
+    orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    take: 1,
+    select: { type: true, subject: true, dueDate: true },
+  },
+  _count: { select: { activities: { where: PENDING } } },
 } satisfies Prisma.DealInclude;
 
 export async function getFormOptions() {

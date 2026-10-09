@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
-import { dealWhere, getFilterOptions, type DealFilters } from "@/lib/queries";
+import { dealWhere, getFilterOptions, PENDING, type DealFilters } from "@/lib/queries";
 import { TaskRow } from "@/components/activity-panel";
 import { DealFiltersBar } from "@/components/deal-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
@@ -66,7 +66,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     }),
     prisma.businessLine.findMany({ orderBy: { name: "asc" } }),
     prisma.activity.findMany({
-      where: { type: "TAREA", completed: false, assigneeId: user.id },
+      where: { ...PENDING, assigneeId: user.id },
       include: { author: true, assignee: true, deal: { select: { id: true, name: true } } },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
       take: 8,
@@ -221,7 +221,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="card p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-base">Mis tareas</h2>
+            <h2 className="text-base">Mis próximas actividades</h2>
             <Link href="/tareas" className="text-xs text-brand-700 hover:underline">Ver todas</Link>
           </div>
           {myTasks.length === 0 ? (
