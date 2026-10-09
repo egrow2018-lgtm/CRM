@@ -5,7 +5,9 @@ import type { ActivityType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission, requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { date, reqStr, str, type ActionState } from "@/lib/forms";
+import { bool, date, num, reqStr, str, type ActionState } from "@/lib/forms";
+import { zonedToUtc } from "@/lib/timezone";
+import { createZoomMeeting, deleteZoomMeeting, zoomConfigured } from "@/lib/zoom";
 import { runAction } from "@/lib/run-action";
 
 export type ActivityTarget = { dealId?: string; contactId?: string; companyId?: string };
@@ -76,9 +78,86 @@ export async function toggleTask(id: string) {
 export async function deleteActivity(id: string) {
   const user = await requireUser();
   const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
-  if (a.authorId !== user.id && !can(user.role, "crm:delete")) throw new Error("Solo puedes eliminar tus propias actividades.");
+  const isOwn = a.authorId === user.id || a.assigneeId === user.id;
+  if (!isOwn && !can(user.role, "crm:delete")) throw new Error("Solo puedes eliminar tus propias actividades.");
+  // Si es una reunión de Zoom, también se cancela en Zoom
+  if (a.zoomMeetingId) await deleteZoomMeeting(a.zoomMeetingId);
   await prisma.activity.delete({ where: { id } });
-  pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined }).forEach((p) =>
-    revalidatePath(p),
+  if (a.type === "REUNION" && !a.completed) {
+    await prisma.activity.create({
+      data: {
+        type: "NOTA",
+        subject: `Reunión cancelada: ${a.subject}`,
+        completed: true,
+        authorId: user.id,
+        dealId: a.dealId,
+        contactId: a.contactId,
+        companyId: a.companyId,
+      },
+    });
+  }
+  [...pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined }), "/agenda"].forEach(
+    (p) => revalidatePath(p),
   );
+}
+
+/**
+ * Agenda una reunión (opcionalmente con Zoom). Si viene de la Agenda, la relación con
+ * negocio, contacto o empresa llega en el formulario.
+ */
+export async function scheduleMeeting(target: ActivityTarget, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    const user = await requirePermission("activities:write");
+    const rel: ActivityTarget = {
+      dealId: target.dealId ?? str(form, "dealId") ?? undefined,
+      contactId: target.contactId ?? str(form, "contactId") ?? undefined,
+      companyId: target.companyId ?? str(form, "companyId") ?? undefined,
+    };
+    const subject = reqStr(form, "subject", "Tema de la reunión");
+    const day = reqStr(form, "date", "Fecha");
+    const time = reqStr(form, "time", "Hora");
+    const duration = Math.min(480, Math.max(15, Math.round(num(form, "duration") ?? 30)));
+    const startAt = zonedToUtc(day, time);
+    const body = str(form, "body");
+    const hostId = str(form, "assigneeId") ?? user.id;
+    const host = await prisma.user.findUniqueOrThrow({ where: { id: hostId } });
+    const upcoming = startAt.getTime() + duration * 60000 > Date.now();
+    const wantsZoom = bool(form, "zoom") && upcoming;
+    if (wantsZoom && !zoomConfigured()) throw new Error("Zoom aún no está conectado. Pide al administrador que lo configure.");
+
+    const zoom = wantsZoom
+      ? await createZoomMeeting({ hostEmail: host.email, topic: subject, agenda: body, start: startAt, durationMinutes: duration })
+      : null;
+    const manualUrl = str(form, "meetingUrl");
+    if (manualUrl && !/^https?:\/\//i.test(manualUrl)) throw new Error("El enlace de la reunión debe empezar con https://");
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.activity.create({
+          data: {
+            type: "REUNION",
+            subject,
+            body,
+            dueDate: new Date(`${day}T00:00:00Z`),
+            startAt,
+            durationMinutes: duration,
+            meetingUrl: zoom?.joinUrl ?? manualUrl,
+            hostUrl: zoom?.startUrl ?? null,
+            meetingPassword: zoom?.password ?? null,
+            zoomMeetingId: zoom?.id ?? null,
+            assigneeId: hostId,
+            authorId: user.id,
+            completed: !upcoming,
+            completedAt: upcoming ? null : new Date(),
+            ...rel,
+          },
+        });
+        await touch(tx, rel);
+      });
+    } catch (e) {
+      if (zoom) await deleteZoomMeeting(zoom.id).catch(() => undefined);
+      throw e;
+    }
+    [...pathsFor(rel), "/agenda"].forEach((p) => revalidatePath(p));
+  });
 }

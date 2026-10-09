@@ -7,6 +7,7 @@ import { getFormOptions } from "@/lib/queries";
 import { contactName, formatDate, formatMoney, formatMoneyExact, toNumber } from "@/lib/format";
 import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
+import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { DealForm } from "../deal-form";
 import { StageBar } from "../stage-bar";
@@ -203,6 +204,8 @@ export default async function DealPage({ params, searchParams }: { params: Promi
           </div>
 
           <ActivityPanel
+            zoomEnabled={zoomConfigured()}
+            viewerId={user.id}
             target={{ dealId: id }}
             activities={deal.activities}
             users={options.users}

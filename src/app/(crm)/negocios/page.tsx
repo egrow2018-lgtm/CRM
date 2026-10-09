@@ -7,6 +7,7 @@ import type { Prisma } from "@prisma/client";
 import { contactName, formatDate, formatMoney, timeAgo, toNumber } from "@/lib/format";
 import { Pager, SortHeader, pageParams } from "@/components/pager";
 import { parseCustomData } from "@/lib/custom-fields";
+import { zoomConfigured } from "@/lib/zoom";
 
 function projectSummary(customData: unknown) {
   const data = parseCustomData(customData);
@@ -137,6 +138,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             project: projectSummary(d.customData),
           }))}
           users={filterOptions.users}
+          zoomEnabled={zoomConfigured()}
         />
       )}
     </div>

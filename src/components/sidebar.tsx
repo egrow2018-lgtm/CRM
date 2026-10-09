@@ -6,6 +6,7 @@ import type { Role } from "@prisma/client";
 import { can, ROLE_LABELS } from "@/lib/permissions";
 import { initials } from "@/lib/format";
 import {
+  IconCalendar,
   IconCatalog,
   IconCompany,
   IconContacts,
@@ -35,6 +36,7 @@ export function Sidebar({
     { href: "/leads", label: "Leads", icon: IconInbox, badge: newLeads },
     { href: "/contactos", label: "Contactos", icon: IconContacts },
     { href: "/empresas", label: "Empresas", icon: IconCompany },
+    { href: "/agenda", label: "Agenda", icon: IconCalendar },
     { href: "/tareas", label: "Tareas", icon: IconTasks },
     { href: "/catalogo", label: "Líneas y productos", icon: IconCatalog },
     ...(can(user.role, "forms:manage") ? [{ href: "/formularios", label: "Formularios", icon: IconForm }] : []),

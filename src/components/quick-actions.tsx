@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { ActivityType } from "@prisma/client";
-import { createActivity, type ActivityTarget } from "@/app/(crm)/actividades/actions";
+import { createActivity, scheduleMeeting, type ActivityTarget } from "@/app/(crm)/actividades/actions";
+import { MeetingFields } from "./meeting-fields";
 import { ActionForm, SubmitButton } from "./action-form";
 import { IconCalendar, IconMail, IconNote, IconPhone, IconTasks } from "./icons";
 
@@ -22,7 +23,7 @@ const TITLES: Record<QuickType, string> = {
   EMAIL: "Registrar correo",
   LLAMADA: "Registrar o programar llamada",
   TAREA: "Crear tarea",
-  REUNION: "Registrar o programar reunión",
+  REUNION: "Agendar reunión",
 };
 
 const PLACEHOLDERS: Record<QuickType, string> = {
@@ -42,11 +43,13 @@ export function QuickActions({
   users,
   contact,
   compact,
+  zoomEnabled = false,
 }: {
   target: ActivityTarget;
   users: { id: string; name: string }[];
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
   compact?: boolean;
+  zoomEnabled?: boolean;
 }) {
   const [open, setOpen] = useState<QuickType | null>(null);
   const phoneDigits = contact?.phone?.replace(/\D/g, "");
@@ -112,11 +115,16 @@ export function QuickActions({
               </div>
             )}
 
-            <ActionForm action={createActivity.bind(null, target)} onSuccess={() => setOpen(null)} className="grid gap-3">
+            <ActionForm
+              action={open === "REUNION" ? scheduleMeeting.bind(null, target) : createActivity.bind(null, target)}
+              onSuccess={() => setOpen(null)}
+              className="grid gap-3"
+            >
               <input type="hidden" name="type" value={open} />
               <input name="subject" required autoFocus placeholder={PLACEHOLDERS[open]} className="input" aria-label="Asunto" />
-              <textarea name="body" rows={3} placeholder="Detalle (opcional)" className="input" aria-label="Detalle" />
-              {(open === "TAREA" || open === "REUNION" || open === "LLAMADA") && (
+              <textarea name="body" rows={open === "REUNION" ? 2 : 3} placeholder={open === "REUNION" ? "Agenda o notas (opcional)" : "Detalle (opcional)"} className="input" aria-label="Detalle" />
+              {open === "REUNION" && <MeetingFields users={users} zoomEnabled={zoomEnabled} />}
+              {(open === "TAREA" || open === "LLAMADA") && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="text-xs text-slate-500">
                     {open === "TAREA" ? "Fecha límite" : "Fecha (si es a futuro queda programada)"}
@@ -135,7 +143,7 @@ export function QuickActions({
               )}
               <div className="flex justify-end gap-2">
                 <button type="button" className="btn" onClick={() => setOpen(null)}>Cancelar</button>
-                <SubmitButton>Guardar</SubmitButton>
+                <SubmitButton pendingText={open === "REUNION" ? "Agendando…" : "Guardando…"}>{open === "REUNION" ? "Agendar" : "Guardar"}</SubmitButton>
               </div>
             </ActionForm>
           </div>

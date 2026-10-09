@@ -3,6 +3,9 @@ import type { Activity, ActivityType } from "@prisma/client";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { deleteActivity, toggleTask, type ActivityTarget } from "@/app/(crm)/actividades/actions";
 import { QuickActions } from "./quick-actions";
+import { MeetingActions } from "./meeting-actions";
+import { googleCalendarUrl, meetingInvitation } from "@/lib/meetings";
+import { formatTimeTz } from "@/lib/timezone";
 
 export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   NOTA: "Nota",
@@ -35,12 +38,16 @@ export function ActivityPanel({
   users,
   canWrite,
   contact,
+  zoomEnabled,
+  viewerId,
 }: {
   target: ActivityTarget;
   activities: Item[];
   users: { id: string; name: string }[];
   canWrite: boolean;
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
+  zoomEnabled?: boolean;
+  viewerId?: string;
 }) {
   const isPending = (a: Item) => !a.completed && ["TAREA", "LLAMADA", "REUNION"].includes(a.type);
   const tasks = activities
@@ -52,7 +59,7 @@ export function ActivityPanel({
       {canWrite && (
         <div className="card p-4">
           <h2 className="mb-3 text-base">Registrar seguimiento</h2>
-          <QuickActions target={target} users={users} contact={contact} />
+          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} />
         </div>
       )}
 
@@ -61,7 +68,7 @@ export function ActivityPanel({
           <h2 className="mb-2 text-base">Próximas actividades</h2>
           <ul className="divide-y divide-slate-100">
             {tasks.map((t) => (
-              <TaskRow key={t.id} task={t} canWrite={canWrite} />
+              <TaskRow key={t.id} task={t} canWrite={canWrite} viewerId={viewerId} inviteEmail={contact?.email} />
             ))}
           </ul>
         </div>
@@ -103,7 +110,19 @@ export function ActivityPanel({
   );
 }
 
-export function TaskRow({ task, canWrite, showDeal }: { task: Item; canWrite: boolean; showDeal?: boolean }) {
+export function TaskRow({
+  task,
+  canWrite,
+  showDeal,
+  viewerId,
+  inviteEmail,
+}: {
+  task: Item;
+  canWrite: boolean;
+  showDeal?: boolean;
+  viewerId?: string;
+  inviteEmail?: string | null;
+}) {
   const overdue = task.dueDate && !task.completed && task.dueDate < new Date(new Date().toISOString().slice(0, 10));
   return (
     <li className="flex items-start gap-3 py-2">
@@ -127,8 +146,10 @@ export function TaskRow({ task, canWrite, showDeal }: { task: Item; canWrite: bo
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
           <span className={overdue ? "font-semibold text-red-600" : ""}>
             {task.type === "TAREA" ? "Vence" : "Fecha"}: {formatDate(task.dueDate)}
+            {task.startAt && ` · ${formatTimeTz(task.startAt)}${task.durationMinutes ? ` (${task.durationMinutes} min)` : ""}`}
           </span>
-          {task.assignee && <span>Asignada a {task.assignee.name}</span>}
+          {task.zoomMeetingId && <span className="font-medium text-blue-700">Zoom</span>}
+          {task.assignee && <span>{task.type === "REUNION" ? "Anfitrión" : "Asignada a"}: {task.assignee.name}</span>}
           {showDeal && task.deal && (
             <Link className="text-brand-700 hover:underline" href={`/negocios/${task.deal.id}`}>{task.deal.name}</Link>
           )}
@@ -138,6 +159,18 @@ export function TaskRow({ task, canWrite, showDeal }: { task: Item; canWrite: bo
             </Link>
           )}
         </div>
+        {task.type === "REUNION" && task.startAt && !task.completed && (
+          <MeetingActions
+            activityId={task.id}
+            subject={task.subject}
+            joinUrl={task.meetingUrl}
+            hostUrl={viewerId && viewerId === task.assigneeId ? task.hostUrl : null}
+            invitation={meetingInvitation({ ...task, startAt: task.startAt }, task.assignee?.name)}
+            calendarUrl={googleCalendarUrl({ ...task, startAt: task.startAt })}
+            inviteEmail={inviteEmail}
+            canCancel={canWrite}
+          />
+        )}
       </div>
     </li>
   );

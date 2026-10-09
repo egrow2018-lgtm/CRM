@@ -15,6 +15,7 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | **Formularios** | Formularios públicos (`/f/nombre`) para compartir en redes, publicaciones o un sitio web, con enlace, botones de WhatsApp, LinkedIn, Facebook y X, código QR e iframe. Cada respuesta crea o actualiza el contacto y lo envía a la bandeja de leads o al usuario asignado. |
 | **Contactos** | Pestañas como en HubSpot (Mis contactos, No asignados, Mis no contactados, Todos), indicadores de calidad de datos (falta propietario, falta email, falta estado del lead, sin actividad reciente) que filtran al hacer clic, filtro por estado del lead, lista paginada o tarjetas por estado del lead con arrastrar y soltar. |
 | **Empresas** | Fichas con contactos, negocios e historial de actividades. |
+| **Agenda y Zoom** | Calendario mensual (mi agenda o todo el equipo) y próximas reuniones. Al agendar una reunión desde la Agenda o con el ícono «Reunión» de un negocio, contacto o empresa, se crea en la **cuenta de Zoom de e-grow**. La reunión muestra los botones «Iniciar Zoom» (anfitrión), «Unirse», copiar invitación, Correo, WhatsApp, Google Calendar y «Cancelar», que también la elimina en Zoom. |
 | **Tareas y agenda** | Tareas, llamadas y reuniones programadas, en lista o en tarjetas por vencimiento (vencidas, hoy, próximos 7 días, más adelante, sin fecha). |
 | **Líneas y productos** | Alta de líneas o representaciones, su catálogo de productos y servicios, y los campos adicionales que activan en sus negocios. |
 | **Importar HubSpot** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés. Tiene modo simulación, omite duplicados y deduce la línea de negocio a partir del nombre. |
@@ -78,6 +79,19 @@ Supabase guarda la base de datos y Vercel ejecuta la aplicación web. Los dos ti
    - Los duplicados se omiten, así que puedes volver a importar sin riesgo.
    - Los propietarios se emparejan por nombre ("Janine Salgado Torres" se asigna a "Janine Salgado"). Los registros de propietarios que ya no existen quedan a nombre de quien importa.
 3. Cada persona cambia su contraseña en **Mi perfil**.
+
+### 4. Conectar Zoom (opcional)
+
+1. Con una cuenta **administradora** de Zoom, entra a [marketplace.zoom.us](https://marketplace.zoom.us) → **Develop → Build App** → **Server-to-Server OAuth App**. Ponle de nombre, por ejemplo, "e-grow CRM".
+2. En **Information** completa los datos de contacto. En **Scopes** agrega:
+   - `meeting:write:meeting:admin`, `meeting:delete:meeting:admin` y `meeting:update:meeting:admin` (crear, eliminar y actualizar reuniones);
+   - `user:read:user:admin` (verificar usuarios).
+   Si tu cuenta muestra los permisos clásicos, usa `meeting:write:admin` y `user:read:admin`.
+3. Pulsa **Activate** y copia **Account ID**, **Client ID** y **Client Secret**.
+4. En Vercel → *Settings → Environment Variables* agrega `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID` y `ZOOM_CLIENT_SECRET`. Opcionalmente agrega `ZOOM_DEFAULT_HOST`: el email del usuario de Zoom que será anfitrión cuando la persona del CRM no tenga cuenta de Zoom. Luego vuelve a publicar (*Redeploy*).
+5. En el CRM → **Configuración → Zoom**, pulsa «Probar conexión con Zoom». Verás qué personas del equipo tienen cuenta de Zoom con licencia.
+
+Las reuniones se crean a nombre del anfitrión elegido, usando su email del CRM. Si esa persona no está en la cuenta de Zoom, se usa `ZOOM_DEFAULT_HOST`. Sin Zoom configurado, la Agenda sigue funcionando y permite pegar un enlace de Meet o Teams.
 
 ## Desarrollo local
 

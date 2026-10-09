@@ -6,6 +6,7 @@ import { can } from "@/lib/permissions";
 import { contactName, formatDate, formatMoney } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
+import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { CompanyForm } from "../company-form";
 import { deleteCompany, updateCompany } from "../actions";
@@ -107,7 +108,9 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
               </table>
             )}
           </div>
-          <ActivityPanel target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user.role, "activities:write")} />
+          <ActivityPanel
+            zoomEnabled={zoomConfigured()}
+            viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user.role, "activities:write")} />
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { requirePermission } from "@/lib/auth";
 import { bool, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { checkZoomUser, zoomConfigured } from "@/lib/zoom";
 
 function role(form: FormData): Role {
   const r = str(form, "role") as Role;
@@ -89,4 +90,34 @@ export async function deleteStage(id: string) {
   await prisma.pipelineStage.delete({ where: { id } });
   revalidatePath("/configuracion");
   revalidatePath("/negocios");
+}
+
+export type ZoomTestState = { error?: string; results?: { name: string; email: string; status: string; ok: boolean }[] } | undefined;
+
+/** Verifica las credenciales de Zoom y si cada usuario del CRM existe en la cuenta de Zoom. */
+export async function testZoom(): Promise<ZoomTestState> {
+  await requirePermission("users:manage");
+  if (!zoomConfigured()) return { error: "Faltan las variables ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID y ZOOM_CLIENT_SECRET." };
+  try {
+    const users = await prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+    const results = [];
+    for (const u of users) {
+      const r = await checkZoomUser(u.email);
+      results.push({
+        name: u.name,
+        email: u.email,
+        ok: r.ok,
+        status: r.ok
+          ? r.licensed
+            ? "Usuario con licencia: sus reuniones se crean a su nombre."
+            : "Usuario básico: puede ser anfitrión, pero con límite de 40 min."
+          : process.env.ZOOM_DEFAULT_HOST
+            ? `No está en Zoom: sus reuniones se crearán con ${process.env.ZOOM_DEFAULT_HOST}.`
+            : "No está en la cuenta de Zoom: agrégalo en Zoom o configura ZOOM_DEFAULT_HOST.",
+      });
+    }
+    return { results };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo conectar con Zoom." };
+  }
 }

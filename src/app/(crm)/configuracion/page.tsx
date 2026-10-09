@@ -5,6 +5,8 @@ import { formatDate } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
 import { createUser, deleteStage, saveStage, updateUser } from "./actions";
+import { ZoomTest } from "./zoom-test";
+import { zoomConfigured } from "@/lib/zoom";
 
 const ROLE_HELP: Record<keyof typeof ROLE_LABELS, string> = {
   ADMIN: "Todo, incluida la gestión de usuarios y etapas del pipeline.",
@@ -71,6 +73,26 @@ export default async function SettingsPage() {
             <input name="password" type="password" required placeholder="Contraseña (mín. 8)" className="input" autoComplete="new-password" />
             <SubmitButton>Crear usuario</SubmitButton>
           </ActionForm>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-1">Zoom</h2>
+        <div className="card p-4 text-sm">
+          {zoomConfigured() ? (
+            <p className="mb-3 text-emerald-700">✓ Zoom está conectado. Las reuniones agendadas en el CRM se crean en la cuenta de Zoom de e-grow.</p>
+          ) : (
+            <div className="mb-3 space-y-1 text-slate-600">
+              <p className="font-medium text-amber-700">Zoom aún no está conectado.</p>
+              <p>
+                En <a className="link" href="https://marketplace.zoom.us/" target="_blank" rel="noreferrer">marketplace.zoom.us</a> → Develop →
+                Build App → <b>Server-to-Server OAuth</b>, con los permisos para crear, actualizar y eliminar reuniones y para leer usuarios.
+                Luego copia Account ID, Client ID y Client Secret en las variables <code>ZOOM_ACCOUNT_ID</code>, <code>ZOOM_CLIENT_ID</code> y{" "}
+                <code>ZOOM_CLIENT_SECRET</code> del hosting (Vercel) y vuelve a publicar. Los pasos completos están en el README.
+              </p>
+            </div>
+          )}
+          <ZoomTest />
         </div>
       </section>
 
