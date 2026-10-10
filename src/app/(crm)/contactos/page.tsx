@@ -11,7 +11,7 @@ import { Pager, SortHeader, hrefWith, pageParams } from "@/components/pager";
 import { ContactFilters } from "./filters";
 import { ContactBoard } from "./board";
 import { lastActivityAlert } from "@/lib/alerts";
-import { SemaforoDot } from "@/components/semaforo";
+import { SemaforoPunto } from "@/components/semaforo";
 
 type SP = { tab?: string; issue?: string; q?: string; owner?: string; lead?: string; view?: string; page?: string; per?: string; sort?: string };
 
@@ -199,7 +199,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
                           const a = lastActivityAlert(c.lastActivityAt, { warnDays: 30, dangerDays: 90 });
                           return (
                             <span className="inline-flex items-center gap-1">
-                              <SemaforoDot level={a.level} title={a.label} /> {timeAgo(c.lastActivityAt)}
+                              <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
                             </span>
                           );
                         })()}
