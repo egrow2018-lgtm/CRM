@@ -34,7 +34,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
   if (!company) notFound();
   // Posibles duplicados: mismo nombre sin sufijos o misma web, más las que contienen la primera palabra del nombre
   const firstWord = companyKey(company.name).split(" ")[0] ?? "";
-  const duplicates = can(user.role, "crm:delete")
+  const duplicates = can(user, "companies:delete")
     ? await prisma.company
         .findMany({ select: { id: true, name: true, website: true } })
         .then(async (all) => {
@@ -52,7 +52,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
           return found.sort((a, b) => inGroup(a) - inGroup(b)).slice(0, 10);
         })
     : [];
-  const canWrite = can(user.role, "crm:write");
+  const canWrite = can(user, "companies:write");
   const editing = edit === "1" && canWrite;
   // GPSBox: se muestra si la empresa tiene negocios de Rutalink o ya tiene RUC
   const showGpsbox = company.deals.some((d) => normalize(d.businessLine?.name ?? "") === "rutalink") || !!company.taxId;
@@ -69,12 +69,12 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
         }
         subtitle={[company.industry, company.city, company.country].filter(Boolean).join(" · ")}
         actions={
-          canWrite && (
+          (canWrite || can(user, "deals:write") || can(user, "contacts:write")) && (
             <>
-              <Link href={`/negocios/nuevo?companyId=${id}`} className="btn btn-primary">Nuevo negocio</Link>
-              <Link href={`/contactos/nuevo?companyId=${id}`} className="btn">Nuevo contacto</Link>
-              <Link href={editing ? `/empresas/${id}` : `/empresas/${id}?edit=1`} className="btn">{editing ? "Cancelar" : "Editar"}</Link>
-              {can(user.role, "crm:delete") && (
+              {can(user, "deals:write") && <Link href={`/negocios/nuevo?companyId=${id}`} className="btn btn-primary">Nuevo negocio</Link>}
+              {can(user, "contacts:write") && <Link href={`/contactos/nuevo?companyId=${id}`} className="btn">Nuevo contacto</Link>}
+              {canWrite && <Link href={editing ? `/empresas/${id}` : `/empresas/${id}?edit=1`} className="btn">{editing ? "Cancelar" : "Editar"}</Link>}
+              {can(user, "companies:delete") && (
                 <form action={deleteCompany.bind(null, id)}>
                   <ConfirmButton message="¿Eliminar esta empresa? Los contactos y negocios quedarán sin empresa.">Eliminar</ConfirmButton>
                 </form>
@@ -171,7 +171,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
-            viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user.role, "activities:write")} />
+            viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user, "activities:write")} />
         </div>
       </div>
     </div>

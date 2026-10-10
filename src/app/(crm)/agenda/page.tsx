@@ -72,7 +72,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     return `/agenda?${new URLSearchParams({ month: t.toISOString().slice(0, 7), ...(who === "all" ? { who } : {}) })}`;
   };
   const zoomOn = zoomConfigured();
-  const canWrite = can(user.role, "activities:write");
+  const canWrite = can(user, "activities:write");
 
   return (
     <div>

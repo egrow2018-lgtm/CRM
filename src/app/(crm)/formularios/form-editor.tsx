@@ -5,6 +5,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { CONTACT_MAPPINGS, FORM_FIELD_TYPES, type ContactMapping, type FormField, type FormFieldType } from "@/lib/forms-builder";
 import { toKey } from "@/lib/custom-fields";
 import type { ActionState } from "@/lib/forms";
+import { LogoInput } from "./logo-input";
 
 type FormValues = {
   name: string;
@@ -17,6 +18,9 @@ type FormValues = {
   assigneeId: string | null;
   active: boolean;
   fields: FormField[];
+  logo: string | null;
+  consentEnabled: boolean;
+  consentText: string | null;
 };
 
 export function FormEditor({
@@ -24,7 +28,9 @@ export function FormEditor({
   lines,
   users,
   action,
+  defaultConsent,
 }: {
+  defaultConsent: string;
   form: FormValues;
   lines: { id: string; name: string }[];
   users: { id: string; name: string }[];
@@ -91,6 +97,27 @@ export function FormEditor({
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={form.active} /> Publicado (acepta respuestas)
         </label>
+        <div className="sm:col-span-2">
+          <span className="label">Logo o imagen de cabecera</span>
+          <LogoInput initial={form.logo} />
+          <p className="mt-1 text-xs text-slate-500">PNG, JPG o WebP. Se reduce automáticamente. Si no subes ninguna, se muestra el logo de e-grow.</p>
+        </div>
+        <div className="sm:col-span-2 rounded-lg border border-slate-200 p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" name="consentEnabled" defaultChecked={form.consentEnabled} />
+            Pedir autorización de tratamiento de datos personales (casilla obligatoria)
+          </label>
+          <textarea
+            name="consentText"
+            rows={3}
+            defaultValue={form.consentText ?? ""}
+            placeholder={defaultConsent}
+            className="input mt-2 text-xs"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Si lo dejas vacío se usa el texto sugerido (en gris), basado en la Ley Orgánica de Protección de Datos Personales del Ecuador. Cada respuesta guarda la fecha y hora de la autorización.
+          </p>
+        </div>
       </div>
 
       <div>

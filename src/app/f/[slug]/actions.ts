@@ -18,8 +18,11 @@ export async function submitPublicForm(slug: string, _: PublicFormState, data: F
 
   try {
     const fields = parseFormFields(form.fields);
+    if (form.consentEnabled && data.get("_consent") !== "on") {
+      return { error: "Para enviar tus datos debes aceptar la autorización de tratamiento de datos personales." };
+    }
     const answers = readAnswers(fields, data);
-    const contactId = await captureLead(form, answers);
+    const contactId = await captureLead(form, answers, form.consentEnabled ? new Date() : null);
     // El aviso por correo no debe impedir que la respuesta quede registrada
     await notifyNewLead(form, contactId, answers, Object.fromEntries(fields.map((f) => [f.key, f.label]))).catch((e) =>
       console.error("No se pudo enviar el aviso del lead", e),

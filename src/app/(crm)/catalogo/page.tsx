@@ -10,7 +10,7 @@ import { parseCustomFields } from "@/lib/custom-fields";
 
 export default async function CatalogPage() {
   const user = await requireUser();
-  const canManage = can(user.role, "catalog:manage");
+  const canManage = can(user, "catalog:manage");
   const lines = await prisma.businessLine.findMany({
     include: {
       products: { orderBy: { name: "asc" } },

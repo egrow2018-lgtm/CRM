@@ -50,6 +50,8 @@ El borde de cada tarjeta del tablero toma el color de su alerta más grave. Inic
 | **Gestión de negocios** | Crea clientes (contactos y empresas), negocios y productos, y da seguimiento a cada negocio. | María Isabel Piñeiros |
 | **Gestión de proyectos** | Consulta todo y da seguimiento a la producción: mueve negocios entre *Firma de Contrato*, *En Producción* y *Cerrado Ganado*, y registra actividades y tareas. | Janine Salgado |
 
+Estos son los permisos **por defecto** de cada perfil. En **Usuarios y permisos** el administrador puede personalizarlos por persona, módulo por módulo (por ejemplo, permitir que alguien de *Gestión de negocios* elimine contactos y empresas). El administrador siempre conserva todos los permisos.
+
 Los tres usuarios se crean automáticamente (`prisma/seed.ts`) con la contraseña temporal `SEED_INITIAL_PASSWORD`. Cada persona la cambia en **Mi perfil**, haciendo clic en su nombre abajo a la izquierda.
 
 La matriz de permisos está en `src/lib/permissions.ts`.

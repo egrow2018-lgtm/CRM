@@ -49,7 +49,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
     include: { businessLine: true },
     orderBy: [{ businessLine: { name: "asc" } }, { name: "asc" }],
   });
-  const canWrite = can(user.role, "crm:write");
+  const canWrite = can(user, "deals:write");
   const editing = edit === "1" && canWrite;
   const weighted = (toNumber(deal.amount) * deal.stage.probability) / 100;
   const renewal = renewalAlert(deal.renewalDate);
@@ -83,7 +83,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               <Link href={editing ? `/negocios/${id}` : `/negocios/${id}?edit=1`} className="btn">
                 {editing ? "Cancelar edición" : "Editar"}
               </Link>
-              {can(user.role, "crm:delete") && (
+              {can(user, "deals:delete") && (
                 <form action={deleteDeal.bind(null, id)}>
                   <ConfirmButton message="¿Eliminar este negocio y todo su historial?">Eliminar</ConfirmButton>
                 </form>
@@ -162,7 +162,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               values={parseCustomData(deal.customData)}
               users={options.users}
               action={updateDealCustomData.bind(null, id)}
-              canEdit={can(user.role, "crm:write") || can(user.role, "deals:production")}
+              canEdit={can(user, "deals:write") || can(user, "deals:production")}
             />
           )}
         </div>
@@ -259,7 +259,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             target={{ dealId: id }}
             activities={deal.activities}
             users={options.users}
-            canWrite={can(user.role, "activities:write")}
+            canWrite={can(user, "activities:write")}
             contact={deal.contact && { name: contactName(deal.contact), email: deal.contact.email, phone: deal.contact.phone }}
           />
         </div>

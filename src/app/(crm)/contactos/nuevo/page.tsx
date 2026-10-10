@@ -5,7 +5,7 @@ import { ContactForm } from "../contact-form";
 import { createContact } from "../actions";
 
 export default async function NewContactPage({ searchParams }: { searchParams: Promise<{ companyId?: string }> }) {
-  await requirePagePermission("crm:write");
+  await requirePagePermission("contacts:write");
   const { companyId } = await searchParams;
   const [users, companies] = await Promise.all([
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),

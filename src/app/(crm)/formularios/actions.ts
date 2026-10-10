@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { bool, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
-import { DEFAULT_FORM_FIELDS, parseFormFields, slugify } from "@/lib/forms-builder";
+import { DEFAULT_FORM_FIELDS, parseFormFields, slugify, validLogo } from "@/lib/forms-builder";
 import { toKey } from "@/lib/custom-fields";
 
 function readFields(form: FormData) {
@@ -57,7 +57,7 @@ export async function createForm(_: ActionState, form: FormData) {
       },
     });
     revalidatePath("/formularios");
-    return `/formularios/${created.id}`;
+    return `/formularios/${created.id}?tab=editar`;
   });
 }
 
@@ -77,6 +77,9 @@ export async function updateForm(id: string, _: ActionState, form: FormData) {
         assigneeId: str(form, "assigneeId"),
         active: bool(form, "active"),
         fields: readFields(form),
+        logo: validLogo(str(form, "logo")),
+        consentEnabled: bool(form, "consentEnabled"),
+        consentText: str(form, "consentText"),
         ...(slugInput ? { slug: await uniqueSlug(slugInput, id) } : {}),
       },
     });

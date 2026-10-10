@@ -18,6 +18,7 @@ export const IconSettings = base("M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.
 export const IconImport = base("M12 3v12M7 10l5 5 5-5M5 21h14");
 export const IconLogout = base("M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3");
 export const IconPlus = base("M12 5v14M5 12h14");
+export const IconShield = base("M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM9 12l2 2 4-4");
 export const IconSearch = base("M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3");
 export const IconBoard = base("M4 4h6v16H4zM14 4h6v10h-6z");
 export const IconList = base("M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01");

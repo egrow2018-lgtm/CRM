@@ -22,7 +22,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const user = await requireUser();
   const { tab = "nuevos" } = await searchParams;
   const current = TABS.find((t) => t.key === tab) ?? TABS[0]!;
-  const canTake = can(user.role, "leads:take");
+  const canTake = can(user, "leads:take");
   const [counts, leads] = await Promise.all([
     Promise.all(TABS.map((t) => prisma.contact.count({ where: t.where(user.id) }))),
     prisma.contact.findMany({
@@ -46,7 +46,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <PageHeader
         title="Leads"
         subtitle="Personas que llenaron un formulario. Tómalas para darles seguimiento y conviértelas en negocio."
-        actions={can(user.role, "forms:manage") && <Link href="/formularios" className="btn">Ver formularios</Link>}
+        actions={can(user, "forms:manage") && <Link href="/formularios" className="btn">Ver formularios</Link>}
       />
       <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map((t, i) => (

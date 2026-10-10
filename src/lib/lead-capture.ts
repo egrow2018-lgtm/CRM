@@ -26,7 +26,7 @@ export function readAnswers(fields: FormField[], form: FormData) {
  * Registra una respuesta: crea o actualiza el contacto (por email), lo asocia a su empresa,
  * deja una nota con las respuestas y lo envía a la bandeja de leads o al usuario asignado.
  */
-export async function captureLead(form: Form, answers: Record<string, string>) {
+export async function captureLead(form: Form, answers: Record<string, string>, consentAt: Date | null = null) {
   const fields = parseFormFields(form.fields);
   const mapped = (m: FormField["map"]) => {
     const f = fields.find((x) => x.map === m);
@@ -90,10 +90,16 @@ export async function captureLead(form: Form, answers: Record<string, string>) {
       contactId = created.id;
     }
 
-    await tx.formSubmission.create({ data: { formId: form.id, contactId, data: answers } });
+    await tx.formSubmission.create({ data: { formId: form.id, contactId, data: answers, consentAt } });
     await tx.activity.create({
-      data: { type: "NOTA", subject: `Respuesta al formulario "${form.name}"`, body: summary, contactId },
+      data: {
+        type: "NOTA",
+        subject: `Respuesta al formulario "${form.name}"`,
+        body: consentAt ? `${summary}\n\nAutorizó el tratamiento de sus datos personales.` : summary,
+        contactId,
+      },
     });
+    if (companyId) await tx.company.update({ where: { id: companyId }, data: { lastActivityAt: new Date() } });
     if (form.assigneeId) {
       const tomorrow = new Date(Date.now() + 86400000);
       await tx.activity.create({

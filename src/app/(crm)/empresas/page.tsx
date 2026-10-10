@@ -76,7 +76,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
   ]);
   const companies = dupOrder ? rows.sort((a, b) => dupOrder.get(a.id)! - dupOrder.get(b.id)!).slice(skip, skip + per) : rows;
   const spRecord = sp as Record<string, string | undefined>;
-  const canDelete = can(user.role, "crm:delete");
+  const canDelete = can(user, "companies:delete");
 
   return (
     <div>
@@ -84,7 +84,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
         title="Empresas"
         subtitle={`${total} empresas${dupOrder ? " · posibles duplicados (agrupados)" : ""}`}
         actions={
-          can(user.role, "crm:write") && (
+          can(user, "companies:write") && (
             <Link href="/empresas/nueva" className="btn btn-primary"><IconPlus /> Nueva empresa</Link>
           )
         }

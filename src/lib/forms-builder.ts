@@ -42,6 +42,26 @@ export const DEFAULT_FORM_FIELDS: FormField[] = [
   { key: "mensaje", label: "¿En qué podemos ayudarte?", type: "textarea", required: false, map: "" },
 ];
 
+/** Texto por defecto de la autorización de datos personales (Ley Orgánica de Protección de Datos Personales del Ecuador). */
+export function defaultConsentText(company: { name: string; legalName?: string; email?: string }) {
+  const who = company.legalName || company.name;
+  const contact = company.email ? ` escribiendo a ${company.email}` : "";
+  return (
+    `Autorizo a ${who} a tratar mis datos personales, conforme a la Ley Orgánica de Protección de Datos Personales del Ecuador, ` +
+    `para atender mi solicitud y enviarme información sobre sus productos y servicios. ` +
+    `Puedo ejercer mis derechos de acceso, rectificación, eliminación y oposición en cualquier momento${contact}.`
+  );
+}
+
+/** Logo de un formulario: imagen PNG, JPEG o WebP como data URL, de hasta ~300 KB. */
+export const MAX_LOGO_CHARS = 400_000;
+export function validLogo(value: string | null | undefined) {
+  if (!value) return null;
+  if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value)) throw new Error("El logo debe ser una imagen PNG, JPG o WebP.");
+  if (value.length > MAX_LOGO_CHARS) throw new Error("El logo es muy pesado (máximo ~300 KB).");
+  return value;
+}
+
 export function parseFormFields(value: unknown): FormField[] {
   if (!Array.isArray(value)) return [];
   return value.filter(

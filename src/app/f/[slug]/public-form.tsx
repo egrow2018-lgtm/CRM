@@ -9,11 +9,13 @@ export function PublicForm({
   fields,
   submitLabel,
   successMessage,
+  consentText,
 }: {
   slug: string;
   fields: FormField[];
   submitLabel: string;
   successMessage: string;
+  consentText: string | null;
 }) {
   const [state, action, pending] = useActionState(submitPublicForm.bind(null, slug), undefined);
   const [startedAt] = useState(() => Date.now());
@@ -77,10 +79,20 @@ export function PublicForm({
           )}
         </div>
       ))}
+      {consentText ? (
+        <label className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+          <input type="checkbox" name="_consent" required className="mt-0.5 shrink-0" />
+          <span>
+            {consentText}
+            <span className="text-red-600"> *</span>
+          </span>
+        </label>
+      ) : (
+        <p className="text-center text-xs text-slate-400">Tus datos se usarán solo para contactarte sobre tu solicitud.</p>
+      )}
       <button type="submit" disabled={pending} className="btn btn-primary w-full py-2.5 text-base">
         {pending ? "Enviando…" : submitLabel}
       </button>
-      <p className="text-center text-xs text-slate-400">Tus datos se usarán solo para contactarte sobre tu solicitud.</p>
     </form>
   );
 }

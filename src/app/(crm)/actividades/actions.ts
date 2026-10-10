@@ -85,7 +85,7 @@ export async function deleteActivity(id: string) {
   const user = await requireUser();
   const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
   const isOwn = a.authorId === user.id || a.assigneeId === user.id;
-  if (!isOwn && !can(user.role, "crm:delete")) throw new Error("Solo puedes eliminar tus propias actividades.");
+  if (!isOwn && !(["contacts:delete", "companies:delete", "deals:delete"] as const).some((p) => can(user, p))) throw new Error("Solo puedes eliminar tus propias actividades.");
   // Si es una reunión de Zoom, también se cancela en Zoom
   if (a.zoomMeetingId) await deleteZoomMeeting(a.zoomMeetingId);
   await prisma.activity.delete({ where: { id } });

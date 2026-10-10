@@ -99,7 +99,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
     isBoard ? prisma.contact.groupBy({ by: ["leadStatus"], where, _count: true }) : Promise.resolve([]),
   ]);
   const spRecord = sp as Record<string, string | undefined>;
-  const canDelete = can(user.role, "crm:delete");
+  const canDelete = can(user, "contacts:delete");
   const fmt = new Intl.NumberFormat("es-EC");
 
   return (
@@ -107,7 +107,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="Contactos"
         subtitle={`${total} contactos${issue ? ` · ${issue.label.toLowerCase()}` : ""}`}
-        actions={can(user.role, "crm:write") && <Link href="/contactos/nuevo" className="btn btn-primary"><IconPlus /> Agregar contacto</Link>}
+        actions={can(user, "contacts:write") && <Link href="/contactos/nuevo" className="btn btn-primary"><IconPlus /> Agregar contacto</Link>}
       />
 
       <div className="mb-4 flex flex-wrap gap-1 border-b border-slate-200">
@@ -149,7 +149,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
         <EmptyState>No hay contactos en esta vista.</EmptyState>
       ) : isBoard ? (
         <ContactBoard
-          canMove={can(user.role, "leads:take")}
+          canMove={can(user, "leads:take")}
           totals={Object.fromEntries(statusGroups.map((g) => [g.leadStatus ?? "none", g._count]))}
           contacts={contacts.map((c) => ({
             id: c.id,

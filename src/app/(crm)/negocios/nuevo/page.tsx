@@ -9,7 +9,7 @@ export default async function NewDealPage({
 }: {
   searchParams: Promise<{ companyId?: string; contactId?: string; businessLineId?: string }>;
 }) {
-  await requirePagePermission("crm:write");
+  await requirePagePermission("deals:write");
   const [options, sp] = await Promise.all([getFormOptions(), searchParams]);
   return (
     <div className="max-w-3xl">

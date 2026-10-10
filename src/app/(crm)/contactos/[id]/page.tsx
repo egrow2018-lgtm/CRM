@@ -30,7 +30,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
     prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   if (!contact) notFound();
-  const canWrite = can(user.role, "crm:write");
+  const canWrite = can(user, "contacts:write");
   const editing = edit === "1" && canWrite;
   const phoneDigits = contact.phone?.replace(/\D/g, "");
 
@@ -54,7 +54,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
                 Nuevo negocio
               </Link>
               <Link href={editing ? `/contactos/${id}` : `/contactos/${id}?edit=1`} className="btn">{editing ? "Cancelar" : "Editar"}</Link>
-              {can(user.role, "crm:delete") && (
+              {can(user, "contacts:delete") && (
                 <form action={deleteContact.bind(null, id)}>
                   <ConfirmButton message="¿Eliminar este contacto?">Eliminar</ConfirmButton>
                 </form>
@@ -116,7 +116,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
-            viewerId={user.id} target={{ contactId: id }} activities={contact.activities} users={users} canWrite={can(user.role, "activities:write")} contact={{ name: contactName(contact), email: contact.email, phone: contact.phone }} />
+            viewerId={user.id} target={{ contactId: id }} activities={contact.activities} users={users} canWrite={can(user, "activities:write")} contact={{ name: contactName(contact), email: contact.email, phone: contact.phone }} />
         </div>
       </div>
     </div>

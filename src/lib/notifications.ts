@@ -26,7 +26,7 @@ export async function notifyNewLead(form: Form, contactId: string, answers: Reco
   if (!emailConfigured()) return;
   const recipients = form.assigneeId
     ? await prisma.user.findMany({ where: { id: form.assigneeId, active: true } })
-    : (await prisma.user.findMany({ where: { active: true } })).filter((u) => can(u.role, "leads:take"));
+    : (await prisma.user.findMany({ where: { active: true } })).filter((u) => can(u, "leads:take"));
   if (recipients.length === 0) return;
   const contact = await prisma.contact.findUnique({ where: { id: contactId }, include: { company: true } });
   if (!contact) return;
@@ -64,7 +64,7 @@ export async function buildDigest(user: User) {
         activities: { where: PENDING, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1, select: { dueDate: true } },
       },
     }),
-    can(user.role, "leads:take")
+    can(user, "leads:take")
       ? prisma.contact.findMany({ where: { leadStatus: "NUEVO" }, orderBy: { createdAt: "asc" }, take: 10, include: { company: { select: { name: true } } } })
       : Promise.resolve([]),
     prisma.deal.findMany({
