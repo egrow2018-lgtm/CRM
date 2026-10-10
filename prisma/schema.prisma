@@ -117,6 +117,7 @@ model Company {
   notes     String?
   ownerId   String?
   owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  lastActivityAt DateTime? // última actividad en la empresa, sus contactos o sus negocios
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -125,6 +126,9 @@ model Company {
   activities Activity[]
 
   @@index([name])
+  @@index([ownerId])
+  @@index([createdAt])
+  @@index([lastActivityAt])
 }
 
 model Contact {

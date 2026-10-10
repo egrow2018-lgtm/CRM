@@ -31,6 +31,7 @@ const ALIASES: Record<ImportKind, Record<string, string[]>> = {
     notes: ["descripcion", "description"],
     owner: ["propietario de la empresa", "propietario del registro de empresa", "company owner", "propietario"],
     createdAt: ["fecha de creacion", "create date"],
+    lastActivity: ["ultima actividad", "last activity date"],
   },
   contacts: {
     firstName: ["nombre", "first name"],
@@ -88,6 +89,19 @@ const CHUNK = 500;
 
 async function inChunks<T>(items: T[], fn: (chunk: T[]) => Promise<unknown>) {
   for (let i = 0; i < items.length; i += CHUNK) await fn(items.slice(i, i + CHUNK));
+}
+
+/** La última actividad de cada empresa pasa a ser la más reciente de sus contactos o negocios, si es posterior. */
+async function refreshCompanyActivity(tx: Prisma.TransactionClient) {
+  await tx.$executeRaw`
+    UPDATE "Company" c SET "lastActivityAt" = x.last
+    FROM (
+      SELECT "companyId", MAX(t) AS last FROM (
+        SELECT "companyId", "lastActivityAt" AS t FROM "Contact" WHERE "companyId" IS NOT NULL
+        UNION ALL SELECT "companyId", "lastActivityAt" FROM "Deal" WHERE "companyId" IS NOT NULL
+      ) u WHERE t IS NOT NULL GROUP BY "companyId"
+    ) x
+    WHERE c.id = x."companyId" AND (c."lastActivityAt" IS NULL OR c."lastActivityAt" < x.last)`;
 }
 
 export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun: boolean, userId: string): Promise<ImportResult> {
@@ -170,6 +184,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         industry: get(row, "industry"),
         notes: get(row, "notes"),
       };
+      const lastActivityAt = parseDate(get(row, "lastActivity"));
       const existing =
         byExactName.get(normalize(name)) ??
         byId.get(companyIds.get(key) ?? "") ??
@@ -182,13 +197,14 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         // La fecha de creación real es la de HubSpot si es anterior
         const createdAt = parseDate(get(row, "createdAt"));
         if (createdAt && createdAt < existing.createdAt) patch.createdAt = createdAt;
+        if (lastActivityAt && (!existing.lastActivityAt || lastActivityAt > existing.lastActivityAt)) patch.lastActivityAt = lastActivityAt;
         if (Object.keys(patch).length && !companyPatches.has(existing.id)) {
           companyPatches.set(existing.id, patch);
           result.updated++;
         } else result.skipped++;
         continue;
       }
-      list.push({ name, ...fields, ownerId: ownerOf(row) ?? userId, ...createdAtOf(row) });
+      list.push({ name, ...fields, lastActivityAt, ownerId: ownerOf(row) ?? userId, ...createdAtOf(row) });
     }
     records = list;
   }
@@ -329,6 +345,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
       } else if (kind === "contacts") {
         const list = (records as (Prisma.ContactCreateManyInput & { _company?: string })[]).map(withCompany);
         await inChunks(list, (chunk) => tx.contact.createMany({ data: chunk }));
+        await refreshCompanyActivity(tx);
       } else {
         const stageIds = new Map<string, string>();
         let order = (await tx.pipelineStage.aggregate({ _max: { order: true } }))._max.order ?? 0;
@@ -340,6 +357,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         }
         const list = (records as (Prisma.DealCreateManyInput & { _company?: string })[]).map(withCompany);
         await inChunks(list, (chunk) => tx.deal.createMany({ data: chunk }));
+        await refreshCompanyActivity(tx);
       }
     },
     { timeout: 120_000, maxWait: 10_000 },

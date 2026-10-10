@@ -12,6 +12,7 @@ import { CompanyForm } from "../company-form";
 import { GpsboxCard } from "@/components/gpsbox-card";
 import { companyKey, normalize, websiteDomain } from "@/lib/csv";
 import { CompanyLogo } from "@/components/company-logo";
+import { duplicateGroups } from "@/lib/duplicates";
 import { deleteCompany, mergeCompany, updateCompany } from "../actions";
 
 export default async function CompanyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
@@ -31,17 +32,26 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   if (!company) notFound();
-  // Posibles duplicados: empresas cuyo nombre contiene la primera palabra de esta (ej. "Siemens" ↔ "Siemens AG")
+  // Posibles duplicados: mismo nombre sin sufijos o misma web, más las que contienen la primera palabra del nombre
   const firstWord = companyKey(company.name).split(" ")[0] ?? "";
-  const duplicates =
-    can(user.role, "crm:delete") && firstWord.length >= 3
-      ? await prisma.company.findMany({
-          where: { id: { not: id }, name: { contains: firstWord, mode: "insensitive" } },
-          select: { id: true, name: true, city: true, _count: { select: { contacts: true, deals: true } } },
-          orderBy: { name: "asc" },
-          take: 10,
+  const duplicates = can(user.role, "crm:delete")
+    ? await prisma.company
+        .findMany({ select: { id: true, name: true, website: true } })
+        .then(async (all) => {
+          const group = duplicateGroups(all).find((g) => g.some((c) => c.id === id)) ?? [];
+          const ids = new Set(group.map((c) => c.id));
+          if (firstWord.length >= 3) for (const c of all) if (c.name.toLowerCase().includes(firstWord)) ids.add(c.id);
+          ids.delete(id);
+          const found = await prisma.company.findMany({
+            where: { id: { in: [...ids] } },
+            select: { id: true, name: true, city: true, _count: { select: { contacts: true, deals: true } } },
+            orderBy: { name: "asc" },
+          });
+          // Primero las del mismo grupo (nombre o web iguales), luego las de nombre parecido
+          const inGroup = (c: { id: string }) => (group.some((g) => g.id === c.id) ? 0 : 1);
+          return found.sort((a, b) => inGroup(a) - inGroup(b)).slice(0, 10);
         })
-      : [];
+    : [];
   const canWrite = can(user.role, "crm:write");
   const editing = edit === "1" && canWrite;
   // GPSBox: se muestra si la empresa tiene negocios de Rutalink o ya tiene RUC

@@ -14,15 +14,21 @@ export type ActivityTarget = { dealId?: string; contactId?: string; companyId?: 
 
 const TYPES: ActivityType[] = ["NOTA", "LLAMADA", "REUNION", "EMAIL", "TAREA"];
 
-/** Actualiza la "última actividad" del negocio y del contacto (incluido el contacto principal del negocio). */
+/** Actualiza la "última actividad" del negocio, del contacto (incluido el principal del negocio) y de su empresa. */
 async function touch(db: Prisma.TransactionClient, t: ActivityTarget) {
   const now = new Date();
   let contactId = t.contactId;
+  let companyId = t.companyId;
   if (t.dealId) {
     const deal = await db.deal.update({ where: { id: t.dealId }, data: { lastActivityAt: now } });
     contactId ??= deal.contactId ?? undefined;
+    companyId ??= deal.companyId ?? undefined;
   }
-  if (contactId) await db.contact.update({ where: { id: contactId }, data: { lastActivityAt: now } });
+  if (contactId) {
+    const contact = await db.contact.update({ where: { id: contactId }, data: { lastActivityAt: now } });
+    companyId ??= contact.companyId ?? undefined;
+  }
+  if (companyId) await db.company.update({ where: { id: companyId }, data: { lastActivityAt: now } });
 }
 
 function pathsFor(t: ActivityTarget) {
@@ -69,7 +75,7 @@ export async function toggleTask(id: string) {
   const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
   const completed = !a.completed;
   await prisma.activity.update({ where: { id }, data: { completed, completedAt: completed ? new Date() : null } });
-  if (completed) await touch(prisma, { dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined });
+  if (completed) await touch(prisma, { dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined });
   pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined }).forEach((p) =>
     revalidatePath(p),
   );
