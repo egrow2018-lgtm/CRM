@@ -10,8 +10,8 @@ import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { CompanyForm } from "../company-form";
 import { GpsboxCard } from "@/components/gpsbox-card";
-import { normalize } from "@/lib/csv";
-import { deleteCompany, updateCompany } from "../actions";
+import { companyKey, normalize } from "@/lib/csv";
+import { deleteCompany, mergeCompany, updateCompany } from "../actions";
 
 export default async function CompanyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
   const user = await requireUser();
@@ -30,6 +30,17 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   if (!company) notFound();
+  // Posibles duplicados: empresas cuyo nombre contiene la primera palabra de esta (ej. "Siemens" ↔ "Siemens AG")
+  const firstWord = companyKey(company.name).split(" ")[0] ?? "";
+  const duplicates =
+    can(user.role, "crm:delete") && firstWord.length >= 3
+      ? await prisma.company.findMany({
+          where: { id: { not: id }, name: { contains: firstWord, mode: "insensitive" } },
+          select: { id: true, name: true, city: true, _count: { select: { contacts: true, deals: true } } },
+          orderBy: { name: "asc" },
+          take: 10,
+        })
+      : [];
   const canWrite = can(user.role, "crm:write");
   const editing = edit === "1" && canWrite;
   // GPSBox: se muestra si la empresa tiene negocios de Rutalink o ya tiene RUC
@@ -85,6 +96,29 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
               contact={company.deals.find((d) => d.contact && normalize(d.businessLine?.name ?? "") === "rutalink")?.contact ?? company.contacts[0] ?? null}
               canEdit={canWrite}
             />
+          )}
+          {duplicates.length > 0 && (
+            <div className="card border-amber-300 p-4">
+              <h2 className="mb-1 text-base">¿Empresas duplicadas?</h2>
+              <p className="mb-2 text-xs text-slate-500">
+                «Unir aquí» pasa sus contactos, negocios y actividades a esta empresa, completa los datos vacíos y elimina la otra.
+              </p>
+              <ul className="space-y-2 text-sm">
+                {duplicates.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-2">
+                    <span>
+                      <Link className="link" href={`/empresas/${d.id}`}>{d.name}</Link>
+                      <span className="text-slate-500"> · {d._count.contacts} contactos · {d._count.deals} negocios{d.city ? ` · ${d.city}` : ""}</span>
+                    </span>
+                    <form action={mergeCompany.bind(null, id, d.id)}>
+                      <ConfirmButton className="btn btn-sm" message={`¿Unir «${d.name}» dentro de «${company.name}»? «${d.name}» se eliminará y todo lo suyo pasará a esta empresa.`}>
+                        Unir aquí
+                      </ConfirmButton>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           <div className="card p-4">
             <h2 className="mb-2 text-base">Contactos ({company.contacts.length})</h2>

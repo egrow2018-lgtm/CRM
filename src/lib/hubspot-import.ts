@@ -10,6 +10,8 @@ export type ImportResult = {
   dryRun: boolean;
   rows: number;
   created: number;
+  /** Registros que ya existían y se completaron con datos del archivo (solo empresas). */
+  updated: number;
   skipped: number;
   companiesCreated: number;
   columns: Record<string, string | null>;
@@ -98,6 +100,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
     dryRun,
     rows: data.length,
     created: 0,
+    updated: 0,
     skipped: 0,
     companiesCreated: 0,
     columns: Object.fromEntries(Object.keys(ALIASES[kind]).map((f) => [f, cols[f] != null ? header[cols[f]] : null])),
@@ -125,7 +128,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
   };
 
   // Empresas existentes (por nombre sin sufijos legales y por dominio web) y las nuevas que haya que crear
-  const existingCompanies = await prisma.company.findMany({ select: { id: true, name: true, website: true } });
+  const existingCompanies = await prisma.company.findMany();
   const companyIds = new Map(existingCompanies.map((c) => [companyKey(c.name), c.id]));
   const companyByDomain = new Map<string, string>();
   for (const c of existingCompanies) {
@@ -142,18 +145,23 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
   // 1) Preparar los registros (sin escribir nada todavía)
   let records: Prisma.CompanyCreateManyInput[] | (Prisma.ContactCreateManyInput & { _company?: string })[] | (Prisma.DealCreateManyInput & { _company?: string })[] = [];
 
+  // Empresas que ya existen (p. ej. creadas al importar contactos antes): se completan sus campos vacíos
+  const companyPatches = new Map<string, Prisma.CompanyUpdateInput>();
+
   if (kind === "companies") {
     const list: Prisma.CompanyCreateManyInput[] = [];
-    const seen = new Set(companyIds.keys());
+    const seen = new Set<string>();
+    const byExactName = new Map(existingCompanies.map((c) => [normalize(c.name), c]));
+    const byId = new Map(existingCompanies.map((c) => [c.id, c]));
     for (const row of data) {
       const name = get(row, "name");
-      if (!name || !companyKey(name) || seen.has(companyKey(name))) {
+      const key = name && companyKey(name);
+      if (!name || !key || seen.has(key)) {
         result.skipped++;
         continue;
       }
-      seen.add(companyKey(name));
-      list.push({
-        name,
+      seen.add(key);
+      const fields = {
         website: get(row, "website"),
         phone: get(row, "phone"),
         address: get(row, "address"),
@@ -161,9 +169,26 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         country: get(row, "country"),
         industry: get(row, "industry"),
         notes: get(row, "notes"),
-        ownerId: ownerOf(row) ?? userId,
-        ...createdAtOf(row),
-      });
+      };
+      const existing =
+        byExactName.get(normalize(name)) ??
+        byId.get(companyIds.get(key) ?? "") ??
+        byId.get(companyByDomain.get(websiteDomain(fields.website) ?? "") ?? "");
+      if (existing) {
+        const patch: Prisma.CompanyUpdateInput = {};
+        for (const [field, value] of Object.entries(fields) as [keyof typeof fields, string | undefined][]) {
+          if (value && !existing[field]) patch[field] = value;
+        }
+        // La fecha de creación real es la de HubSpot si es anterior
+        const createdAt = parseDate(get(row, "createdAt"));
+        if (createdAt && createdAt < existing.createdAt) patch.createdAt = createdAt;
+        if (Object.keys(patch).length && !companyPatches.has(existing.id)) {
+          companyPatches.set(existing.id, patch);
+          result.updated++;
+        } else result.skipped++;
+        continue;
+      }
+      list.push({ name, ...fields, ownerId: ownerOf(row) ?? userId, ...createdAtOf(row) });
     }
     records = list;
   }
@@ -300,6 +325,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
       };
       if (kind === "companies") {
         await inChunks(records as Prisma.CompanyCreateManyInput[], (chunk) => tx.company.createMany({ data: chunk }));
+        for (const [id, data] of companyPatches) await tx.company.update({ where: { id }, data });
       } else if (kind === "contacts") {
         const list = (records as (Prisma.ContactCreateManyInput & { _company?: string })[]).map(withCompany);
         await inChunks(list, (chunk) => tx.contact.createMany({ data: chunk }));
@@ -316,7 +342,7 @@ export async function runHubspotImport(kind: ImportKind, csvText: string, dryRun
         await inChunks(list, (chunk) => tx.deal.createMany({ data: chunk }));
       }
     },
-    { timeout: 60_000, maxWait: 10_000 },
+    { timeout: 120_000, maxWait: 10_000 },
   );
   return result;
 }

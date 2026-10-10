@@ -32,6 +32,8 @@ test("companyKey ignora sufijos legales y puntuación", () => {
   assert.equal(companyKey("FLP PROCESADOS S.A.S."), "flp procesados");
   assert.equal(companyKey("Holcim Ecuador S.A."), "holcim ecuador");
   assert.equal(companyKey("Duragas Cía. Ltda."), "duragas");
+  assert.equal(companyKey("Siemens AG"), "siemens");
+  assert.equal(companyKey("Bosch GmbH"), "bosch");
 });
 
 test("dominios", () => {

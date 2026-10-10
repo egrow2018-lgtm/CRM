@@ -50,6 +50,9 @@ export function ImportForm() {
           <ul className="mb-3 grid gap-1 text-sm sm:grid-cols-2">
             <li>Filas en el archivo: <b>{r.rows}</b></li>
             <li>{r.dryRun ? "Se crearían" : "Creados"}: <b>{r.created}</b></li>
+            {r.kind === "companies" && (
+              <li>{r.dryRun ? "Se completarían (ya existían)" : "Completadas (ya existían)"}: <b>{r.updated}</b></li>
+            )}
             <li>Omitidos (duplicados o vacíos): <b>{r.skipped}</b></li>
             <li>Empresas nuevas asociadas: <b>{r.companiesCreated}</b></li>
           </ul>
