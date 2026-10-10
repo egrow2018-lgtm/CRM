@@ -12,7 +12,7 @@ import { zonedToUtc } from "@/lib/timezone";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { IconPlus } from "@/components/icons";
 import { CompanyLogo } from "@/components/company-logo";
-import { SemaforoDot } from "@/components/semaforo";
+import { SemaforoPunto } from "@/components/semaforo";
 import { Pager, SortHeader, pageParams } from "@/components/pager";
 import { CompanyFilters } from "./filters";
 
@@ -134,7 +134,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
                       <td className="whitespace-nowrap">{c.owner?.name ?? <span className="text-slate-400">Sin asignar</span>}</td>
                       <td className="whitespace-nowrap text-xs text-slate-500">
                         <span className="inline-flex items-center gap-1">
-                          <SemaforoDot level={a.level} title={a.label} /> {timeAgo(c.lastActivityAt)}
+                          <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>

@@ -7,7 +7,7 @@ import { MeetingActions } from "./meeting-actions";
 import { googleCalendarUrl, meetingInvitation } from "@/lib/meetings";
 import { formatTimeTz } from "@/lib/timezone";
 import { nextActivityAlert } from "@/lib/alerts";
-import { SemaforoDot } from "./semaforo";
+import { SemaforoPunto } from "./semaforo";
 
 export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   NOTA: "Nota",
@@ -147,7 +147,7 @@ export function TaskRow({
         {task.body && <div className="text-xs text-slate-500">{task.body}</div>}
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
           <span className={`inline-flex items-center gap-1 ${alert?.level === "rojo" ? "font-semibold text-red-700" : ""}`}>
-            {alert && <SemaforoDot level={alert.level} title={alert.label} />}
+            {alert && <SemaforoPunto level={alert.level} title={alert.label} />}
             {task.type === "TAREA" ? "Vence" : "Fecha"}: {formatDate(task.dueDate)}
             {task.startAt && ` · ${formatTimeTz(task.startAt)}${task.durationMinutes ? ` (${task.durationMinutes} min)` : ""}`}
           </span>
