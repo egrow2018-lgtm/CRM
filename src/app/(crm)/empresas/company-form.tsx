@@ -19,7 +19,9 @@ export function CompanyForm({
       <Field label="Nombre *" className="sm:col-span-2">
         <input name="name" required defaultValue={company?.name} className="input" />
       </Field>
-      <Field label="RUC / NIT"><input name="taxId" defaultValue={company?.taxId ?? ""} className="input" /></Field>
+      <Field label="RUC / cédula (enlaza con GPSBox)">
+        <input name="taxId" defaultValue={company?.taxId ?? ""} className="input" placeholder="Ej. 1792146739001" />
+      </Field>
       <Field label="Industria"><input name="industry" defaultValue={company?.industry ?? ""} className="input" /></Field>
       <Field label="Sitio web"><input name="website" defaultValue={company?.website ?? ""} className="input" placeholder="https://" /></Field>
       <Field label="Teléfono"><input name="phone" defaultValue={company?.phone ?? ""} className="input" /></Field>

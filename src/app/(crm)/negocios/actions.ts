@@ -10,6 +10,8 @@ import { date, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { parseCustomData, parseCustomFields } from "@/lib/custom-fields";
 import { createRenewalDeal, setRenewalOnWin } from "@/lib/renewals";
+import { gpsboxEnabled, gpsboxLink } from "@/lib/gpsbox";
+import { normalize } from "@/lib/csv";
 
 function dealData(form: FormData) {
   return {
@@ -78,7 +80,24 @@ export async function updateDeal(id: string, _: ActionState, form: FormData) {
 /** Al pasar a ganado se calcula la fecha de renovación de los productos recurrentes. */
 async function onStageChanged(tx: Prisma.TransactionClient, dealId: string, stageId: string) {
   const stage = await tx.pipelineStage.findUnique({ where: { id: stageId } });
-  if (stage?.isWon) await setRenewalOnWin(tx, dealId);
+  if (!stage?.isWon) return;
+  await setRenewalOnWin(tx, dealId);
+  // Rutalink ganado: recordar al responsable registrar el cliente y sus unidades en GPSBox
+  const deal = await tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: { businessLine: true, company: true } });
+  if (gpsboxEnabled() && deal.ownerId && normalize(deal.businessLine?.name ?? "") === "rutalink") {
+    await tx.activity.create({
+      data: {
+        type: "TAREA",
+        subject: "Registrar el cliente y sus unidades en GPSBox",
+        body: deal.company?.taxId
+          ? `Abrir en GPSBox: ${gpsboxLink({ ...deal.company, contact: null })}`
+          : "Primero agrega el RUC/cédula de la empresa en el CRM para enlazarla con GPSBox.",
+        dueDate: new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z"),
+        dealId,
+        assigneeId: deal.ownerId,
+      },
+    });
+  }
 }
 
 async function logStageChange(tx: Prisma.TransactionClient, dealId: string, fromId: string, toId: string, userId: string) {

@@ -16,6 +16,8 @@ import { renewalAlert } from "@/lib/alerts";
 import { Semaforo } from "@/components/semaforo";
 import { CustomFieldsCard } from "@/components/custom-fields-form";
 import { QuotesCard } from "@/components/quotes-card";
+import { GpsboxCard } from "@/components/gpsbox-card";
+import { normalize } from "@/lib/csv";
 import { getCompanySettings } from "@/lib/settings";
 import { appUrl, emailConfigured } from "@/lib/email";
 import { parseCustomData, parseCustomFields } from "@/lib/custom-fields";
@@ -150,6 +152,9 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               </dl>
             )}
           </div>
+          {deal.company && normalize(deal.businessLine?.name ?? "") === "rutalink" && (
+            <GpsboxCard company={deal.company} contact={deal.contact} canEdit={canWrite} />
+          )}
           {deal.businessLine && (
             <CustomFieldsCard
               title={`Datos del proyecto · ${deal.businessLine.name}`}

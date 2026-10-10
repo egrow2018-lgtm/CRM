@@ -9,6 +9,8 @@ import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { CompanyForm } from "../company-form";
+import { GpsboxCard } from "@/components/gpsbox-card";
+import { normalize } from "@/lib/csv";
 import { deleteCompany, updateCompany } from "../actions";
 
 export default async function CompanyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
@@ -21,7 +23,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
       include: {
         owner: true,
         contacts: { orderBy: { firstName: "asc" } },
-        deals: { include: { stage: true, businessLine: true }, orderBy: { createdAt: "desc" } },
+        deals: { include: { stage: true, businessLine: true, contact: true }, orderBy: { createdAt: "desc" } },
         activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
       },
     }),
@@ -30,6 +32,8 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
   if (!company) notFound();
   const canWrite = can(user.role, "crm:write");
   const editing = edit === "1" && canWrite;
+  // GPSBox: se muestra si la empresa tiene negocios de Rutalink o ya tiene RUC
+  const showGpsbox = company.deals.some((d) => normalize(d.businessLine?.name ?? "") === "rutalink") || !!company.taxId;
 
   return (
     <div>
@@ -75,6 +79,13 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
               </dl>
             )}
           </div>
+          {showGpsbox && (
+            <GpsboxCard
+              company={company}
+              contact={company.deals.find((d) => d.contact && normalize(d.businessLine?.name ?? "") === "rutalink")?.contact ?? company.contacts[0] ?? null}
+              canEdit={canWrite}
+            />
+          )}
           <div className="card p-4">
             <h2 className="mb-2 text-base">Contactos ({company.contacts.length})</h2>
             {company.contacts.length === 0 && <p className="text-sm text-slate-500">Sin contactos.</p>}

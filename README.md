@@ -21,6 +21,7 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | **Cotizaciones** | Desde los productos del negocio se genera la cotización en **PDF** con el logo, numeración `COT-2026-0001`, IVA (15 % por defecto), validez y condiciones. Se puede ver, enviar por **correo** con el PDF adjunto (con copia a quien envía) o compartir por **WhatsApp** con un enlace seguro. Al generarla, el negocio pasa a «Cotización-Envío». Los datos de la empresa se editan en Configuración. |
 | **Avisos por correo** | Aviso inmediato cuando llega un **lead** de un formulario, y **resumen diario** de lunes a viernes a las 8:00 con reuniones, tareas vencidas, negocios en rojo, leads sin atender y renovaciones. Cada persona puede desactivarlo o ver la vista previa en «Mi perfil». |
 | **Renovaciones** | Los productos recurrentes (licencias Humand, monitoreo Rutalink, Ludus, LMS) se renuevan cada N meses. Al **ganar** el negocio se calcula su fecha de renovación (también editable a mano). **30 días antes** se crea solo el negocio de renovación, con los mismos productos y una tarea para el responsable. Inicio muestra las próximas renovaciones con semáforo. |
+| **GPSBox (Rutalink)** | Las empresas se enlazan con su cliente de GPSBox por **RUC/cédula**. La ficha de la empresa (y la de los negocios de Rutalink) muestra unidades activas, plan y próxima renovación con semáforo, y un botón para **abrir el cliente en GPSBox o crearlo con los datos ya llenos**. Al ganar un negocio de Rutalink se crea una tarea para registrar el cliente y sus unidades en GPSBox. El CRM solo lee los datos de GPSBox. |
 | **Importar HubSpot** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés. Tiene modo simulación, omite duplicados y deduce la línea de negocio a partir del nombre. |
 | **Configuración** | Usuarios, perfiles y etapas del pipeline (nombre, orden y probabilidad). |
 
@@ -124,6 +125,12 @@ Las reuniones se crean a nombre del anfitrión elegido, usando su email del CRM.
    - `CRON_SECRET`: un texto aleatorio largo.
 5. Vuelve a publicar. El archivo `vercel.json` programa la tarea diaria `/api/cron/diario` de lunes a viernes a las 13:00 UTC (8:00 en Ecuador). Esa tarea crea las renovaciones y envía los resúmenes.
 6. En **Configuración → Correo** pulsa «Enviarme un correo de prueba».
+
+### 6. Enlazar con GPSBox (opcional)
+
+1. En Vercel agrega `GPSBOX_URL` con la dirección pública de GPSBox. Esto activa los botones «Abrir / Crear en GPSBox».
+2. Para ver las unidades y renovaciones dentro del CRM, agrega también `GPSBOX_SUPABASE_URL` y `GPSBOX_SUPABASE_SERVICE_KEY`. Están en Supabase del proyecto de GPSBox → *Project Settings → API → service_role*. Esa clave es secreta: va solo en Vercel. El CRM solo lee la tabla `rutalink_data`.
+3. Completa el **RUC/cédula** de las empresas de Rutalink en el CRM. Es el dato que une ambos sistemas.
 
 ## Desarrollo local
 

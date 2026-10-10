@@ -1,8 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { utcToZoned } from "./timezone";
 import { closeDateAlert, deliveryAlert, lastActivityAlert, leadAlert, nextActivityAlert, worst } from "./alerts";
 
-const inDays = (n: number) => new Date(Date.now() + n * 86400000);
+// Fechas sin hora relativas al "hoy" de Ecuador (como se guardan las fechas de cierre y renovación)
+const localToday = utcToZoned(new Date()).date;
+const inDays = (n: number) => new Date(Date.parse(`${localToday}T00:00:00Z`) + n * 86400000);
 
 test("próxima actividad", () => {
   assert.equal(nextActivityAlert(null, false).level, "amarillo");
@@ -23,7 +26,7 @@ test("última actividad, entrega y leads", () => {
   assert.equal(lastActivityAlert(inDays(-90)).level, "rojo");
   assert.equal(deliveryAlert(inDays(-2).toISOString().slice(0, 10), "50")?.level, "rojo");
   assert.equal(deliveryAlert(inDays(-2).toISOString().slice(0, 10), "100")?.level, "verde");
-  assert.equal(leadAlert(inDays(-2), "NUEVO")?.level, "rojo");
+  assert.equal(leadAlert(new Date(Date.now() - 2 * 86400000), "NUEVO")?.level, "rojo");
   assert.equal(leadAlert(new Date(), "EN_SEGUIMIENTO"), null);
 });
 
