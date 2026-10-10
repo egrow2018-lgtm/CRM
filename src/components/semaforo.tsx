@@ -20,6 +20,12 @@ export function SemaforoDot({ level, title }: { level: AlertLevel; title?: strin
   );
 }
 
+/** Punto discreto del semáforo, para acompañar una fecha o un conteo de días (el detalle va en el tooltip). */
+export function SemaforoPunto({ level, title }: { level: AlertLevel; title?: string }) {
+  const s = SEMAFORO[level];
+  return <span title={title ?? s.name} aria-label={title ?? s.name} className={`inline-block h-2 w-2 shrink-0 rounded-full ${s.dot}`} />;
+}
+
 /** Píldora con el punto del semáforo y un texto. */
 export function Semaforo({ level, label, className = "" }: { level: AlertLevel; label: string; className?: string }) {
   return (

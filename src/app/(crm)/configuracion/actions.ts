@@ -1,71 +1,14 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { bool, num, reqStr, str, type ActionState } from "@/lib/forms";
+import { num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
-import { ROLE_LABELS } from "@/lib/permissions";
 import { checkZoomUser, zoomConfigured } from "@/lib/zoom";
 import { saveCompanySettings } from "@/lib/settings";
 import { emailConfigured, emailLayout, escapeHtml, sendEmail } from "@/lib/email";
 
-function role(form: FormData): Role {
-  const r = str(form, "role") as Role;
-  if (!(r in ROLE_LABELS)) throw new Error("Perfil inválido.");
-  return r;
-}
-
-function password(form: FormData, required: boolean) {
-  const p = str(form, "password");
-  if (!p) {
-    if (required) throw new Error("La contraseña es obligatoria.");
-    return undefined;
-  }
-  if (p.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres.");
-  return p;
-}
-
-export async function createUser(_: ActionState, form: FormData) {
-  return runAction(async () => {
-    await requirePermission("users:manage");
-    const pwd = password(form, true)!;
-    await prisma.user.create({
-      data: {
-        name: reqStr(form, "name", "Nombre"),
-        email: reqStr(form, "email", "Email").toLowerCase(),
-        role: role(form),
-        passwordHash: await bcrypt.hash(pwd, 10),
-      },
-    });
-    revalidatePath("/configuracion");
-  });
-}
-
-export async function updateUser(id: string, _: ActionState, form: FormData) {
-  return runAction(async () => {
-    const me = await requirePermission("users:manage");
-    const active = bool(form, "active");
-    const newRole = role(form);
-    if (id === me.id && (!active || newRole !== "ADMIN")) {
-      throw new Error("No puedes desactivarte ni quitarte el perfil de administrador a ti mismo.");
-    }
-    const pwd = password(form, false);
-    await prisma.user.update({
-      where: { id },
-      data: {
-        name: reqStr(form, "name", "Nombre"),
-        email: reqStr(form, "email", "Email").toLowerCase(),
-        role: newRole,
-        active,
-        ...(pwd ? { passwordHash: await bcrypt.hash(pwd, 10) } : {}),
-      },
-    });
-    revalidatePath("/configuracion");
-  });
-}
 
 export async function saveStage(id: string | null, _: ActionState, form: FormData) {
   return runAction(async () => {
@@ -98,7 +41,7 @@ export type ZoomTestState = { error?: string; results?: { name: string; email: s
 
 /** Verifica las credenciales de Zoom y si cada usuario del CRM existe en la cuenta de Zoom. */
 export async function testZoom(): Promise<ZoomTestState> {
-  await requirePermission("users:manage");
+  await requirePermission("pipeline:configure");
   if (!zoomConfigured()) return { error: "Faltan las variables ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID y ZOOM_CLIENT_SECRET." };
   try {
     const users = await prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" } });
@@ -126,7 +69,7 @@ export async function testZoom(): Promise<ZoomTestState> {
 
 export async function saveCompany(_: ActionState, form: FormData) {
   return runAction(async () => {
-    await requirePermission("users:manage");
+    await requirePermission("pipeline:configure");
     await saveCompanySettings({
       name: reqStr(form, "name", "Nombre comercial"),
       legalName: str(form, "legalName") ?? "",
@@ -146,7 +89,7 @@ export async function saveCompany(_: ActionState, form: FormData) {
 /** Envía un correo de prueba al administrador. */
 export async function sendTestEmail() {
   return runAction(async () => {
-    const me = await requirePermission("users:manage");
+    const me = await requirePermission("pipeline:configure");
     if (!emailConfigured()) throw new Error("Faltan RESEND_API_KEY y EMAIL_FROM.");
     await sendEmail({
       to: me.email,

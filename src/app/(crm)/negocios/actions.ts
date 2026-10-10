@@ -30,7 +30,7 @@ function dealData(form: FormData) {
 
 export async function createDeal(_: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("crm:write");
+    const user = await requirePermission("deals:write");
     const data = dealData(form);
     const deal = await prisma.deal.create({
       data: {
@@ -54,7 +54,7 @@ export async function createDeal(_: ActionState, form: FormData) {
 
 export async function updateDeal(id: string, _: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("crm:write");
+    const user = await requirePermission("deals:write");
     const data = dealData(form);
     const current = await prisma.deal.findUniqueOrThrow({ where: { id }, include: { _count: { select: { items: true } } } });
     await prisma.$transaction(async (tx) => {
@@ -115,7 +115,7 @@ export async function moveDeal(dealId: string, stageId: string): Promise<ActionS
   const target = await prisma.pipelineStage.findUnique({ where: { id: stageId } });
   if (!deal || !target) return { error: "Negocio o etapa no encontrada." };
   if (deal.stageId === stageId) return { ok: true };
-  if (!canMoveDeal(user.role, deal.stage, target)) {
+  if (!canMoveDeal(user, deal.stage, target)) {
     return { error: "Tu perfil solo puede mover negocios entre Firma de Contrato, Producción y Ganado." };
   }
   await prisma.$transaction(async (tx) => {
@@ -130,7 +130,7 @@ export async function moveDeal(dealId: string, stageId: string): Promise<ActionS
 }
 
 export async function deleteDeal(id: string) {
-  await requirePermission("crm:delete");
+  await requirePermission("deals:delete");
   await prisma.deal.delete({ where: { id } });
   revalidatePath("/negocios");
   redirect("/negocios");
@@ -148,7 +148,7 @@ async function recalcAmount(tx: Prisma.TransactionClient, dealId: string) {
 export async function addDealItem(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
     const user = await requireUser();
-    if (!can(user.role, "crm:write")) throw new Error("No tienes permisos para editar productos del negocio.");
+    if (!can(user, "deals:write")) throw new Error("No tienes permisos para editar productos del negocio.");
     const productId = str(form, "productId");
     const product = productId ? await prisma.product.findUnique({ where: { id: productId } }) : null;
     const description = str(form, "description") ?? product?.name;
@@ -167,7 +167,7 @@ export async function addDealItem(dealId: string, _: ActionState, form: FormData
 
 export async function removeDealItem(itemId: string) {
   const user = await requireUser();
-  if (!can(user.role, "crm:write")) throw new Error("No tienes permisos.");
+  if (!can(user, "deals:write")) throw new Error("No tienes permisos.");
   const item = await prisma.dealItem.delete({ where: { id: itemId } });
   await prisma.$transaction((tx) => recalcAmount(tx, item.dealId));
   revalidatePath(`/negocios/${item.dealId}`);
@@ -178,7 +178,7 @@ export async function removeDealItem(itemId: string) {
 export async function updateDealCustomData(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
     const user = await requireUser();
-    if (!can(user.role, "crm:write") && !can(user.role, "deals:production")) {
+    if (!can(user, "deals:write") && !can(user, "deals:production")) {
       throw new Error("No tienes permisos para editar los datos del proyecto.");
     }
     const deal = await prisma.deal.findUniqueOrThrow({ where: { id: dealId }, include: { businessLine: true } });
@@ -200,7 +200,7 @@ export async function updateDealCustomData(dealId: string, _: ActionState, form:
 
 /** Crea ahora el negocio de renovación (sin esperar el aviso automático). */
 export async function createRenewalNow(dealId: string) {
-  const user = await requirePermission("crm:write");
+  const user = await requirePermission("deals:write");
   const existing = await prisma.deal.count({ where: { renewalOfId: dealId } });
   if (existing > 0) throw new Error("Este negocio ya tiene un negocio de renovación.");
   const renewal = await prisma.$transaction((tx) => createRenewalDeal(tx, dealId, user.id));

@@ -6,7 +6,7 @@ import { dealWhere, getFilterOptions, PENDING, type DealFilters } from "@/lib/qu
 import { TaskRow } from "@/components/activity-panel";
 import { DealFiltersBar } from "@/components/deal-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
-import { SEMAFORO, Semaforo, SemaforoDot } from "@/components/semaforo";
+import { SEMAFORO, Semaforo, SemaforoDot, SemaforoPunto } from "@/components/semaforo";
 import { dealAlerts, lastActivityAlert, renewalAlert } from "@/lib/alerts";
 import { parseCustomData } from "@/lib/custom-fields";
 
@@ -323,7 +323,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <Link className="link truncate" href={`/negocios/${d.id}`}>{d.name}</Link>
                   <span className={`flex shrink-0 items-center gap-1 text-xs ${d.closeDate! < now ? "font-semibold text-red-700" : "text-slate-500"}`}>
                     {formatDate(d.closeDate)}
-                    <SemaforoDot level={d.closeDate! < now ? "rojo" : "amarillo"} title={d.closeDate! < now ? "Fecha de cierre vencida" : "Cierra pronto"} />
+                    <SemaforoPunto level={d.closeDate! < now ? "rojo" : "amarillo"} title={d.closeDate! < now ? "Fecha de cierre vencida" : "Cierra pronto"} />
                   </span>
                 </li>
               ))}
@@ -343,7 +343,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                     {d.owner?.name ?? "—"}
                     {(() => {
                       const a = lastActivityAlert(d.lastActivityAt ?? d.createdAt);
-                      return <SemaforoDot level={a.level} title={a.label} />;
+                      return <SemaforoPunto level={a.level} title={a.label} />;
                     })()}
                   </span>
                 </li>

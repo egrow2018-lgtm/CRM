@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { parseFormFields } from "@/lib/forms-builder";
+import { defaultConsentText, parseFormFields } from "@/lib/forms-builder";
+import { getCompanySettings } from "@/lib/settings";
 import { PublicForm } from "./public-form";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ embed?: string }> };
@@ -25,17 +27,24 @@ export default async function PublicFormPage({ params, searchParams }: Props) {
   const form = await getForm(slug);
   if (!form) notFound();
   const isEmbed = embed === "1";
+  // Visita para las estadísticas (no cuenta el re-render al enviar, ni debe impedir que se muestre el formulario)
+  if (!(await headers()).has("next-action")) await prisma.formView.create({ data: { formId: form.id } }).catch(() => undefined);
+  const consentText = form.consentEnabled ? (form.consentText ?? defaultConsentText(await getCompanySettings())) : null;
 
   return (
     <main className={isEmbed ? "bg-white p-4" : "min-h-screen bg-gradient-to-br from-brand-50 via-white to-accent-50 px-4 py-10"}>
       <div className={isEmbed ? "" : "mx-auto max-w-xl"}>
-        {!isEmbed && (
+        {!isEmbed && !form.logo && (
           <div className="mb-6 text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/egrow-logo.png" alt="e-grow" className="mx-auto h-14 w-auto" />
           </div>
         )}
         <div className={isEmbed ? "" : "card p-6 sm:p-8"}>
+          {form.logo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={form.logo} alt="" className="mx-auto mb-5 max-h-24 w-auto max-w-full object-contain" />
+          )}
           {form.businessLine && (
             <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-accent-700">{form.businessLine.name}</div>
           )}
@@ -43,7 +52,7 @@ export default async function PublicFormPage({ params, searchParams }: Props) {
           {form.description && <p className="mt-2 whitespace-pre-line text-slate-600">{form.description}</p>}
           <div className="mt-6">
             {form.active ? (
-              <PublicForm slug={form.slug} fields={parseFormFields(form.fields)} submitLabel={form.submitLabel} successMessage={form.successMessage} />
+              <PublicForm slug={form.slug} fields={parseFormFields(form.fields)} submitLabel={form.submitLabel} successMessage={form.successMessage} consentText={consentText} />
             ) : (
               <p className="rounded-lg bg-slate-100 px-4 py-6 text-center text-slate-600">Este formulario ya no recibe respuestas.</p>
             )}

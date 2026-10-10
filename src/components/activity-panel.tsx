@@ -7,7 +7,7 @@ import { MeetingActions } from "./meeting-actions";
 import { googleCalendarUrl, meetingInvitation } from "@/lib/meetings";
 import { formatTimeTz } from "@/lib/timezone";
 import { nextActivityAlert } from "@/lib/alerts";
-import { SemaforoDot } from "./semaforo";
+import { SemaforoPunto } from "./semaforo";
 
 export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   NOTA: "Nota",
@@ -41,6 +41,7 @@ export function ActivityPanel({
   canWrite,
   contact,
   zoomEnabled,
+  canMeet = true,
   viewerId,
 }: {
   target: ActivityTarget;
@@ -49,6 +50,7 @@ export function ActivityPanel({
   canWrite: boolean;
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
   zoomEnabled?: boolean;
+  canMeet?: boolean;
   viewerId?: string;
 }) {
   const isPending = (a: Item) => !a.completed && ["TAREA", "LLAMADA", "REUNION"].includes(a.type);
@@ -61,7 +63,7 @@ export function ActivityPanel({
       {canWrite && (
         <div className="card p-4">
           <h2 className="mb-3 text-base">Registrar seguimiento</h2>
-          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} />
+          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} canMeet={canMeet} />
         </div>
       )}
 
@@ -147,7 +149,7 @@ export function TaskRow({
         {task.body && <div className="text-xs text-slate-500">{task.body}</div>}
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
           <span className={`inline-flex items-center gap-1 ${alert?.level === "rojo" ? "font-semibold text-red-700" : ""}`}>
-            {alert && <SemaforoDot level={alert.level} title={alert.label} />}
+            {alert && <SemaforoPunto level={alert.level} title={alert.label} />}
             {task.type === "TAREA" ? "Vence" : "Fecha"}: {formatDate(task.dueDate)}
             {task.startAt && ` · ${formatTimeTz(task.startAt)}${task.durationMinutes ? ` (${task.durationMinutes} min)` : ""}`}
           </span>

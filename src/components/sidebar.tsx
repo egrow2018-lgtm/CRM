@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { can, ROLE_LABELS } from "@/lib/permissions";
+import { ROLE_LABELS, type Permission } from "@/lib/permissions";
 import { initials } from "@/lib/format";
 import {
   IconCalendar,
@@ -17,6 +17,7 @@ import {
   IconInbox,
   IconLogout,
   IconSettings,
+  IconShield,
   IconTasks,
 } from "./icons";
 
@@ -25,7 +26,7 @@ export function Sidebar({
   logout,
   newLeads,
 }: {
-  user: { name: string; role: Role };
+  user: { name: string; role: Role; permissions: Permission[] };
   logout: () => Promise<void>;
   newLeads: number;
 }) {
@@ -39,9 +40,10 @@ export function Sidebar({
     { href: "/agenda", label: "Agenda", icon: IconCalendar },
     { href: "/tareas", label: "Tareas", icon: IconTasks },
     { href: "/catalogo", label: "Líneas y productos", icon: IconCatalog },
-    ...(can(user.role, "forms:manage") ? [{ href: "/formularios", label: "Formularios", icon: IconForm }] : []),
-    ...(can(user.role, "import:run") ? [{ href: "/importar", label: "Importar HubSpot", icon: IconImport }] : []),
-    ...(can(user.role, "users:manage") ? [{ href: "/configuracion", label: "Configuración", icon: IconSettings }] : []),
+    ...(user.permissions.includes("forms:manage") ? [{ href: "/formularios", label: "Formularios", icon: IconForm }] : []),
+    ...(user.permissions.includes("import:run") ? [{ href: "/importar", label: "Importar HubSpot", icon: IconImport }] : []),
+    ...(user.permissions.includes("users:manage") ? [{ href: "/usuarios", label: "Usuarios y permisos", icon: IconShield }] : []),
+    ...(user.permissions.includes("pipeline:configure") ? [{ href: "/configuracion", label: "Configuración", icon: IconSettings }] : []),
   ];
 
   return (

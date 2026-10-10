@@ -33,7 +33,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     take: 300,
   });
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime();
-  const canWrite = can(user.role, "activities:write");
+  const canWrite = can(user, "activities:write");
   const query = (extra: Record<string, string>) =>
     `/tareas?${new URLSearchParams({ ...(sp.view ? { view: sp.view } : {}), ...extra })}`;
   const tab = (label: string, href: string, active: boolean) => (

@@ -45,6 +45,9 @@ model User {
   active       Boolean  @default(true)
   /// Recibe el resumen diario por correo
   digestEnabled Boolean @default(true)
+  /// Si es true, se usan `permissions` en lugar de los permisos por defecto del perfil
+  customPermissions Boolean  @default(false)
+  permissions       String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -117,6 +120,7 @@ model Company {
   notes     String?
   ownerId   String?
   owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  lastActivityAt DateTime? // última actividad en la empresa, sus contactos o sus negocios
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -125,6 +129,9 @@ model Company {
   activities Activity[]
 
   @@index([name])
+  @@index([ownerId])
+  @@index([createdAt])
+  @@index([lastActivityAt])
 }
 
 model Contact {
@@ -261,9 +268,26 @@ model Form {
   /// Usuario que recibe automáticamente los leads (vacío = bandeja de leads para que alguien los tome)
   assigneeId     String?
   assignee       User?         @relation("FormAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  /// Logo o imagen de cabecera (data URL, máx. ~300 KB)
+  logo           String?
+  /// Casilla obligatoria de autorización de tratamiento de datos personales
+  consentEnabled Boolean       @default(true)
+  consentText    String?
   createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
 
   submissions FormSubmission[]
+  views       FormView[]
+}
+
+/// Una visita a la página pública del formulario (para la tasa de conversión)
+model FormView {
+  id        String   @id @default(cuid())
+  formId    String
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([formId, createdAt])
 }
 
 model FormSubmission {
@@ -273,6 +297,8 @@ model FormSubmission {
   data      Json
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  /// Momento en que la persona aceptó el tratamiento de sus datos (null si el formulario no lo pide)
+  consentAt DateTime?
   createdAt DateTime @default(now())
 
   @@index([formId, createdAt])

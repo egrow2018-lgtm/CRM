@@ -9,9 +9,11 @@ import { Avatar, EmptyState, PageHeader } from "@/components/ui";
 import { IconPlus } from "@/components/icons";
 import { Pager, SortHeader, hrefWith, pageParams } from "@/components/pager";
 import { ContactFilters } from "./filters";
+import { BulkCheckCell, BulkCheckHeader, BulkSelection } from "@/components/bulk-selection";
+import { deleteContacts } from "./actions";
 import { ContactBoard } from "./board";
 import { lastActivityAlert } from "@/lib/alerts";
-import { SemaforoDot } from "@/components/semaforo";
+import { SemaforoPunto } from "@/components/semaforo";
 
 type SP = { tab?: string; issue?: string; q?: string; owner?: string; lead?: string; view?: string; page?: string; per?: string; sort?: string };
 
@@ -97,6 +99,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
     isBoard ? prisma.contact.groupBy({ by: ["leadStatus"], where, _count: true }) : Promise.resolve([]),
   ]);
   const spRecord = sp as Record<string, string | undefined>;
+  const canDelete = can(user, "contacts:delete");
   const fmt = new Intl.NumberFormat("es-EC");
 
   return (
@@ -104,7 +107,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="Contactos"
         subtitle={`${total} contactos${issue ? ` · ${issue.label.toLowerCase()}` : ""}`}
-        actions={can(user.role, "crm:write") && <Link href="/contactos/nuevo" className="btn btn-primary"><IconPlus /> Agregar contacto</Link>}
+        actions={can(user, "contacts:write") && <Link href="/contactos/nuevo" className="btn btn-primary"><IconPlus /> Agregar contacto</Link>}
       />
 
       <div className="mb-4 flex flex-wrap gap-1 border-b border-slate-200">
@@ -146,7 +149,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
         <EmptyState>No hay contactos en esta vista.</EmptyState>
       ) : isBoard ? (
         <ContactBoard
-          canMove={can(user.role, "leads:take")}
+          canMove={can(user, "leads:take")}
           totals={Object.fromEntries(statusGroups.map((g) => [g.leadStatus ?? "none", g._count]))}
           contacts={contacts.map((c) => ({
             id: c.id,
@@ -162,55 +165,59 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
         />
       ) : (
         <>
-          <div className="card overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <SortHeader label="Nombre" field="name" path="/contactos" sp={spRecord} />
-                  <SortHeader label="Correo" field="email" path="/contactos" sp={spRecord} />
-                  <th>Número de teléfono</th>
-                  <th>Cargo</th>
-                  <SortHeader label="Nombre de la empresa" field="company" path="/contactos" sp={spRecord} />
-                  <th>Estado del lead</th>
-                  <th>Propietario</th>
-                  <SortHeader label="Última actividad" field="lastActivity" path="/contactos" sp={spRecord} />
-                  <SortHeader label="Creado" field="createdAt" path="/contactos" sp={spRecord} />
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.map((c) => {
-                  const status = c.leadStatus ? LEAD_STATUS[c.leadStatus] : null;
-                  return (
-                    <tr key={c.id} className="hover:bg-slate-50">
-                      <td className="max-w-60">
-                        <span className="flex items-center gap-2">
-                          <Avatar name={contactName(c)} />
-                          <Link className="link truncate" href={`/contactos/${c.id}`}>{contactName(c)}</Link>
-                        </span>
-                      </td>
-                      <td className="max-w-56 truncate">{c.email ? <a className="hover:underline" href={`mailto:${c.email}`}>{c.email}</a> : "—"}</td>
-                      <td className="whitespace-nowrap">{c.phone ?? "—"}</td>
-                      <td className="max-w-40 truncate">{c.jobTitle ?? "—"}</td>
-                      <td className="max-w-48 truncate">{c.company ? <Link className="hover:underline" href={`/empresas/${c.company.id}`}>{c.company.name}</Link> : "—"}</td>
-                      <td>{status ? <span className={`badge ${status.className}`}>{status.label}</span> : <span className="text-slate-400">—</span>}</td>
-                      <td className="whitespace-nowrap">{c.owner?.name ?? <span className="text-slate-400">Sin asignar</span>}</td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">
-                        {(() => {
-                          const a = lastActivityAlert(c.lastActivityAt, { warnDays: 30, dangerDays: 90 });
-                          return (
-                            <span className="inline-flex items-center gap-1">
-                              <SemaforoDot level={a.level} title={a.label} /> {timeAgo(c.lastActivityAt)}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <BulkSelection enabled={canDelete} onDelete={deleteContacts} noun={{ one: "contacto", many: "contactos" }}>
+            <div className="card overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    {canDelete && <BulkCheckHeader />}
+                    <SortHeader label="Nombre" field="name" path="/contactos" sp={spRecord} />
+                    <SortHeader label="Correo" field="email" path="/contactos" sp={spRecord} />
+                    <th>Número de teléfono</th>
+                    <th>Cargo</th>
+                    <SortHeader label="Nombre de la empresa" field="company" path="/contactos" sp={spRecord} />
+                    <th>Estado del lead</th>
+                    <th>Propietario</th>
+                    <SortHeader label="Última actividad" field="lastActivity" path="/contactos" sp={spRecord} />
+                    <SortHeader label="Creado" field="createdAt" path="/contactos" sp={spRecord} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {contacts.map((c) => {
+                    const status = c.leadStatus ? LEAD_STATUS[c.leadStatus] : null;
+                    return (
+                      <tr key={c.id} className="hover:bg-slate-50">
+                        {canDelete && <BulkCheckCell id={c.id} label={contactName(c)} />}
+                        <td className="max-w-60">
+                          <span className="flex items-center gap-2">
+                            <Avatar name={contactName(c)} />
+                            <Link className="link truncate" href={`/contactos/${c.id}`}>{contactName(c)}</Link>
+                          </span>
+                        </td>
+                        <td className="max-w-56 truncate">{c.email ? <a className="hover:underline" href={`mailto:${c.email}`}>{c.email}</a> : "—"}</td>
+                        <td className="whitespace-nowrap">{c.phone ?? "—"}</td>
+                        <td className="max-w-40 truncate">{c.jobTitle ?? "—"}</td>
+                        <td className="max-w-48 truncate">{c.company ? <Link className="hover:underline" href={`/empresas/${c.company.id}`}>{c.company.name}</Link> : "—"}</td>
+                        <td>{status ? <span className={`badge ${status.className}`}>{status.label}</span> : <span className="text-slate-400">—</span>}</td>
+                        <td className="whitespace-nowrap">{c.owner?.name ?? <span className="text-slate-400">Sin asignar</span>}</td>
+                        <td className="whitespace-nowrap text-xs text-slate-500">
+                          {(() => {
+                            const a = lastActivityAlert(c.lastActivityAt, { warnDays: 30, dangerDays: 90 });
+                            return (
+                              <span className="inline-flex items-center gap-1">
+                                <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </BulkSelection>
           <Pager path="/contactos" sp={spRecord} total={total} page={page} per={per} />
         </>
       )}

@@ -7,62 +7,100 @@ export const ROLE_LABELS: Record<Role, string> = {
   PROYECTOS: "Gestión de proyectos",
 };
 
-export type Permission =
-  | "users:manage" // crear / editar usuarios
-  | "pipeline:configure" // editar etapas del pipeline
-  | "catalog:manage" // líneas de negocio y productos
-  | "crm:write" // crear / editar contactos, empresas y negocios
-  | "crm:delete" // eliminar registros
-  | "deals:production" // mover negocios entre Firma de contrato, Producción y Ganado
-  | "activities:write" // notas, llamadas, tareas
-  | "import:run" // importar datos desde HubSpot
-  | "forms:manage" // crear formularios públicos
-  | "leads:take"; // tomar leads de la bandeja
+/** Permisos, agrupados por módulo para la pantalla de usuarios. */
+export const PERMISSION_GROUPS = [
+  {
+    module: "Contactos",
+    items: [
+      { key: "contacts:write", label: "Crear y editar" },
+      { key: "contacts:delete", label: "Eliminar" },
+    ],
+  },
+  {
+    module: "Empresas",
+    items: [
+      { key: "companies:write", label: "Crear y editar" },
+      { key: "companies:delete", label: "Eliminar y unir duplicadas" },
+    ],
+  },
+  {
+    module: "Negocios",
+    items: [
+      { key: "deals:write", label: "Crear y editar (incluye cotizaciones)" },
+      { key: "deals:delete", label: "Eliminar" },
+      { key: "deals:production", label: "Mover entre Firma de contrato, Producción y Ganado" },
+    ],
+  },
+  {
+    module: "Seguimiento",
+    items: [
+      { key: "activities:write", label: "Registrar notas, llamadas, tareas y reuniones" },
+      { key: "leads:take", label: "Tomar leads de la bandeja" },
+    ],
+  },
+  {
+    module: "Herramientas",
+    items: [
+      { key: "meetings:schedule", label: "Agendar reuniones (Agenda y Zoom)" },
+      { key: "forms:manage", label: "Formularios públicos" },
+      { key: "catalog:manage", label: "Líneas de negocio y productos" },
+      { key: "import:run", label: "Importar desde HubSpot" },
+    ],
+  },
+  {
+    module: "Administración",
+    items: [
+      { key: "pipeline:configure", label: "Etapas del pipeline y datos de la empresa" },
+      { key: "users:manage", label: "Usuarios y permisos" },
+    ],
+  },
+] as const;
 
-const MATRIX: Record<Role, Permission[]> = {
-  ADMIN: [
-    "users:manage",
-    "pipeline:configure",
-    "catalog:manage",
-    "crm:write",
-    "crm:delete",
-    "deals:production",
-    "activities:write",
-    "import:run",
-    "forms:manage",
-    "leads:take",
-  ],
+export type Permission = (typeof PERMISSION_GROUPS)[number]["items"][number]["key"];
+export const ALL_PERMISSIONS: Permission[] = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.key));
+
+/** Permisos por defecto de cada perfil (se pueden ajustar por usuario). */
+export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  ADMIN: ALL_PERMISSIONS,
   GERENTE: [
-    "catalog:manage",
-    "crm:write",
-    "crm:delete",
-    "deals:production",
-    "activities:write",
-    "import:run",
-    "forms:manage",
-    "leads:take",
+    "contacts:write", "contacts:delete", "companies:write", "companies:delete", "deals:write", "deals:delete", "deals:production",
+    "activities:write", "meetings:schedule", "leads:take", "forms:manage", "catalog:manage", "import:run",
   ],
   // Gestión de negocios: crea clientes y productos y da seguimiento a cada negocio
-  COMERCIAL: ["crm:write", "catalog:manage", "deals:production", "activities:write", "forms:manage", "leads:take"],
+  COMERCIAL: [
+    "contacts:write", "companies:write", "deals:write", "deals:production", "activities:write", "meetings:schedule", "leads:take", "forms:manage",
+    "catalog:manage",
+  ],
   // Gestión de proyectos: seguimiento de la producción con el equipo de desarrollo
-  PROYECTOS: ["deals:production", "activities:write"],
+  PROYECTOS: ["deals:production", "activities:write", "meetings:schedule"],
 };
 
-export function can(role: Role, permission: Permission) {
-  return MATRIX[role].includes(permission);
+/** Quién pide el permiso: un perfil, o un usuario con permisos personalizados. */
+export type PermissionSubject = Role | { role: Role; customPermissions?: boolean; permissions?: string[] };
+
+/** Permisos efectivos. El administrador siempre los tiene todos (para no quedarse sin acceso). */
+export function permissionsOf(subject: PermissionSubject): Permission[] {
+  if (typeof subject === "string") return ROLE_PERMISSIONS[subject];
+  if (subject.role === "ADMIN") return ALL_PERMISSIONS;
+  if (subject.customPermissions) return ALL_PERMISSIONS.filter((p) => subject.permissions?.includes(p));
+  return ROLE_PERMISSIONS[subject.role];
+}
+
+export function can(subject: PermissionSubject, permission: Permission) {
+  return permissionsOf(subject).includes(permission);
 }
 
 /**
- * Proyectos solo puede mover negocios que ya están (y se quedan) en la fase de
- * ejecución: desde "Firma de Contrato" en adelante (probabilidad >= 80 o ganado).
+ * Sin permiso de editar negocios, solo se pueden mover los que ya están (y se quedan) en la
+ * fase de ejecución: desde "Firma de Contrato" en adelante (probabilidad >= 80 o ganado).
  */
 export function canMoveDeal(
-  role: Role,
+  subject: PermissionSubject,
   from: { probability: number; isWon: boolean; isLost: boolean },
   to: { probability: number; isWon: boolean; isLost: boolean },
 ) {
-  if (can(role, "crm:write")) return true;
-  if (!can(role, "deals:production")) return false;
+  if (can(subject, "deals:write")) return true;
+  if (!can(subject, "deals:production")) return false;
   const isExecution = (s: typeof from) => !s.isLost && (s.isWon || s.probability >= 80);
   return isExecution(from) && isExecution(to);
 }

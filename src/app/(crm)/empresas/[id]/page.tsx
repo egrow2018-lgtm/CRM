@@ -10,7 +10,9 @@ import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { CompanyForm } from "../company-form";
 import { GpsboxCard } from "@/components/gpsbox-card";
-import { companyKey, normalize } from "@/lib/csv";
+import { companyKey, normalize, websiteDomain } from "@/lib/csv";
+import { CompanyLogo } from "@/components/company-logo";
+import { duplicateGroups } from "@/lib/duplicates";
 import { deleteCompany, mergeCompany, updateCompany } from "../actions";
 
 export default async function CompanyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
@@ -30,18 +32,27 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   if (!company) notFound();
-  // Posibles duplicados: empresas cuyo nombre contiene la primera palabra de esta (ej. "Siemens" ↔ "Siemens AG")
+  // Posibles duplicados: mismo nombre sin sufijos o misma web, más las que contienen la primera palabra del nombre
   const firstWord = companyKey(company.name).split(" ")[0] ?? "";
-  const duplicates =
-    can(user.role, "crm:delete") && firstWord.length >= 3
-      ? await prisma.company.findMany({
-          where: { id: { not: id }, name: { contains: firstWord, mode: "insensitive" } },
-          select: { id: true, name: true, city: true, _count: { select: { contacts: true, deals: true } } },
-          orderBy: { name: "asc" },
-          take: 10,
+  const duplicates = can(user, "companies:delete")
+    ? await prisma.company
+        .findMany({ select: { id: true, name: true, website: true } })
+        .then(async (all) => {
+          const group = duplicateGroups(all).find((g) => g.some((c) => c.id === id)) ?? [];
+          const ids = new Set(group.map((c) => c.id));
+          if (firstWord.length >= 3) for (const c of all) if (c.name.toLowerCase().includes(firstWord)) ids.add(c.id);
+          ids.delete(id);
+          const found = await prisma.company.findMany({
+            where: { id: { in: [...ids] } },
+            select: { id: true, name: true, city: true, _count: { select: { contacts: true, deals: true } } },
+            orderBy: { name: "asc" },
+          });
+          // Primero las del mismo grupo (nombre o web iguales), luego las de nombre parecido
+          const inGroup = (c: { id: string }) => (group.some((g) => g.id === c.id) ? 0 : 1);
+          return found.sort((a, b) => inGroup(a) - inGroup(b)).slice(0, 10);
         })
-      : [];
-  const canWrite = can(user.role, "crm:write");
+    : [];
+  const canWrite = can(user, "companies:write");
   const editing = edit === "1" && canWrite;
   // GPSBox: se muestra si la empresa tiene negocios de Rutalink o ya tiene RUC
   const showGpsbox = company.deals.some((d) => normalize(d.businessLine?.name ?? "") === "rutalink") || !!company.taxId;
@@ -50,15 +61,20 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
     <div>
       <div className="mb-2 text-sm"><Link href="/empresas" className="text-slate-500 hover:underline">← Empresas</Link></div>
       <PageHeader
-        title={company.name}
+        title={
+          <span className="inline-flex items-center gap-3">
+            <CompanyLogo name={company.name} domain={websiteDomain(company.website)} size="lg" />
+            {company.name}
+          </span>
+        }
         subtitle={[company.industry, company.city, company.country].filter(Boolean).join(" · ")}
         actions={
-          canWrite && (
+          (canWrite || can(user, "deals:write") || can(user, "contacts:write")) && (
             <>
-              <Link href={`/negocios/nuevo?companyId=${id}`} className="btn btn-primary">Nuevo negocio</Link>
-              <Link href={`/contactos/nuevo?companyId=${id}`} className="btn">Nuevo contacto</Link>
-              <Link href={editing ? `/empresas/${id}` : `/empresas/${id}?edit=1`} className="btn">{editing ? "Cancelar" : "Editar"}</Link>
-              {can(user.role, "crm:delete") && (
+              {can(user, "deals:write") && <Link href={`/negocios/nuevo?companyId=${id}`} className="btn btn-primary">Nuevo negocio</Link>}
+              {can(user, "contacts:write") && <Link href={`/contactos/nuevo?companyId=${id}`} className="btn">Nuevo contacto</Link>}
+              {canWrite && <Link href={editing ? `/empresas/${id}` : `/empresas/${id}?edit=1`} className="btn">{editing ? "Cancelar" : "Editar"}</Link>}
+              {can(user, "companies:delete") && (
                 <form action={deleteCompany.bind(null, id)}>
                   <ConfirmButton message="¿Eliminar esta empresa? Los contactos y negocios quedarán sin empresa.">Eliminar</ConfirmButton>
                 </form>
@@ -155,7 +171,8 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
-            viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user.role, "activities:write")} />
+            canMeet={can(user, "meetings:schedule")}
+            viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user, "activities:write")} />
         </div>
       </div>
     </div>

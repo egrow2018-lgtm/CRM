@@ -14,15 +14,21 @@ export type ActivityTarget = { dealId?: string; contactId?: string; companyId?: 
 
 const TYPES: ActivityType[] = ["NOTA", "LLAMADA", "REUNION", "EMAIL", "TAREA"];
 
-/** Actualiza la "última actividad" del negocio y del contacto (incluido el contacto principal del negocio). */
+/** Actualiza la "última actividad" del negocio, del contacto (incluido el principal del negocio) y de su empresa. */
 async function touch(db: Prisma.TransactionClient, t: ActivityTarget) {
   const now = new Date();
   let contactId = t.contactId;
+  let companyId = t.companyId;
   if (t.dealId) {
     const deal = await db.deal.update({ where: { id: t.dealId }, data: { lastActivityAt: now } });
     contactId ??= deal.contactId ?? undefined;
+    companyId ??= deal.companyId ?? undefined;
   }
-  if (contactId) await db.contact.update({ where: { id: contactId }, data: { lastActivityAt: now } });
+  if (contactId) {
+    const contact = await db.contact.update({ where: { id: contactId }, data: { lastActivityAt: now } });
+    companyId ??= contact.companyId ?? undefined;
+  }
+  if (companyId) await db.company.update({ where: { id: companyId }, data: { lastActivityAt: now } });
 }
 
 function pathsFor(t: ActivityTarget) {
@@ -69,7 +75,7 @@ export async function toggleTask(id: string) {
   const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
   const completed = !a.completed;
   await prisma.activity.update({ where: { id }, data: { completed, completedAt: completed ? new Date() : null } });
-  if (completed) await touch(prisma, { dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined });
+  if (completed) await touch(prisma, { dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined });
   pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined }).forEach((p) =>
     revalidatePath(p),
   );
@@ -79,7 +85,7 @@ export async function deleteActivity(id: string) {
   const user = await requireUser();
   const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
   const isOwn = a.authorId === user.id || a.assigneeId === user.id;
-  if (!isOwn && !can(user.role, "crm:delete")) throw new Error("Solo puedes eliminar tus propias actividades.");
+  if (!isOwn && !(["contacts:delete", "companies:delete", "deals:delete"] as const).some((p) => can(user, p))) throw new Error("Solo puedes eliminar tus propias actividades.");
   // Si es una reunión de Zoom, también se cancela en Zoom
   if (a.zoomMeetingId) await deleteZoomMeeting(a.zoomMeetingId);
   await prisma.activity.delete({ where: { id } });
@@ -107,7 +113,7 @@ export async function deleteActivity(id: string) {
  */
 export async function scheduleMeeting(target: ActivityTarget, _: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("activities:write");
+    const user = await requirePermission("meetings:schedule");
     const rel: ActivityTarget = {
       dealId: target.dealId ?? str(form, "dealId") ?? undefined,
       contactId: target.contactId ?? str(form, "contactId") ?? undefined,

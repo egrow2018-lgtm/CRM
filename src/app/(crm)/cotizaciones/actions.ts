@@ -16,7 +16,7 @@ import { normalize } from "@/lib/csv";
 
 export async function createQuote(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("crm:write");
+    const user = await requirePermission("deals:write");
     const deal = await prisma.deal.findUniqueOrThrow({
       where: { id: dealId },
       include: {
@@ -129,7 +129,7 @@ export async function createQuote(dealId: string, _: ActionState, form: FormData
 
 export async function sendQuoteEmail(quoteId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("crm:write");
+    const user = await requirePermission("deals:write");
     if (!emailConfigured()) throw new Error("El correo aún no está configurado (RESEND_API_KEY y EMAIL_FROM).");
     const to = reqStr(form, "to", "Para")
       .split(/[,;\s]+/)

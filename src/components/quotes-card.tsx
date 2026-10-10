@@ -5,7 +5,7 @@ import { formatDate, formatMoneyExact } from "@/lib/format";
 import { quoteCode } from "@/lib/quotes";
 import { createQuote, sendQuoteEmail } from "@/app/(crm)/cotizaciones/actions";
 import type { CompanySettings } from "@/lib/settings";
-import { SemaforoDot } from "./semaforo";
+import { SemaforoPunto } from "./semaforo";
 
 export function QuotesCard({
   dealId,
@@ -74,7 +74,7 @@ export function QuotesCard({
                   <span className="font-semibold tabular-nums">{formatMoneyExact(q.total)}</span>
                   <span className="text-xs text-slate-500">Emitida {formatDate(q.createdAt)}</span>
                   <span className={`inline-flex items-center gap-1 text-xs ${expired ? "text-red-700" : "text-slate-500"}`}>
-                    <SemaforoDot level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} />
+                    <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} />
                     {expired ? "Vencida" : "Válida hasta"} {formatDate(q.validUntil)}
                   </span>
                   {q.sentAt && <span className="badge bg-brand-50 text-brand-700">Enviada {formatDate(q.sentAt)}</span>}

@@ -81,7 +81,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         title="Negocios"
         subtitle={`${totals.length} negocios · Pipeline abierto ${formatMoney(pipelineTotal)} · Ponderado ${formatMoney(weightedTotal)}`}
         actions={
-          can(user.role, "crm:write") && (
+          can(user, "deals:write") && (
             <Link href="/negocios/nuevo" className="btn btn-primary">
               <IconPlus /> Agregar negocio
             </Link>
@@ -162,6 +162,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           }))}
           users={filterOptions.users}
           zoomEnabled={zoomConfigured()}
+          canMeet={can(user, "meetings:schedule")}
         />
       )}
     </div>

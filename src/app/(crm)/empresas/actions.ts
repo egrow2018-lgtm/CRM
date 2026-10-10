@@ -24,7 +24,7 @@ function companyData(form: FormData) {
 
 export async function createCompany(_: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("crm:write");
+    const user = await requirePermission("companies:write");
     const data = companyData(form);
     const company = await prisma.company.create({ data: { ...data, ownerId: data.ownerId ?? user.id } });
     revalidatePath("/empresas");
@@ -34,7 +34,7 @@ export async function createCompany(_: ActionState, form: FormData) {
 
 export async function updateCompany(id: string, _: ActionState, form: FormData) {
   return runAction(async () => {
-    await requirePermission("crm:write");
+    await requirePermission("companies:write");
     await prisma.company.update({ where: { id }, data: companyData(form) });
     revalidatePath("/empresas");
     return `/empresas/${id}`;
@@ -42,7 +42,7 @@ export async function updateCompany(id: string, _: ActionState, form: FormData) 
 }
 
 export async function deleteCompany(id: string) {
-  await requirePermission("crm:delete");
+  await requirePermission("companies:delete");
   await prisma.company.delete({ where: { id } });
   revalidatePath("/empresas");
   redirect("/empresas");
@@ -52,7 +52,7 @@ const MERGE_FIELDS = ["taxId", "industry", "website", "phone", "address", "city"
 
 /** Une `sourceId` dentro de `targetId`: pasa contactos, negocios y actividades, completa datos vacíos y elimina el duplicado. */
 export async function mergeCompany(targetId: string, sourceId: string) {
-  await requirePermission("crm:delete");
+  await requirePermission("companies:delete");
   if (targetId === sourceId) return;
   await prisma.$transaction(async (tx) => {
     const [target, source] = await Promise.all([
@@ -71,4 +71,16 @@ export async function mergeCompany(targetId: string, sourceId: string) {
   });
   revalidatePath("/empresas");
   redirect(`/empresas/${targetId}`);
+}
+
+/** Elimina varias empresas (sus contactos y negocios quedan sin empresa). */
+export async function deleteCompanies(ids: string[]) {
+  try {
+    await requirePermission("companies:delete");
+    const { count } = await prisma.company.deleteMany({ where: { id: { in: ids.filter((x) => typeof x === "string").slice(0, 500) } } });
+    revalidatePath("/empresas");
+    return { deleted: count };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudieron eliminar." };
+  }
 }

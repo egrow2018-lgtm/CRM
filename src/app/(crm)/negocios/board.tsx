@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { formatDate, formatMoney, timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/ui";
 import { QuickActions } from "@/components/quick-actions";
-import { Semaforo, SemaforoDot, SEMAFORO } from "@/components/semaforo";
+import { Semaforo, SemaforoPunto, SEMAFORO } from "@/components/semaforo";
 import { dealAlerts } from "@/lib/alerts";
 import { moveDeal } from "./actions";
 
@@ -34,11 +34,13 @@ export function DealBoard({
   deals: initial,
   users,
   zoomEnabled,
+  canMeet,
 }: {
   stages: BoardStage[];
   deals: BoardDeal[];
   users: { id: string; name: string }[];
   zoomEnabled: boolean;
+  canMeet: boolean;
 }) {
   const [deals, setDeals] = useState(initial);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -121,13 +123,13 @@ export function DealBoard({
                     {d.company && <div className="truncate">Empresa: {d.company}</div>}
                     <div className="flex items-center gap-1">
                       Fecha de cierre: {formatDate(d.closeDate ? new Date(d.closeDate) : null)}
-                      {alerts.close && alerts.close.level !== "verde" && <SemaforoDot level={alerts.close.level} title={alerts.close.label} />}
+                      {alerts.close && alerts.close.level !== "verde" && <SemaforoPunto level={alerts.close.level} title={alerts.close.label} />}
                     </div>
                     <div>Creado: {formatDate(new Date(d.createdAt))}</div>
                     {d.project?.entrega && (
                       <div className="flex items-center gap-1">
                         Entrega: {formatDate(new Date(`${d.project.entrega}T00:00:00Z`))}
-                        {alerts.delivery && <SemaforoDot level={alerts.delivery.level} title={alerts.delivery.label} />}
+                        {alerts.delivery && <SemaforoPunto level={alerts.delivery.level} title={alerts.delivery.label} />}
                       </div>
                     )}
                   </dl>
@@ -156,7 +158,7 @@ export function DealBoard({
                     <span title="Última actividad">{timeAgo(d.lastActivityAt ? new Date(d.lastActivityAt) : null)}</span>
                   </div>
                   <div className="mt-1 flex justify-end border-t border-slate-100 pt-1">
-                    <QuickActions compact target={{ dealId: d.id }} users={users} contact={d.contact} zoomEnabled={zoomEnabled} />
+                    <QuickActions compact target={{ dealId: d.id }} users={users} contact={d.contact} zoomEnabled={zoomEnabled} canMeet={canMeet} />
                   </div>
                 </div>
                 );

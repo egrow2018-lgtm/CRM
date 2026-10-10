@@ -12,7 +12,7 @@ export const getCurrentUser = cache(async () => {
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, name: true, email: true, role: true, active: true },
+    select: { id: true, name: true, email: true, role: true, active: true, customPermissions: true, permissions: true },
   });
   return user?.active ? user : null;
 });
@@ -27,7 +27,7 @@ export async function requireUser() {
 
 export async function requirePermission(permission: Permission) {
   const user = await requireUser();
-  if (!can(user.role, permission)) {
+  if (!can(user, permission)) {
     throw new Error("No tienes permisos para realizar esta acción.");
   }
   return user;
@@ -36,6 +36,6 @@ export async function requirePermission(permission: Permission) {
 /** Para páginas: si el usuario no tiene permiso, lo lleva al inicio en lugar de mostrar un error. */
 export async function requirePagePermission(permission: Permission) {
   const user = await requireUser();
-  if (!can(user.role, permission)) redirect("/");
+  if (!can(user, permission)) redirect("/");
   return user;
 }

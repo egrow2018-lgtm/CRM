@@ -72,7 +72,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     return `/agenda?${new URLSearchParams({ month: t.toISOString().slice(0, 7), ...(who === "all" ? { who } : {}) })}`;
   };
   const zoomOn = zoomConfigured();
-  const canWrite = can(user.role, "activities:write");
+  const canWrite = can(user, "activities:write");
 
   return (
     <div>
@@ -80,7 +80,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         title="Agenda"
         subtitle={zoomOn ? "Reuniones con Zoom, llamadas y tareas del equipo." : "Reuniones, llamadas y tareas del equipo. Zoom aún no está conectado (ver Configuración)."}
         actions={
-          canWrite && (
+          can(user, "meetings:schedule") && (
             <NewMeetingButton
               users={users}
               deals={deals}

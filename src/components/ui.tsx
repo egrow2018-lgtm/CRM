@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { initials } from "@/lib/format";
 
 export function PageHeader({ title, subtitle, actions }: { title: React.ReactNode; subtitle?: React.ReactNode; actions?: React.ReactNode }) {
@@ -49,17 +48,6 @@ export function InfoRow({ label, children }: { label: string; children: React.Re
     <div className="py-1.5">
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="text-sm text-slate-800">{children ?? "—"}</dd>
-    </div>
-  );
-}
-
-export function Pagination({ page, pages, makeHref }: { page: number; pages: number; makeHref: (p: number) => string }) {
-  if (pages <= 1) return null;
-  return (
-    <div className="mt-4 flex items-center justify-end gap-2 text-sm">
-      {page > 1 && <Link className="btn btn-sm" href={makeHref(page - 1)}>Anterior</Link>}
-      <span className="text-slate-500">Página {page} de {pages}</span>
-      {page < pages && <Link className="btn btn-sm" href={makeHref(page + 1)}>Siguiente</Link>}
     </div>
   );
 }

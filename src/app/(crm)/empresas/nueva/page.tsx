@@ -5,7 +5,7 @@ import { CompanyForm } from "../company-form";
 import { createCompany } from "../actions";
 
 export default async function NewCompanyPage() {
-  await requirePagePermission("crm:write");
+  await requirePagePermission("companies:write");
   const users = await prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
   return (
     <div className="max-w-3xl">
