@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  GERENTE
+  COMERCIAL
+  PROYECTOS
+}
+
+enum ProductType {
+  PRODUCTO
+  SERVICIO
+}
+
+enum LeadStatus {
+  NUEVO
+  EN_SEGUIMIENTO
+  CALIFICADO
+  DESCARTADO
+}
+
+enum ActivityType {
+  NOTA
+  LLAMADA
+  REUNION
+  EMAIL
+  TAREA
+  CAMBIO_ETAPA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(COMERCIAL)
+  active       Boolean  @default(true)
+  /// Recibe el resumen diario por correo
+  digestEnabled Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  companies          Company[]
+  contacts           Contact[]
+  deals              Deal[]
+  activitiesCreated  Activity[] @relation("ActivityAuthor")
+  activitiesAssigned Activity[] @relation("ActivityAssignee")
+  formsAssigned      Form[]     @relation("FormAssignee")
+  quotes             Quote[]
+}
+
+/// Línea de negocio: e-learning, Rutalink, Ludus, Humand, nuevas representaciones…
+model BusinessLine {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String   @default("#1c315e")
+  active      Boolean  @default(true)
+  /// Campos adicionales que se activan en los negocios de esta línea (ver src/lib/custom-fields.ts)
+  customFields Json    @default("[]")
+  createdAt   DateTime @default(now())
+
+  products Product[]
+  deals    Deal[]
+  forms    Form[]
+}
+
+model Product {
+  id             String      @id @default(cuid())
+  name           String
+  description    String?
+  sku            String?
+  type           ProductType @default(SERVICIO)
+  unitPrice      Decimal     @default(0) @db.Decimal(14, 2)
+  /// Servicio recurrente (licencias, monitoreo…): se renueva cada N meses
+  renewalMonths  Int?
+  active         Boolean     @default(true)
+  businessLineId String
+  businessLine   BusinessLine @relation(fields: [businessLineId], references: [id])
+  createdAt      DateTime    @default(now())
+
+  dealItems DealItem[]
+
+  @@index([businessLineId])
+}
+
+/// Etapas del pipeline (configurables por el administrador)
+model PipelineStage {
+  id          String  @id @default(cuid())
+  name        String
+  order       Int
+  probability Int     @default(0) // 0-100, usado para la cantidad ponderada
+  isWon       Boolean @default(false)
+  isLost      Boolean @default(false)
+
+  deals Deal[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  taxId     String?  // RUC / NIT
+  industry  String?
+  website   String?
+  phone     String?
+  address   String?
+  city      String?
+  country   String?
+  notes     String?
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts   Contact[]
+  deals      Deal[]
+  activities Activity[]
+
+  @@index([name])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String?
+  email     String?
+  phone     String?
+  jobTitle  String?
+  source     String?
+  notes      String?
+  leadStatus     LeadStatus?
+  lastActivityAt DateTime?
+  companyId      String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deals       Deal[]
+  activities  Activity[]
+  submissions FormSubmission[]
+
+  @@index([companyId])
+  @@index([leadStatus])
+  @@index([email])
+}
+
+model Deal {
+  id             String        @id @default(cuid())
+  name           String
+  amount         Decimal       @default(0) @db.Decimal(14, 2)
+  currency       String        @default("USD")
+  description    String?
+  closeDate      DateTime?
+  lostReason     String?
+  stageId        String
+  stage          PipelineStage @relation(fields: [stageId], references: [id])
+  businessLineId String?
+  businessLine   BusinessLine? @relation(fields: [businessLineId], references: [id], onDelete: SetNull)
+  companyId      String?
+  company        Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId      String?
+  contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  owner          User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  /// Valores de los campos adicionales de la línea de negocio
+  customData     Json          @default("{}")
+  /// Renovación (ingresos recurrentes): fecha y negocio del que proviene
+  renewalDate    DateTime?
+  renewalOfId    String?
+  renewalOf      Deal?         @relation("Renewals", fields: [renewalOfId], references: [id], onDelete: SetNull)
+  renewals       Deal[]        @relation("Renewals")
+  stageChangedAt DateTime      @default(now())
+  lastActivityAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items      DealItem[]
+  activities Activity[]
+  quotes     Quote[]
+
+  @@index([stageId])
+  @@index([renewalDate])
+  @@index([ownerId])
+  @@index([businessLineId])
+}
+
+/// Productos / servicios cotizados dentro de un negocio
+model DealItem {
+  id          String   @id @default(cuid())
+  dealId      String
+  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  description String
+  quantity    Decimal  @default(1) @db.Decimal(12, 2)
+  unitPrice   Decimal  @default(0) @db.Decimal(14, 2)
+  discount    Decimal  @default(0) @db.Decimal(5, 2) // porcentaje
+
+  @@index([dealId])
+}
+
+/// Notas, llamadas, reuniones, correos, tareas y cambios de etapa
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  subject     String
+  body        String?
+  dueDate     DateTime?
+  /// Reuniones: fecha y hora exactas (UTC), duración y enlaces (Zoom u otro)
+  startAt         DateTime?
+  durationMinutes Int?
+  meetingUrl      String?
+  hostUrl         String?
+  meetingPassword String?
+  zoomMeetingId   String?
+  completed   Boolean      @default(false)
+  completedAt DateTime?
+  dealId      String?
+  deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  authorId    String?
+  author      User?        @relation("ActivityAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  assigneeId  String?
+  assignee    User?        @relation("ActivityAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+
+  @@index([dealId])
+  @@index([contactId])
+  @@index([companyId])
+  @@index([assigneeId, completed])
+  @@index([startAt])
+}
+
+/// Formulario público (para redes, publicaciones o sitio web) que alimenta la base de contactos
+model Form {
+  id             String        @id @default(cuid())
+  name           String
+  slug           String        @unique
+  title          String
+  description    String?
+  /// Campos del formulario (ver src/lib/forms-builder.ts)
+  fields         Json          @default("[]")
+  submitLabel    String        @default("Enviar")
+  successMessage String        @default("¡Gracias! Te contactaremos pronto.")
+  active         Boolean       @default(true)
+  businessLineId String?
+  businessLine   BusinessLine? @relation(fields: [businessLineId], references: [id], onDelete: SetNull)
+  /// Usuario que recibe automáticamente los leads (vacío = bandeja de leads para que alguien los tome)
+  assigneeId     String?
+  assignee       User?         @relation("FormAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  submissions FormSubmission[]
+}
+
+model FormSubmission {
+  id        String   @id @default(cuid())
+  formId    String
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  data      Json
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([formId, createdAt])
+}
+
+/// Cotización generada desde un negocio (los datos quedan congelados al generarla)
+model Quote {
+  id          String   @id @default(cuid())
+  year        Int
+  number      Int
+  dealId      String
+  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  /// Token aleatorio para el enlace público del PDF (para WhatsApp o correo)
+  publicToken String   @unique
+  validUntil  DateTime
+  /// Cliente, ítems, totales y condiciones tal como se cotizaron
+  snapshot    Json
+  total       Decimal  @db.Decimal(14, 2)
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([year, number])
+  @@index([dealId])
+}
+
+/// Ajustes generales (datos de la empresa para cotizaciones, etc.)
+model AppSetting {
+  key   String @id
+  value Json
+}

@@ -1,0 +1,169 @@
+import Link from "next/link";
+import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { can } from "@/lib/permissions";
+import { dealCardInclude, dealWhere, getFilterOptions, type DealFilters } from "@/lib/queries";
+import type { Prisma } from "@prisma/client";
+import { contactName, formatDate, formatMoney, timeAgo, toNumber } from "@/lib/format";
+import { Pager, SortHeader, pageParams } from "@/components/pager";
+import { parseCustomData } from "@/lib/custom-fields";
+import { zoomConfigured } from "@/lib/zoom";
+import { dealAlerts, type AlertLevel } from "@/lib/alerts";
+import { Semaforo, SemaforoDot, SemaforoLegend } from "@/components/semaforo";
+
+function projectSummary(customData: unknown) {
+  const data = parseCustomData(customData);
+  return data.fechaEntrega || data.avance ? { entrega: data.fechaEntrega, avance: data.avance } : null;
+}
+import { LineBadge, PageHeader } from "@/components/ui";
+import { IconPlus } from "@/components/icons";
+import { DealFiltersBar } from "@/components/deal-filters";
+import { DealBoard } from "./board";
+
+const SORTS: Record<string, (dir: Prisma.SortOrder) => Prisma.DealOrderByWithRelationInput> = {
+  name: (dir) => ({ name: dir }),
+  stage: (dir) => ({ stage: { order: dir } }),
+  amount: (dir) => ({ amount: dir }),
+  closeDate: (dir) => ({ closeDate: { sort: dir, nulls: "last" } }),
+  owner: (dir) => ({ owner: { name: dir } }),
+  lastActivity: (dir) => ({ lastActivityAt: { sort: dir, nulls: "last" } }),
+  createdAt: (dir) => ({ createdAt: dir }),
+};
+
+type SP = DealFilters & { view?: string; page?: string; per?: string; sort?: string; alerta?: string };
+
+export default async function DealsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const user = await requireUser();
+  const sp = await searchParams;
+  const isList = sp.view === "list";
+  const where = dealWhere(sp, user.id);
+  const { page, per, skip } = pageParams(sp);
+  const [sortField, sortDir] = (sp.sort ?? "closeDate_desc").split("_");
+  const orderBy = (SORTS[sortField ?? ""] ?? SORTS.closeDate!)(sortDir === "asc" ? "asc" : "desc");
+
+  const alerta = ["rojo", "amarillo", "verde"].includes(sp.alerta ?? "") ? (sp.alerta as AlertLevel) : null;
+  const [stages, fetched, allTotals, filterOptions] = await Promise.all([
+    prisma.pipelineStage.findMany({ orderBy: { order: "asc" } }),
+    prisma.deal.findMany({
+      where,
+      include: dealCardInclude,
+      orderBy: isList ? [orderBy, { id: "asc" }] : { createdAt: "desc" },
+      // Con filtro de semáforo se calcula en memoria y luego se pagina
+      ...(isList && !alerta ? { skip, take: per } : {}),
+    }),
+    // Totales del pipeline con los filtros (sin paginar)
+    prisma.deal.findMany({ where, select: { id: true, amount: true, stage: { select: { probability: true, isWon: true, isLost: true } } } }),
+    getFilterOptions(),
+  ]);
+  const healthOf = (d: (typeof fetched)[number]) => {
+    const project = projectSummary(d.customData);
+    return dealAlerts({
+      open: !d.stage.isWon && !d.stage.isLost,
+      closeDate: d.closeDate,
+      next: d.activities[0] ?? null,
+      entrega: project?.entrega,
+      avance: project?.avance,
+    });
+  };
+  const matching = alerta ? fetched.filter((d) => healthOf(d).health === alerta) : fetched;
+  const matchingIds = new Set(matching.map((d) => d.id));
+  const totals = alerta ? allTotals.filter((d) => matchingIds.has(d.id)) : allTotals;
+  const deals = alerta && isList ? matching.slice(skip, skip + per) : matching;
+
+  const openDeals = totals.filter((d) => !d.stage.isWon && !d.stage.isLost);
+  const pipelineTotal = openDeals.reduce((s, d) => s + toNumber(d.amount), 0);
+  const weightedTotal = openDeals.reduce((s, d) => s + (toNumber(d.amount) * d.stage.probability) / 100, 0);
+  const spRecord = sp as Record<string, string | undefined>;
+
+  return (
+    <div>
+      <PageHeader
+        title="Negocios"
+        subtitle={`${totals.length} negocios · Pipeline abierto ${formatMoney(pipelineTotal)} · Ponderado ${formatMoney(weightedTotal)}`}
+        actions={
+          can(user.role, "crm:write") && (
+            <Link href="/negocios/nuevo" className="btn btn-primary">
+              <IconPlus /> Agregar negocio
+            </Link>
+          )
+        }
+      />
+      <DealFiltersBar options={filterOptions} />
+      <div className="-mt-2 mb-3"><SemaforoLegend /></div>
+      {isList ? (
+        <>
+          <div className="card overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th title="Semáforo">●</th>
+                  <SortHeader label="Nombre del negocio" field="name" path="/negocios" sp={spRecord} />
+                  <SortHeader label="Etapa" field="stage" path="/negocios" sp={spRecord} />
+                  <th>Línea</th>
+                  <th>Empresa</th>
+                  <SortHeader label="Valor" field="amount" path="/negocios" sp={spRecord} className="text-right" />
+                  <SortHeader label="Fecha de cierre" field="closeDate" path="/negocios" sp={spRecord} />
+                  <SortHeader label="Propietario" field="owner" path="/negocios" sp={spRecord} />
+                  <th>Próxima actividad</th>
+                  <SortHeader label="Última actividad" field="lastActivity" path="/negocios" sp={spRecord} />
+                </tr>
+              </thead>
+              <tbody>
+                {deals.map((d) => {
+                  const next = d.activities[0];
+                  const al = healthOf(d);
+                  const reasons = [al.next, al.close, al.delivery].filter((x) => x && x.level !== "verde").map((x) => x!.label);
+                  return (
+                    <tr key={d.id} className="hover:bg-slate-50">
+                      <td>{al.health && <SemaforoDot level={al.health} title={reasons.join(" · ") || "Al día"} />}</td>
+                      <td className="max-w-72"><Link className="link line-clamp-2" href={`/negocios/${d.id}`}>{d.name}</Link></td>
+                      <td className="whitespace-nowrap">
+                        <span className={`badge ${d.stage.isWon ? "bg-emerald-100 text-emerald-800" : d.stage.isLost ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"}`}>
+                          {d.stage.name}
+                        </span>
+                      </td>
+                      <td><LineBadge line={d.businessLine} /></td>
+                      <td className="max-w-48 truncate">{d.company ? <Link className="hover:underline" href={`/empresas/${d.company.id}`}>{d.company.name}</Link> : "—"}</td>
+                      <td className="text-right tabular-nums">{toNumber(d.amount) > 0 ? formatMoney(d.amount) : "—"}</td>
+                      <td className={`whitespace-nowrap ${al.close?.level === "rojo" ? "font-medium text-red-700" : ""}`}>{formatDate(d.closeDate)}</td>
+                      <td className="whitespace-nowrap">{d.owner?.name ?? "—"}</td>
+                      <td className="max-w-56 truncate text-xs">
+                        {al.next ? <Semaforo level={al.next.level} label={next ? `${formatDate(next.dueDate)} · ${next.subject}` : al.next.label} /> : <span className="text-slate-400">—</span>}
+                      </td>
+                      <td className="whitespace-nowrap text-xs text-slate-500">{timeAgo(d.lastActivityAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pager path="/negocios" sp={spRecord} total={totals.length} page={page} per={per} />
+        </>
+      ) : (
+        <DealBoard
+          stages={stages.map(({ id, name, probability, isWon, isLost }) => ({ id, name, probability, isWon, isLost }))}
+          deals={deals.map((d) => ({
+            id: d.id,
+            name: d.name,
+            amount: toNumber(d.amount),
+            stageId: d.stageId,
+            closeDate: d.closeDate?.toISOString() ?? null,
+            createdAt: d.createdAt.toISOString(),
+            lastActivityAt: d.lastActivityAt?.toISOString() ?? null,
+            owner: d.owner?.name ?? null,
+            company: d.company?.name ?? null,
+            line: d.businessLine,
+            contact: d.contact && { name: contactName(d.contact), email: d.contact.email, phone: d.contact.phone },
+            next: d.activities[0]
+              ? { type: d.activities[0].type, subject: d.activities[0].subject, dueDate: d.activities[0].dueDate?.toISOString() ?? null }
+              : null,
+            pending: d._count.activities,
+            project: projectSummary(d.customData),
+          }))}
+          users={filterOptions.users}
+          zoomEnabled={zoomConfigured()}
+        />
+      )}
+    </div>
+  );
+}
