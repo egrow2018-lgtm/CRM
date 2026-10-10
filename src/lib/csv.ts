@@ -84,7 +84,7 @@ export function parseDate(raw: string | undefined): Date | null {
 export function companyKey(name: string) {
   return normalize(name)
     .replace(/[.,]/g, " ")
-    .replace(/\b(s a s|s a|cia|ltda|c a|inc|ltd|llc|corp|sas|sa|ep|s de rl)\b/g, " ")
+    .replace(/\b(s a s|s a|cia|ltda|c a|inc|ltd|llc|corp|sas|sa|ep|s de rl|ag|gmbh|srl|s r l|plc)\b/g, " ")
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

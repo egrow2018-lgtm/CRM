@@ -23,7 +23,8 @@ export default async function ImportPage() {
       </ol>
       <p className="mb-4 text-xs text-slate-500">
         Los contactos se enlazan a su empresa por el dominio del email corporativo o por el nombre. Los duplicados se omiten
-        (empresas y negocios por nombre, contactos por email), así que puedes volver a importar sin miedo. La línea de negocio de cada negocio se deduce del nombre (ej. &quot;… - Ludus&quot;, &quot;… - HUMAND&quot;, &quot;Curso
+        (empresas y negocios por nombre, contactos por email), así que puedes volver a importar sin miedo. Si una empresa ya
+        existía (por ejemplo, creada al importar contactos), se completan sus datos vacíos: sector, ciudad, país, web, etc. La línea de negocio de cada negocio se deduce del nombre (ej. &quot;… - Ludus&quot;, &quot;… - HUMAND&quot;, &quot;Curso
         Virtual&quot;).
       </p>
       <ImportForm />

@@ -47,3 +47,28 @@ export async function deleteCompany(id: string) {
   revalidatePath("/empresas");
   redirect("/empresas");
 }
+
+const MERGE_FIELDS = ["taxId", "industry", "website", "phone", "address", "city", "country", "ownerId"] as const;
+
+/** Une `sourceId` dentro de `targetId`: pasa contactos, negocios y actividades, completa datos vacíos y elimina el duplicado. */
+export async function mergeCompany(targetId: string, sourceId: string) {
+  await requirePermission("crm:delete");
+  if (targetId === sourceId) return;
+  await prisma.$transaction(async (tx) => {
+    const [target, source] = await Promise.all([
+      tx.company.findUniqueOrThrow({ where: { id: targetId } }),
+      tx.company.findUniqueOrThrow({ where: { id: sourceId } }),
+    ]);
+    const data: Record<string, unknown> = {};
+    for (const f of MERGE_FIELDS) if (!target[f] && source[f]) data[f] = source[f];
+    if (source.notes && source.notes !== target.notes) data.notes = [target.notes, source.notes].filter(Boolean).join("\n\n");
+    if (source.createdAt < target.createdAt) data.createdAt = source.createdAt;
+    await tx.contact.updateMany({ where: { companyId: sourceId }, data: { companyId: targetId } });
+    await tx.deal.updateMany({ where: { companyId: sourceId }, data: { companyId: targetId } });
+    await tx.activity.updateMany({ where: { companyId: sourceId }, data: { companyId: targetId } });
+    await tx.company.update({ where: { id: targetId }, data });
+    await tx.company.delete({ where: { id: sourceId } });
+  });
+  revalidatePath("/empresas");
+  redirect(`/empresas/${targetId}`);
+}
