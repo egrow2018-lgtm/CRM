@@ -162,6 +162,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           }))}
           users={filterOptions.users}
           zoomEnabled={zoomConfigured()}
+          canMeet={can(user, "meetings:schedule")}
         />
       )}
     </div>

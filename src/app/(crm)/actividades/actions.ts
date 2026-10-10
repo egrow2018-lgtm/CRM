@@ -113,7 +113,7 @@ export async function deleteActivity(id: string) {
  */
 export async function scheduleMeeting(target: ActivityTarget, _: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("activities:write");
+    const user = await requirePermission("meetings:schedule");
     const rel: ActivityTarget = {
       dealId: target.dealId ?? str(form, "dealId") ?? undefined,
       contactId: target.contactId ?? str(form, "contactId") ?? undefined,

@@ -34,11 +34,13 @@ export function DealBoard({
   deals: initial,
   users,
   zoomEnabled,
+  canMeet,
 }: {
   stages: BoardStage[];
   deals: BoardDeal[];
   users: { id: string; name: string }[];
   zoomEnabled: boolean;
+  canMeet: boolean;
 }) {
   const [deals, setDeals] = useState(initial);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -156,7 +158,7 @@ export function DealBoard({
                     <span title="Última actividad">{timeAgo(d.lastActivityAt ? new Date(d.lastActivityAt) : null)}</span>
                   </div>
                   <div className="mt-1 flex justify-end border-t border-slate-100 pt-1">
-                    <QuickActions compact target={{ dealId: d.id }} users={users} contact={d.contact} zoomEnabled={zoomEnabled} />
+                    <QuickActions compact target={{ dealId: d.id }} users={users} contact={d.contact} zoomEnabled={zoomEnabled} canMeet={canMeet} />
                   </div>
                 </div>
                 );

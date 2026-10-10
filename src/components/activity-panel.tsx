@@ -41,6 +41,7 @@ export function ActivityPanel({
   canWrite,
   contact,
   zoomEnabled,
+  canMeet = true,
   viewerId,
 }: {
   target: ActivityTarget;
@@ -49,6 +50,7 @@ export function ActivityPanel({
   canWrite: boolean;
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
   zoomEnabled?: boolean;
+  canMeet?: boolean;
   viewerId?: string;
 }) {
   const isPending = (a: Item) => !a.completed && ["TAREA", "LLAMADA", "REUNION"].includes(a.type);
@@ -61,7 +63,7 @@ export function ActivityPanel({
       {canWrite && (
         <div className="card p-4">
           <h2 className="mb-3 text-base">Registrar seguimiento</h2>
-          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} />
+          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} canMeet={canMeet} />
         </div>
       )}
 

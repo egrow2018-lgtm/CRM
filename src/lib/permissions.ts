@@ -41,6 +41,7 @@ export const PERMISSION_GROUPS = [
   {
     module: "Herramientas",
     items: [
+      { key: "meetings:schedule", label: "Agendar reuniones (Agenda y Zoom)" },
       { key: "forms:manage", label: "Formularios públicos" },
       { key: "catalog:manage", label: "Líneas de negocio y productos" },
       { key: "import:run", label: "Importar desde HubSpot" },
@@ -63,12 +64,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: ALL_PERMISSIONS,
   GERENTE: [
     "contacts:write", "contacts:delete", "companies:write", "companies:delete", "deals:write", "deals:delete", "deals:production",
-    "activities:write", "leads:take", "forms:manage", "catalog:manage", "import:run",
+    "activities:write", "meetings:schedule", "leads:take", "forms:manage", "catalog:manage", "import:run",
   ],
   // Gestión de negocios: crea clientes y productos y da seguimiento a cada negocio
-  COMERCIAL: ["contacts:write", "companies:write", "deals:write", "deals:production", "activities:write", "leads:take", "forms:manage", "catalog:manage"],
+  COMERCIAL: [
+    "contacts:write", "companies:write", "deals:write", "deals:production", "activities:write", "meetings:schedule", "leads:take", "forms:manage",
+    "catalog:manage",
+  ],
   // Gestión de proyectos: seguimiento de la producción con el equipo de desarrollo
-  PROYECTOS: ["deals:production", "activities:write"],
+  PROYECTOS: ["deals:production", "activities:write", "meetings:schedule"],
 };
 
 /** Quién pide el permiso: un perfil, o un usuario con permisos personalizados. */

@@ -80,7 +80,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         title="Agenda"
         subtitle={zoomOn ? "Reuniones con Zoom, llamadas y tareas del equipo." : "Reuniones, llamadas y tareas del equipo. Zoom aún no está conectado (ver Configuración)."}
         actions={
-          canWrite && (
+          can(user, "meetings:schedule") && (
             <NewMeetingButton
               users={users}
               deals={deals}

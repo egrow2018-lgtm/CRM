@@ -116,6 +116,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
+            canMeet={can(user, "meetings:schedule")}
             viewerId={user.id} target={{ contactId: id }} activities={contact.activities} users={users} canWrite={can(user, "activities:write")} contact={{ name: contactName(contact), email: contact.email, phone: contact.phone }} />
         </div>
       </div>

@@ -44,12 +44,15 @@ export function QuickActions({
   contact,
   compact,
   zoomEnabled = false,
+  canMeet = true,
 }: {
   target: ActivityTarget;
   users: { id: string; name: string }[];
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
   compact?: boolean;
   zoomEnabled?: boolean;
+  /** Permiso para agendar reuniones; sin él no se muestra el botón «Reunión». */
+  canMeet?: boolean;
 }) {
   const [open, setOpen] = useState<QuickType | null>(null);
   const phoneDigits = contact?.phone?.replace(/\D/g, "");
@@ -57,7 +60,7 @@ export function QuickActions({
   return (
     <>
       <div className={compact ? "flex items-center gap-0.5" : "flex flex-wrap gap-3"}>
-        {ACTIONS.map(({ type, label, icon: Icon }) =>
+        {ACTIONS.filter((a) => canMeet || a.type !== "REUNION").map(({ type, label, icon: Icon }) =>
           compact ? (
             <button
               key={type}

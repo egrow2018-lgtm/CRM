@@ -171,6 +171,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
+            canMeet={can(user, "meetings:schedule")}
             viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user, "activities:write")} />
         </div>
       </div>
