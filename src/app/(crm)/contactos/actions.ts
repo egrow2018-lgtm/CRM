@@ -48,3 +48,15 @@ export async function deleteContact(id: string) {
   revalidatePath("/contactos");
   redirect("/contactos");
 }
+
+/** Elimina varios contactos. */
+export async function deleteContacts(ids: string[]) {
+  try {
+    await requirePermission("crm:delete");
+    const { count } = await prisma.contact.deleteMany({ where: { id: { in: ids.filter((x) => typeof x === "string").slice(0, 500) } } });
+    revalidatePath("/contactos");
+    return { deleted: count };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudieron eliminar." };
+  }
+}

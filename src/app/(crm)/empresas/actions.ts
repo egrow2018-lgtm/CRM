@@ -72,3 +72,15 @@ export async function mergeCompany(targetId: string, sourceId: string) {
   revalidatePath("/empresas");
   redirect(`/empresas/${targetId}`);
 }
+
+/** Elimina varias empresas (sus contactos y negocios quedan sin empresa). */
+export async function deleteCompanies(ids: string[]) {
+  try {
+    await requirePermission("crm:delete");
+    const { count } = await prisma.company.deleteMany({ where: { id: { in: ids.filter((x) => typeof x === "string").slice(0, 500) } } });
+    revalidatePath("/empresas");
+    return { deleted: count };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudieron eliminar." };
+  }
+}

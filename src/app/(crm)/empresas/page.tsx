@@ -15,6 +15,8 @@ import { CompanyLogo } from "@/components/company-logo";
 import { SemaforoPunto } from "@/components/semaforo";
 import { Pager, SortHeader, pageParams } from "@/components/pager";
 import { CompanyFilters } from "./filters";
+import { BulkCheckCell, BulkCheckHeader, BulkSelection } from "@/components/bulk-selection";
+import { deleteCompanies } from "./actions";
 
 type SP = { q?: string; owner?: string; lead?: string; activity?: string; from?: string; to?: string; dup?: string; page?: string; per?: string; sort?: string };
 
@@ -74,6 +76,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
   ]);
   const companies = dupOrder ? rows.sort((a, b) => dupOrder.get(a.id)! - dupOrder.get(b.id)!).slice(skip, skip + per) : rows;
   const spRecord = sp as Record<string, string | undefined>;
+  const canDelete = can(user.role, "crm:delete");
 
   return (
     <div>
@@ -96,54 +99,58 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
         <EmptyState>No hay empresas con estos filtros.</EmptyState>
       ) : (
         <>
-          <div className="card overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <SortHeader label="Nombre" field="name" path="/empresas" sp={spRecord} />
-                  <th>Industria</th>
-                  <th>Ciudad</th>
-                  <th className="text-right">Contactos</th>
-                  <th className="text-right">Negocios</th>
-                  <th>Estado del lead</th>
-                  <th>Propietario</th>
-                  <SortHeader label="Última actividad" field="lastActivity" path="/empresas" sp={spRecord} />
-                  <SortHeader label="Creada" field="createdAt" path="/empresas" sp={spRecord} />
-                </tr>
-              </thead>
-              <tbody>
-                {companies.map((c, i) => {
-                  const lead = companyLead(c.contacts);
-                  const status = lead ? LEAD_STATUS[lead] : null;
-                  const a = lastActivityAlert(c.lastActivityAt, { warnDays: 30, dangerDays: 90 });
-                  // En la vista de duplicados, una línea separa cada grupo
-                  const newGroup = dupOrder && i > 0 && dupOrder.get(c.id) !== dupOrder.get(companies[i - 1]!.id);
-                  return (
-                    <tr key={c.id} className={`hover:bg-slate-50 ${newGroup ? "border-t-2 border-amber-300" : ""}`}>
-                      <td>
-                        <Link className="link inline-flex items-center gap-2" href={`/empresas/${c.id}`}>
-                          <CompanyLogo name={c.name} domain={websiteDomain(c.website)} />
-                          {c.name}
-                        </Link>
-                      </td>
-                      <td>{c.industry ?? "—"}</td>
-                      <td>{[c.city, c.country].filter(Boolean).join(", ") || "—"}</td>
-                      <td className="text-right">{c._count.contacts}</td>
-                      <td className="text-right">{c._count.deals}</td>
-                      <td>{status ? <span className={`badge ${status.className}`}>{status.label}</span> : <span className="text-slate-400">—</span>}</td>
-                      <td className="whitespace-nowrap">{c.owner?.name ?? <span className="text-slate-400">Sin asignar</span>}</td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">
-                        <span className="inline-flex items-center gap-1">
-                          <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <BulkSelection enabled={canDelete} onDelete={deleteCompanies} noun={{ one: "empresa", many: "empresas" }}>
+            <div className="card overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    {canDelete && <BulkCheckHeader />}
+                    <SortHeader label="Nombre" field="name" path="/empresas" sp={spRecord} />
+                    <th>Industria</th>
+                    <th>Ciudad</th>
+                    <th className="text-right">Contactos</th>
+                    <th className="text-right">Negocios</th>
+                    <th>Estado del lead</th>
+                    <th>Propietario</th>
+                    <SortHeader label="Última actividad" field="lastActivity" path="/empresas" sp={spRecord} />
+                    <SortHeader label="Creada" field="createdAt" path="/empresas" sp={spRecord} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {companies.map((c, i) => {
+                    const lead = companyLead(c.contacts);
+                    const status = lead ? LEAD_STATUS[lead] : null;
+                    const a = lastActivityAlert(c.lastActivityAt, { warnDays: 30, dangerDays: 90 });
+                    // En la vista de duplicados, una línea separa cada grupo
+                    const newGroup = dupOrder && i > 0 && dupOrder.get(c.id) !== dupOrder.get(companies[i - 1]!.id);
+                    return (
+                      <tr key={c.id} className={`hover:bg-slate-50 ${newGroup ? "border-t-2 border-amber-300" : ""}`}>
+                        {canDelete && <BulkCheckCell id={c.id} label={c.name} />}
+                        <td>
+                          <Link className="link inline-flex items-center gap-2" href={`/empresas/${c.id}`}>
+                            <CompanyLogo name={c.name} domain={websiteDomain(c.website)} />
+                            {c.name}
+                          </Link>
+                        </td>
+                        <td>{c.industry ?? "—"}</td>
+                        <td>{[c.city, c.country].filter(Boolean).join(", ") || "—"}</td>
+                        <td className="text-right">{c._count.contacts}</td>
+                        <td className="text-right">{c._count.deals}</td>
+                        <td>{status ? <span className={`badge ${status.className}`}>{status.label}</span> : <span className="text-slate-400">—</span>}</td>
+                        <td className="whitespace-nowrap">{c.owner?.name ?? <span className="text-slate-400">Sin asignar</span>}</td>
+                        <td className="whitespace-nowrap text-xs text-slate-500">
+                          <span className="inline-flex items-center gap-1">
+                            <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </BulkSelection>
           <Pager path="/empresas" sp={spRecord} total={total} page={page} per={per} />
         </>
       )}
