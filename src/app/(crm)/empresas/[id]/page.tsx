@@ -10,7 +10,8 @@ import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { CompanyForm } from "../company-form";
 import { GpsboxCard } from "@/components/gpsbox-card";
-import { companyKey, normalize } from "@/lib/csv";
+import { companyKey, normalize, websiteDomain } from "@/lib/csv";
+import { CompanyLogo } from "@/components/company-logo";
 import { deleteCompany, mergeCompany, updateCompany } from "../actions";
 
 export default async function CompanyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
@@ -50,7 +51,12 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
     <div>
       <div className="mb-2 text-sm"><Link href="/empresas" className="text-slate-500 hover:underline">← Empresas</Link></div>
       <PageHeader
-        title={company.name}
+        title={
+          <span className="inline-flex items-center gap-3">
+            <CompanyLogo name={company.name} domain={websiteDomain(company.website)} size="lg" />
+            {company.name}
+          </span>
+        }
         subtitle={[company.industry, company.city, company.country].filter(Boolean).join(" · ")}
         actions={
           canWrite && (

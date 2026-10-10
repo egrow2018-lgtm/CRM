@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { CompanyLogo } from "@/components/company-logo";
+import { websiteDomain } from "@/lib/csv";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -53,7 +55,12 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
             <tbody>
               {companies.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50">
-                  <td><Link className="link" href={`/empresas/${c.id}`}>{c.name}</Link></td>
+                  <td>
+                    <Link className="link inline-flex items-center gap-2" href={`/empresas/${c.id}`}>
+                      <CompanyLogo name={c.name} domain={websiteDomain(c.website)} />
+                      {c.name}
+                    </Link>
+                  </td>
                   <td>{c.industry ?? "—"}</td>
                   <td>{[c.city, c.country].filter(Boolean).join(", ") || "—"}</td>
                   <td className="text-right">{c._count.contacts}</td>
