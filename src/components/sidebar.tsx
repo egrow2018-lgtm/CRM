@@ -17,6 +17,7 @@ import {
   IconInbox,
   IconLogout,
   IconSettings,
+  IconNote,
   IconShield,
   IconTasks,
 } from "./icons";
@@ -34,6 +35,7 @@ export function Sidebar({
   const items = [
     { href: "/", label: "Inicio", icon: IconHome },
     { href: "/negocios", label: "Negocios", icon: IconDeals },
+    { href: "/cotizaciones", label: "Cotizaciones", icon: IconNote },
     { href: "/leads", label: "Leads", icon: IconInbox, badge: newLeads },
     { href: "/contactos", label: "Contactos", icon: IconContacts },
     { href: "/empresas", label: "Empresas", icon: IconCompany },
