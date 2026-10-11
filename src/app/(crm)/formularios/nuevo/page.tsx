@@ -7,7 +7,7 @@ import { createForm } from "../actions";
 export default async function NewFormPage() {
   await requirePagePermission("forms:manage");
   const [lines, users] = await Promise.all([
-    prisma.businessLine.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.businessLine.findMany({ where: { active: true }, orderBy: { name: "asc" }, omit: { brandLogo: true } }),
     prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   return (

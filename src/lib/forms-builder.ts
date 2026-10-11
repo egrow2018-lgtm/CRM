@@ -55,9 +55,11 @@ export function defaultConsentText(company: { name: string; legalName?: string; 
 
 /** Logo de un formulario: imagen PNG, JPEG o WebP como data URL, de hasta ~300 KB. */
 export const MAX_LOGO_CHARS = 400_000;
-export function validLogo(value: string | null | undefined) {
+export function validLogo(value: string | null | undefined, { pdf = false } = {}) {
   if (!value) return null;
-  if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value)) throw new Error("El logo debe ser una imagen PNG, JPG o WebP.");
+  // El PDF de las cotizaciones solo admite PNG o JPEG
+  const re = pdf ? /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/ : /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+  if (!re.test(value)) throw new Error(pdf ? "El logo debe ser una imagen PNG o JPG." : "El logo debe ser una imagen PNG, JPG o WebP.");
   if (value.length > MAX_LOGO_CHARS) throw new Error("El logo es muy pesado (máximo ~300 KB).");
   return value;
 }

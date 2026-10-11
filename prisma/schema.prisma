@@ -48,6 +48,8 @@ model User {
   /// Si es true, se usan `permissions` en lugar de los permisos por defecto del perfil
   customPermissions Boolean  @default(false)
   permissions       String[] @default([])
+  /// Otros correos que reciben copia de sus reuniones (ej. el correo personal)
+  extraEmails       String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -69,6 +71,13 @@ model BusinessLine {
   active      Boolean  @default(true)
   /// Campos adicionales que se activan en los negocios de esta línea (ver src/lib/custom-fields.ts)
   customFields Json    @default("[]")
+  /// Marca propia para las cotizaciones de esta línea (ej. Rutalink). Si no hay logo, se usa la de e-grow.
+  brandName    String?
+  brandLogo    String? /// data URL PNG o JPEG
+  brandPrimary String? /// color principal (títulos, encabezado de la tabla)
+  brandAccent  String? /// color de acento (barra y total)
+  brandWebsite String?
+  brandHeaderBg String? /// fondo del encabezado del PDF (para logos claros); vacío = blanco
   createdAt   DateTime @default(now())
 
   products Product[]
@@ -230,6 +239,12 @@ model Activity {
   hostUrl         String?
   meetingPassword String?
   zoomMeetingId   String?
+  /// Lugar de la reunión presencial (dirección, oficina del cliente…)
+  location        String?
+  /// Correos de los invitados a la reunión
+  guests          String[]  @default([])
+  /// Cuándo se envió la invitación por correo (null = no se envió)
+  invitedAt       DateTime?
   completed   Boolean      @default(false)
   completedAt DateTime?
   dealId      String?

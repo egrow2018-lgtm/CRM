@@ -15,14 +15,15 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | **Formularios** | Formularios públicos (`/f/nombre`) para compartir en redes, publicaciones o un sitio web, con enlace, botones de WhatsApp, LinkedIn, Facebook y X, código QR e iframe. Cada respuesta crea o actualiza el contacto y lo envía a la bandeja de leads o al usuario asignado. |
 | **Contactos** | Pestañas como en HubSpot (Mis contactos, No asignados, Mis no contactados, Todos), indicadores de calidad de datos (falta propietario, falta email, falta estado del lead, sin actividad reciente) que filtran al hacer clic, filtro por estado del lead, lista paginada o tarjetas por estado del lead con arrastrar y soltar. |
 | **Empresas** | Fichas con contactos, negocios e historial de actividades. |
-| **Agenda y Zoom** | Calendario mensual (mi agenda o todo el equipo) y próximas reuniones. Al agendar una reunión desde la Agenda o con el ícono «Reunión» de un negocio, contacto o empresa, se crea en la **cuenta de Zoom de e-grow**. La reunión muestra los botones «Iniciar Zoom» (anfitrión), «Unirse», copiar invitación, Correo, WhatsApp, Google Calendar y «Cancelar», que también la elimina en Zoom. |
+| **Agenda y Zoom** | Calendario mensual (mi agenda —incluye las reuniones que organicé para otros— o todo el equipo) y próximas reuniones. Las reuniones pueden ser por **Zoom** (se crean en la cuenta de Zoom de e-grow), **presenciales** (con lugar) o con **otro enlace** (Meet, Teams). Se agregan **invitados** por correo y el CRM les envía la invitación con un archivo de calendario (.ics) para Outlook, Gmail o el teléfono; también la reciben el anfitrión, sus **correos adicionales** (se configuran en Usuarios y permisos, ej. el correo personal) y quien la organizó. Al cancelar, se avisa a todos y se elimina en Zoom. |
 | **Tareas y agenda** | Tareas, llamadas y reuniones programadas, en lista o en tarjetas por vencimiento (vencidas, hoy, próximos 7 días, más adelante, sin fecha). |
 | **Líneas y productos** | Alta de líneas o representaciones, su catálogo de productos y servicios, y los campos adicionales que activan en sus negocios. |
 | **Cotizaciones** | Desde los productos del negocio se genera la cotización en **PDF** con el logo, numeración `COT-2026-0001`, IVA (15 % por defecto), validez y condiciones. Se puede ver, enviar por **correo** con el PDF adjunto (con copia a quien envía) o compartir por **WhatsApp** con un enlace seguro. Al generarla, el negocio pasa a «Cotización-Envío». Los datos de la empresa se editan en Configuración. |
 | **Avisos por correo** | Aviso inmediato cuando llega un **lead** de un formulario, y **resumen diario** de lunes a viernes a las 8:00 con reuniones, tareas vencidas, negocios en rojo, leads sin atender y renovaciones. Cada persona puede desactivarlo o ver la vista previa en «Mi perfil». |
 | **Renovaciones** | Los productos recurrentes (licencias Humand, monitoreo Rutalink, Ludus, LMS) se renuevan cada N meses. Al **ganar** el negocio se calcula su fecha de renovación (también editable a mano). **30 días antes** se crea solo el negocio de renovación, con los mismos productos y una tarea para el responsable. Inicio muestra las próximas renovaciones con semáforo. |
 | **GPSBox (Rutalink)** | Las empresas se enlazan con su cliente de GPSBox por **RUC/cédula**. La ficha de la empresa (y la de los negocios de Rutalink) muestra unidades activas, plan y próxima renovación con semáforo, y un botón para **abrir el cliente en GPSBox o crearlo con los datos ya llenos**. Al ganar un negocio de Rutalink se crea una tarea para registrar el cliente y sus unidades en GPSBox. El CRM solo lee los datos de GPSBox. |
-| **Importar HubSpot** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés. Tiene modo simulación, omite duplicados y deduce la línea de negocio a partir del nombre. |
+| **Importar / Exportar** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés (modo simulación, omite duplicados, deduce la línea de negocio). Descarga un **respaldo completo en Excel** (una hoja por tabla, sin contraseñas) y recuerda la fecha del último respaldo. |
+| **Reportes** | Por año y línea de negocio: ventas ganadas por año y línea, cotizaciones por mes y línea, ganados vs perdidos (tasa de cierre), pipeline abierto por etapa, desempeño por responsable, top clientes, productos vendidos, motivos de pérdida y leads por origen. Todo se descarga en Excel. |
 | **Configuración** | Usuarios, perfiles y etapas del pipeline (nombre, orden y probabilidad). |
 
 ### Colores y semáforo
@@ -95,7 +96,7 @@ Supabase guarda la base de datos y Vercel ejecuta la aplicación web. Los dos ti
 
 ### 3. Migrar desde HubSpot
 
-1. Ingresa como Andrés y ve a **Importar HubSpot**.
+1. Ingresa como Andrés y ve a **Importar / Exportar**.
 2. Sube los CSV en este orden: **Empresas → Contactos → Negocios**. Hazlo primero con "Solo simular" y luego de verdad.
    - Los contactos se asocian a su empresa por el dominio del email corporativo (como en HubSpot) o por el nombre de la empresa.
    - Los duplicados se omiten, así que puedes volver a importar sin riesgo.

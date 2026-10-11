@@ -8,6 +8,8 @@ export type QuoteItem = {
   subtotal: number;
 };
 
+import type { QuoteBrand } from "./brand";
+
 export type QuoteSnapshot = {
   company: {
     name: string;
@@ -30,6 +32,8 @@ export type QuoteSnapshot = {
   conditions: string;
   notes: string | null;
   validityDays: number;
+  /** Marca de la línea (ej. Rutalink); sin ella se usa la de e-grow. Las cotizaciones antiguas no la tienen. */
+  brand?: QuoteBrand | null;
 };
 
 const round = (n: number) => Math.round(n * 100) / 100;

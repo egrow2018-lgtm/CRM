@@ -8,6 +8,7 @@ import { ACTIVITY_LABELS, TaskRow } from "@/components/activity-panel";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { ViewToggle } from "@/components/view-toggle";
 import { toggleTask } from "../actividades/actions";
+import { emailConfigured } from "@/lib/email";
 
 const DAY = 86400000;
 
@@ -109,7 +110,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="card p-4">
           <ul className="divide-y divide-slate-100">
-            {tasks.map((t) => <TaskRow key={t.id} task={t} canWrite={canWrite} showDeal />)}
+            {tasks.map((t) => <TaskRow key={t.id} task={t} canWrite={canWrite} showDeal emailEnabled={emailConfigured()} />)}
           </ul>
         </div>
       )}

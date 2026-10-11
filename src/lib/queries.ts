@@ -87,7 +87,7 @@ export const dealCardInclude = {
 export async function getFormOptions() {
   const [stages, lines, users, companies, contacts] = await Promise.all([
     prisma.pipelineStage.findMany({ orderBy: { order: "asc" } }),
-    prisma.businessLine.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.businessLine.findMany({ where: { active: true }, orderBy: { name: "asc" }, omit: { brandLogo: true } }),
     prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.company.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.contact.findMany({
