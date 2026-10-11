@@ -8,6 +8,7 @@ import { initials } from "@/lib/format";
 import {
   IconCalendar,
   IconCatalog,
+  IconChart,
   IconCompany,
   IconContacts,
   IconDeals,
@@ -43,7 +44,10 @@ export function Sidebar({
     { href: "/tareas", label: "Tareas", icon: IconTasks },
     { href: "/catalogo", label: "Líneas y productos", icon: IconCatalog },
     ...(user.permissions.includes("forms:manage") ? [{ href: "/formularios", label: "Formularios", icon: IconForm }] : []),
-    ...(user.permissions.includes("import:run") ? [{ href: "/importar", label: "Importar HubSpot", icon: IconImport }] : []),
+    ...(user.permissions.includes("reports:view") ? [{ href: "/reportes", label: "Reportes", icon: IconChart }] : []),
+    ...(user.permissions.includes("import:run") || user.permissions.includes("data:export")
+      ? [{ href: "/importar", label: "Importar / Exportar", icon: IconImport }]
+      : []),
     ...(user.permissions.includes("users:manage") ? [{ href: "/usuarios", label: "Usuarios y permisos", icon: IconShield }] : []),
     ...(user.permissions.includes("pipeline:configure") ? [{ href: "/configuracion", label: "Configuración", icon: IconSettings }] : []),
   ];

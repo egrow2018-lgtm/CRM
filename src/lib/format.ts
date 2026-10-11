@@ -1,7 +1,10 @@
+import { APP_TIMEZONE } from "./timezone";
+
 const money = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const moneyExact = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 const date = new Intl.DateTimeFormat("es-EC", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
-const dateTime = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short" });
+// Fecha y hora siempre en hora de Ecuador (el servidor corre en UTC)
+const dateTime = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short", timeZone: APP_TIMEZONE });
 
 type Numeric = number | string | { toString(): string } | null | undefined;
 

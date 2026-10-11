@@ -22,7 +22,8 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | **Avisos por correo** | Aviso inmediato cuando llega un **lead** de un formulario, y **resumen diario** de lunes a viernes a las 8:00 con reuniones, tareas vencidas, negocios en rojo, leads sin atender y renovaciones. Cada persona puede desactivarlo o ver la vista previa en «Mi perfil». |
 | **Renovaciones** | Los productos recurrentes (licencias Humand, monitoreo Rutalink, Ludus, LMS) se renuevan cada N meses. Al **ganar** el negocio se calcula su fecha de renovación (también editable a mano). **30 días antes** se crea solo el negocio de renovación, con los mismos productos y una tarea para el responsable. Inicio muestra las próximas renovaciones con semáforo. |
 | **GPSBox (Rutalink)** | Las empresas se enlazan con su cliente de GPSBox por **RUC/cédula**. La ficha de la empresa (y la de los negocios de Rutalink) muestra unidades activas, plan y próxima renovación con semáforo, y un botón para **abrir el cliente en GPSBox o crearlo con los datos ya llenos**. Al ganar un negocio de Rutalink se crea una tarea para registrar el cliente y sus unidades en GPSBox. El CRM solo lee los datos de GPSBox. |
-| **Importar HubSpot** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés. Tiene modo simulación, omite duplicados y deduce la línea de negocio a partir del nombre. |
+| **Importar / Exportar** | Importa CSV de empresas, contactos y negocios exportados de HubSpot, en español o inglés (modo simulación, omite duplicados, deduce la línea de negocio). Descarga un **respaldo completo en Excel** (una hoja por tabla, sin contraseñas) y recuerda la fecha del último respaldo. |
+| **Reportes** | Por año y línea de negocio: ventas ganadas por año y línea, cotizaciones por mes y línea, ganados vs perdidos (tasa de cierre), pipeline abierto por etapa, desempeño por responsable, top clientes, productos vendidos, motivos de pérdida y leads por origen. Todo se descarga en Excel. |
 | **Configuración** | Usuarios, perfiles y etapas del pipeline (nombre, orden y probabilidad). |
 
 ### Colores y semáforo
@@ -95,7 +96,7 @@ Supabase guarda la base de datos y Vercel ejecuta la aplicación web. Los dos ti
 
 ### 3. Migrar desde HubSpot
 
-1. Ingresa como Andrés y ve a **Importar HubSpot**.
+1. Ingresa como Andrés y ve a **Importar / Exportar**.
 2. Sube los CSV en este orden: **Empresas → Contactos → Negocios**. Hazlo primero con "Solo simular" y luego de verdad.
    - Los contactos se asocian a su empresa por el dominio del email corporativo (como en HubSpot) o por el nombre de la empresa.
    - Los duplicados se omiten, así que puedes volver a importar sin riesgo.
