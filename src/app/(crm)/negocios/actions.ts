@@ -83,7 +83,7 @@ async function onStageChanged(tx: Prisma.TransactionClient, dealId: string, stag
   if (!stage?.isWon) return;
   await setRenewalOnWin(tx, dealId);
   // Rutalink ganado: recordar al responsable registrar el cliente y sus unidades en GPSBox
-  const deal = await tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: { businessLine: true, company: true } });
+  const deal = await tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: { businessLine: { omit: { brandLogo: true } }, company: true } });
   if (gpsboxEnabled() && deal.ownerId && normalize(deal.businessLine?.name ?? "") === "rutalink") {
     await tx.activity.create({
       data: {
@@ -181,7 +181,7 @@ export async function updateDealCustomData(dealId: string, _: ActionState, form:
     if (!can(user, "deals:write") && !can(user, "deals:production")) {
       throw new Error("No tienes permisos para editar los datos del proyecto.");
     }
-    const deal = await prisma.deal.findUniqueOrThrow({ where: { id: dealId }, include: { businessLine: true } });
+    const deal = await prisma.deal.findUniqueOrThrow({ where: { id: dealId }, include: { businessLine: { omit: { brandLogo: true } } } });
     const fields = parseCustomFields(deal.businessLine?.customFields);
     const data: Record<string, string> = { ...parseCustomData(deal.customData) };
     for (const f of fields) {

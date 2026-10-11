@@ -16,6 +16,7 @@ export function QuotesCard({
   baseUrl,
   contactEmail,
   emailEnabled,
+  brandName,
 }: {
   dealId: string;
   quotes: Quote[];
@@ -25,6 +26,8 @@ export function QuotesCard({
   baseUrl: string;
   contactEmail: string | null;
   emailEnabled: boolean;
+  /** Marca propia de la línea del negocio (ej. Rutalink), si tiene */
+  brandName: string | null;
 }) {
   return (
     <div className="card p-4">
@@ -52,6 +55,11 @@ export function QuotesCard({
                 Condiciones comerciales (una por línea)
                 <textarea name="conditions" rows={4} defaultValue={defaults.conditions} className="input mt-1" />
               </label>
+              {brandName && (
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" name="useBrand" defaultChecked /> Usar el logo y los colores de {brandName}
+                </label>
+              )}
               <div><SubmitButton pendingText="Generando…">Generar PDF</SubmitButton></div>
             </ActionForm>
           </details>

@@ -16,6 +16,7 @@ import { renewalAlert } from "@/lib/alerts";
 import { Semaforo } from "@/components/semaforo";
 import { CustomFieldsCard } from "@/components/custom-fields-form";
 import { QuotesCard } from "@/components/quotes-card";
+import { dealBrand } from "@/lib/brand";
 import { GpsboxCard } from "@/components/gpsbox-card";
 import { normalize } from "@/lib/csv";
 import { getCompanySettings } from "@/lib/settings";
@@ -46,7 +47,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const options = await getFormOptions();
   const products = await prisma.product.findMany({
     where: { active: true },
-    include: { businessLine: true },
+    include: { businessLine: { omit: { brandLogo: true } } },
     orderBy: [{ businessLine: { name: "asc" } }, { name: "asc" }],
   });
   const canWrite = can(user, "deals:write");
@@ -251,6 +252,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             baseUrl={appUrl()}
             contactEmail={deal.contact?.email ?? null}
             emailEnabled={emailConfigured()}
+            brandName={dealBrand(deal)?.name ?? null}
           />
 
           <ActivityPanel

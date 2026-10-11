@@ -22,7 +22,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
       include: {
         owner: true,
         company: true,
-        deals: { include: { stage: true, businessLine: true }, orderBy: { createdAt: "desc" } },
+        deals: { include: { stage: true, businessLine: { omit: { brandLogo: true } } }, orderBy: { createdAt: "desc" } },
         activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
       },
     }),

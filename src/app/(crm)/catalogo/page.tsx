@@ -4,8 +4,9 @@ import { can } from "@/lib/permissions";
 import { formatMoneyExact, toNumber } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
-import { saveBusinessLine, saveLineFields, saveProduct } from "./actions";
+import { saveBusinessLine, saveLineBrand, saveLineFields, saveProduct } from "./actions";
 import { LineFieldsEditor } from "./line-fields-editor";
+import { LogoInput } from "@/components/logo-input";
 import { parseCustomFields } from "@/lib/custom-fields";
 
 export default async function CatalogPage() {
@@ -120,6 +121,42 @@ export default async function CatalogPage() {
                     Se activan en la ficha de cada negocio de {line.name} (ej. tiempo de desarrollo, equipo, fecha de entrega).
                   </p>
                   <LineFieldsEditor initial={parseCustomFields(line.customFields)} action={saveLineFields.bind(null, line.id)} />
+                </details>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs text-slate-500">
+                    Marca para cotizaciones {line.brandLogo ? <span className="badge ml-1 bg-accent-100 text-brand-800">Logo propio</span> : "(usa la de e-grow)"}
+                  </summary>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Si subes un logo, las cotizaciones de {line.name} saldrán con ese logo y estos colores. Los datos legales (razón social y RUC) siguen siendo los de la empresa.
+                  </p>
+                  <ActionForm action={saveLineBrand.bind(null, line.id)} successMessage="Marca guardada." className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <span className="label">Logo (PNG o JPG)</span>
+                      <LogoInput name="brandLogo" initial={line.brandLogo} pdf emptyLabel="Sin logo propio" />
+                    </div>
+                    <label className="block">
+                      <span className="label">Nombre de la marca</span>
+                      <input name="brandName" defaultValue={line.brandName ?? ""} placeholder={line.name} className="input" />
+                    </label>
+                    <label className="block">
+                      <span className="label">Sitio web</span>
+                      <input name="brandWebsite" defaultValue={line.brandWebsite ?? ""} placeholder="www.rutalink.com" className="input" />
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input name="brandPrimary" type="color" defaultValue={line.brandPrimary ?? "#1c315e"} className="input h-9 w-14 p-1" />
+                      Color principal (títulos y tabla)
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input name="brandAccent" type="color" defaultValue={line.brandAccent ?? "#b9d43a"} className="input h-9 w-14 p-1" />
+                      Color de acento (barra y total)
+                    </label>
+                    <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                      <input type="checkbox" name="darkHeader" defaultChecked={!!line.brandHeaderBg} />
+                      El logo es claro: poner el encabezado del PDF sobre este fondo
+                      <input name="brandHeaderBg" type="color" defaultValue={line.brandHeaderBg ?? "#111827"} className="input h-9 w-14 p-1" />
+                    </label>
+                    <div className="sm:col-span-2"><SubmitButton className="btn btn-sm btn-primary">Guardar marca</SubmitButton></div>
+                  </ActionForm>
                 </details>
                 <details className="mt-2">
                   <summary className="cursor-pointer text-xs text-slate-500">Editar línea</summary>

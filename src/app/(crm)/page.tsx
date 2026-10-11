@@ -71,7 +71,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         activities: { where: PENDING, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1, select: { dueDate: true } },
       },
     }),
-    prisma.businessLine.findMany({ orderBy: { name: "asc" } }),
+    prisma.businessLine.findMany({ orderBy: { name: "asc" }, omit: { brandLogo: true } }),
     prisma.activity.findMany({
       where: { ...PENDING, assigneeId: user.id },
       include: {

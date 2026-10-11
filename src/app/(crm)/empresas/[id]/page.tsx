@@ -25,7 +25,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
       include: {
         owner: true,
         contacts: { orderBy: { firstName: "asc" } },
-        deals: { include: { stage: true, businessLine: true, contact: true }, orderBy: { createdAt: "desc" } },
+        deals: { include: { stage: true, businessLine: { omit: { brandLogo: true } }, contact: true }, orderBy: { createdAt: "desc" } },
         activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
       },
     }),

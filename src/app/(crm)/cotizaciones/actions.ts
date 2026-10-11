@@ -13,6 +13,7 @@ import { getCompanySettings } from "@/lib/settings";
 import { renderQuotePdf } from "@/lib/quote-pdf";
 import { appUrl, emailButton, emailConfigured, emailLayout, escapeHtml, sendEmail } from "@/lib/email";
 import { normalize } from "@/lib/csv";
+import { dealBrand } from "@/lib/brand";
 
 export async function createQuote(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
@@ -21,6 +22,7 @@ export async function createQuote(dealId: string, _: ActionState, form: FormData
       where: { id: dealId },
       include: {
         items: { include: { product: { include: { businessLine: true } } }, orderBy: { id: "asc" } },
+        businessLine: true,
         company: true,
         contact: true,
         owner: true,
@@ -69,6 +71,7 @@ export async function createQuote(dealId: string, _: ActionState, form: FormData
       conditions: str(form, "conditions") ?? company.conditions,
       notes: str(form, "notes"),
       validityDays,
+      brand: form.get("useBrand") === "on" ? dealBrand(deal) : null,
     };
 
     const year = new Date().getFullYear();
@@ -140,17 +143,19 @@ export async function sendQuoteEmail(quoteId: string, _: ActionState, form: Form
     const code = quoteCode(quote.year, quote.number);
     const message = str(form, "message") ?? "";
     const pdf = await renderQuotePdf(quote);
+    const brand = (quote.snapshot as unknown as QuoteSnapshot).brand ?? undefined;
     await sendEmail({
       to,
       cc: [me.email],
       replyTo: me.email,
-      subject: `Cotización ${code} – ${quote.deal.name}`,
+      subject: `${brand ? `${brand.name} · ` : ""}Cotización ${code} – ${quote.deal.name}`,
       html: emailLayout(
         `Cotización ${code}`,
         `${message ? `<p style="white-space:pre-line">${escapeHtml(message)}</p>` : ""}
          <p>Adjuntamos la cotización <b>${code}</b> por <b>US$ ${toNumber(quote.total).toFixed(2)}</b>.</p>
-         <p>${emailButton(`${appUrl()}/c/${quote.publicToken}`, "Ver cotización en línea")}</p>
+         <p>${emailButton(`${appUrl()}/c/${quote.publicToken}`, "Ver cotización en línea", brand?.primary)}</p>
          <p style="color:#64748b">${escapeHtml(me.name)} · ${escapeHtml(me.email)}</p>`,
+        brand,
       ),
       attachments: [{ filename: `${code}.pdf`, content: Buffer.from(pdf) }],
     });
