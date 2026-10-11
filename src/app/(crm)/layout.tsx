@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { SearchableSelects } from "@/components/searchable-selects";
 import { requireUser } from "@/lib/auth";
 import { permissionsOf } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -11,6 +12,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar user={{ name: user.name, role: user.role, permissions: permissionsOf(user) }} logout={logout} newLeads={newLeads} />
       <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+      <SearchableSelects />
     </div>
   );
 }
