@@ -7,6 +7,7 @@ import { contactName } from "@/lib/format";
 import { googleCalendarUrl, meetingInvitation } from "@/lib/meetings";
 import { formatDateTimeTz, formatTimeTz, utcToZoned } from "@/lib/timezone";
 import { zoomConfigured } from "@/lib/zoom";
+import { emailConfigured } from "@/lib/email";
 import { ACTIVITY_LABELS } from "@/components/activity-panel";
 import { MeetingActions } from "@/components/meeting-actions";
 import { EmptyState, PageHeader } from "@/components/ui";
@@ -34,7 +35,9 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const days: string[] = [];
   for (let t = gridStart.getTime(); t <= gridEnd.getTime(); t += 86400000) days.push(new Date(t).toISOString().slice(0, 10));
 
-  const whoFilter: Prisma.ActivityWhereInput = who === "me" ? { assigneeId: user.id } : { assigneeId: { not: null } };
+  // «Mi agenda»: lo que tengo asignado y las reuniones que yo organicé para otros (ej. María para Andrés)
+  const whoFilter: Prisma.ActivityWhereInput =
+    who === "me" ? { OR: [{ assigneeId: user.id }, { type: "REUNION", authorId: user.id }] } : { assigneeId: { not: null } };
   const [items, upcoming, users, deals, contacts] = await Promise.all([
     prisma.activity.findMany({
       where: { ...whoFilter, type: { in: ["REUNION", "LLAMADA", "TAREA"] }, dueDate: { gte: gridStart, lte: gridEnd } },
@@ -45,6 +48,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       where: { ...whoFilter, type: "REUNION", completed: false, startAt: { gte: new Date(Date.now() - 2 * 3600000) } },
       include: {
         assignee: { select: { id: true, name: true } },
+        author: { select: { name: true } },
         deal: { select: { id: true, name: true, contact: { select: { email: true } } } },
         contact: { select: { id: true, firstName: true, lastName: true, email: true } },
         company: { select: { id: true, name: true } },
@@ -86,6 +90,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
               deals={deals}
               contacts={contacts.map((c) => ({ id: c.id, name: contactName(c) }))}
               zoomEnabled={zoomOn}
+              emailEnabled={emailConfigured()}
             />
           )
         }
@@ -153,7 +158,9 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
                   <div className="text-sm font-semibold text-slate-800">{mt.subject}</div>
                   <div className="text-xs text-slate-500">
                     {mt.durationMinutes} min · Anfitrión: {mt.assignee?.name ?? "—"}
+                    {mt.author && mt.authorId !== mt.assigneeId && <span> · Organizó: {mt.author.name}</span>}
                     {mt.zoomMeetingId && <span className="ml-1 font-medium text-brand-600">· Zoom</span>}
+                    {mt.location && <span className="ml-1 font-medium text-brand-600">· Presencial</span>}
                   </div>
                   {related && <Link href={related.href} className="block truncate text-xs text-brand-600 hover:underline">{related.name}</Link>}
                   <MeetingActions
@@ -165,6 +172,10 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
                     calendarUrl={googleCalendarUrl({ ...mt, startAt: mt.startAt! })}
                     inviteEmail={mt.contact?.email ?? mt.deal?.contact?.email}
                     canCancel={canWrite}
+                    location={mt.location}
+                    guests={mt.guests}
+                    invitedAt={mt.invitedAt}
+                    emailEnabled={emailConfigured()}
                   />
                 </div>
               );

@@ -51,6 +51,7 @@ export default async function UsersPage() {
                 <span className="badge bg-brand-50 text-brand-800">{ROLE_LABELS[u.role]}</span>
                 {u.customPermissions && u.role !== "ADMIN" && <span className="badge bg-accent-100 text-brand-800">Permisos personalizados</span>}
                 {!u.active && <span className="badge bg-slate-200 text-slate-600">Inactivo</span>}
+                {u.extraEmails.length > 0 && <span className="text-xs text-slate-400">+ {u.extraEmails.join(", ")}</span>}
                 <span className="ml-auto text-xs text-slate-400">{perms.length} permisos · desde {formatDate(u.createdAt)}</span>
               </summary>
               <div className="mt-3 space-y-4">
@@ -62,6 +63,10 @@ export default async function UsersPage() {
                     <RoleSelect value={u.role} />
                     <input name="password" type="password" placeholder="Nueva contraseña (opcional)" className="input" autoComplete="new-password" />
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={u.active} /> Activo</label>
+                    <label className="text-xs text-slate-500 sm:col-span-5">
+                      Correos adicionales para sus reuniones (reciben copia de cada invitación en la que es anfitrión; ej. su correo personal)
+                      <input name="extraEmails" defaultValue={u.extraEmails.join(", ")} placeholder="personal@hotmail.com" className="input mt-1" />
+                    </label>
                     <div className="sm:col-span-5"><SubmitButton className="btn btn-primary btn-sm">Guardar</SubmitButton></div>
                   </ActionForm>
                 </div>

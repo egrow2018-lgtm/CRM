@@ -7,6 +7,7 @@ import { contactName, formatDate, formatMoney } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
+import { emailConfigured } from "@/lib/email";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { CompanyForm } from "../company-form";
 import { GpsboxCard } from "@/components/gpsbox-card";
@@ -171,6 +172,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
+            emailEnabled={emailConfigured()}
             canMeet={can(user, "meetings:schedule")}
             viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user, "activities:write")} />
         </div>

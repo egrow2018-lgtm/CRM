@@ -7,6 +7,7 @@ import { contactName, formatDate, formatMoney } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
+import { emailConfigured } from "@/lib/email";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { ContactForm } from "../contact-form";
 import { LEAD_STATUS } from "@/lib/leads";
@@ -116,6 +117,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
+            emailEnabled={emailConfigured()}
             canMeet={can(user, "meetings:schedule")}
             viewerId={user.id} target={{ contactId: id }} activities={contact.activities} users={users} canWrite={can(user, "activities:write")} contact={{ name: contactName(contact), email: contact.email, phone: contact.phone }} />
         </div>

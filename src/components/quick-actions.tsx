@@ -44,6 +44,7 @@ export function QuickActions({
   contact,
   compact,
   zoomEnabled = false,
+  emailEnabled = false,
   canMeet = true,
 }: {
   target: ActivityTarget;
@@ -51,6 +52,7 @@ export function QuickActions({
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
   compact?: boolean;
   zoomEnabled?: boolean;
+  emailEnabled?: boolean;
   /** Permiso para agendar reuniones; sin él no se muestra el botón «Reunión». */
   canMeet?: boolean;
 }) {
@@ -126,7 +128,7 @@ export function QuickActions({
               <input type="hidden" name="type" value={open} />
               <input name="subject" required autoFocus placeholder={PLACEHOLDERS[open]} className="input" aria-label="Asunto" />
               <textarea name="body" rows={open === "REUNION" ? 2 : 3} placeholder={open === "REUNION" ? "Agenda o notas (opcional)" : "Detalle (opcional)"} className="input" aria-label="Detalle" />
-              {open === "REUNION" && <MeetingFields users={users} zoomEnabled={zoomEnabled} />}
+              {open === "REUNION" && <MeetingFields users={users} zoomEnabled={zoomEnabled} emailEnabled={emailEnabled} defaultGuests={contact?.email ?? ""} />}
               {(open === "TAREA" || open === "LLAMADA") && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="text-xs text-slate-500">

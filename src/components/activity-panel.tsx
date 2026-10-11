@@ -41,6 +41,7 @@ export function ActivityPanel({
   canWrite,
   contact,
   zoomEnabled,
+  emailEnabled,
   canMeet = true,
   viewerId,
 }: {
@@ -50,6 +51,7 @@ export function ActivityPanel({
   canWrite: boolean;
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
   zoomEnabled?: boolean;
+  emailEnabled?: boolean;
   canMeet?: boolean;
   viewerId?: string;
 }) {
@@ -63,7 +65,7 @@ export function ActivityPanel({
       {canWrite && (
         <div className="card p-4">
           <h2 className="mb-3 text-base">Registrar seguimiento</h2>
-          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} canMeet={canMeet} />
+          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} emailEnabled={emailEnabled} canMeet={canMeet} />
         </div>
       )}
 
@@ -72,7 +74,7 @@ export function ActivityPanel({
           <h2 className="mb-2 text-base">Próximas actividades</h2>
           <ul className="divide-y divide-slate-100">
             {tasks.map((t) => (
-              <TaskRow key={t.id} task={t} canWrite={canWrite} viewerId={viewerId} inviteEmail={contact?.email} />
+              <TaskRow key={t.id} task={t} canWrite={canWrite} viewerId={viewerId} inviteEmail={contact?.email} emailEnabled={emailEnabled} />
             ))}
           </ul>
         </div>
@@ -120,12 +122,14 @@ export function TaskRow({
   showDeal,
   viewerId,
   inviteEmail,
+  emailEnabled = false,
 }: {
   task: Item;
   canWrite: boolean;
   showDeal?: boolean;
   viewerId?: string;
   inviteEmail?: string | null;
+  emailEnabled?: boolean;
 }) {
   const alert = !task.completed && task.dueDate ? nextActivityAlert(task.dueDate, true) : null;
   return (
@@ -174,6 +178,10 @@ export function TaskRow({
             calendarUrl={googleCalendarUrl({ ...task, startAt: task.startAt })}
             inviteEmail={inviteEmail}
             canCancel={canWrite}
+            location={task.location}
+            guests={task.guests}
+            invitedAt={task.invitedAt}
+            emailEnabled={emailEnabled}
           />
         )}
       </div>

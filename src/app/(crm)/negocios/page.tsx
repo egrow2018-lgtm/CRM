@@ -8,6 +8,7 @@ import { contactName, formatDate, formatMoney, timeAgo, toNumber } from "@/lib/f
 import { Pager, SortHeader, pageParams } from "@/components/pager";
 import { parseCustomData } from "@/lib/custom-fields";
 import { zoomConfigured } from "@/lib/zoom";
+import { emailConfigured } from "@/lib/email";
 import { dealAlerts, type AlertLevel } from "@/lib/alerts";
 import { Semaforo, SemaforoDot, SemaforoLegend } from "@/components/semaforo";
 
@@ -162,6 +163,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           }))}
           users={filterOptions.users}
           zoomEnabled={zoomConfigured()}
+            emailEnabled={emailConfigured()}
           canMeet={can(user, "meetings:schedule")}
         />
       )}

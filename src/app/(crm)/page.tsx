@@ -9,6 +9,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { SEMAFORO, Semaforo, SemaforoDot, SemaforoPunto } from "@/components/semaforo";
 import { dealAlerts, lastActivityAlert, renewalAlert } from "@/lib/alerts";
 import { parseCustomData } from "@/lib/custom-fields";
+import { emailConfigured } from "@/lib/email";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -308,7 +309,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <p className="text-sm text-slate-500">Sin tareas pendientes.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {myTasks.map((t) => <TaskRow key={t.id} task={t} canWrite showDeal />)}
+              {myTasks.map((t) => <TaskRow key={t.id} task={t} canWrite showDeal emailEnabled={emailConfigured()} />)}
             </ul>
           )}
         </div>

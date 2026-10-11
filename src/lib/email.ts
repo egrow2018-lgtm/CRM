@@ -17,7 +17,7 @@ export function appUrl() {
   return url.replace(/\/$/, "");
 }
 
-export type EmailAttachment = { filename: string; content: Buffer };
+export type EmailAttachment = { filename: string; content: Buffer; contentType?: string };
 
 export async function sendEmail(msg: {
   to: string | string[];
@@ -38,7 +38,7 @@ export async function sendEmail(msg: {
       subject: msg.subject,
       html: msg.html,
       reply_to: msg.replyTo,
-      attachments: msg.attachments?.map((a) => ({ filename: a.filename, content: a.content.toString("base64") })),
+      attachments: msg.attachments?.map((a) => ({ filename: a.filename, content: a.content.toString("base64"), ...(a.contentType ? { content_type: a.contentType } : {}) })),
     }),
     cache: "no-store",
   });

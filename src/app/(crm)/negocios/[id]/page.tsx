@@ -257,6 +257,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
 
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
+            emailEnabled={emailConfigured()}
             canMeet={can(user, "meetings:schedule")}
             viewerId={user.id}
             target={{ dealId: id }}

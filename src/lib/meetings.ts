@@ -9,16 +9,18 @@ type MeetingLike = {
   durationMinutes: number | null;
   meetingUrl: string | null;
   meetingPassword?: string | null;
+  location?: string | null;
 };
 
 /** Texto de invitación para copiar, enviar por correo o por WhatsApp. */
 export function meetingInvitation(m: MeetingLike, hostName?: string | null) {
   const lines = [
-    `${hostName ?? "e-grow"} te invita a una reunión${m.meetingUrl?.includes("zoom.") ? " de Zoom" : ""}.`,
+    `${hostName ?? "e-grow"} te invita a una reunión${m.meetingUrl?.includes("zoom.") ? " de Zoom" : m.location ? " presencial" : ""}.`,
     "",
     `Tema: ${m.subject}`,
     `Fecha: ${formatDateTimeTz(m.startAt)} (hora de ${APP_TIMEZONE === "America/Guayaquil" ? "Ecuador" : APP_TIMEZONE})`,
     m.durationMinutes ? `Duración: ${m.durationMinutes} min` : "",
+    m.location ? `Lugar: ${m.location}` : "",
     m.meetingUrl ? `\nUnirse a la reunión:\n${m.meetingUrl}` : "",
     m.meetingPassword ? `Código de acceso: ${m.meetingPassword}` : "",
     m.body ? `\n${m.body}` : "",
@@ -35,7 +37,7 @@ export function googleCalendarUrl(m: MeetingLike) {
     text: m.subject,
     dates: `${fmt(m.startAt)}/${fmt(end)}`,
     details: meetingInvitation(m),
-    ...(m.meetingUrl ? { location: m.meetingUrl } : {}),
+    ...(m.location || m.meetingUrl ? { location: (m.location ?? m.meetingUrl)! } : {}),
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }

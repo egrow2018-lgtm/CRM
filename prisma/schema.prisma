@@ -48,6 +48,8 @@ model User {
   /// Si es true, se usan `permissions` en lugar de los permisos por defecto del perfil
   customPermissions Boolean  @default(false)
   permissions       String[] @default([])
+  /// Otros correos que reciben copia de sus reuniones (ej. el correo personal)
+  extraEmails       String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -237,6 +239,12 @@ model Activity {
   hostUrl         String?
   meetingPassword String?
   zoomMeetingId   String?
+  /// Lugar de la reunión presencial (dirección, oficina del cliente…)
+  location        String?
+  /// Correos de los invitados a la reunión
+  guests          String[]  @default([])
+  /// Cuándo se envió la invitación por correo (null = no se envió)
+  invitedAt       DateTime?
   completed   Boolean      @default(false)
   completedAt DateTime?
   dealId      String?
