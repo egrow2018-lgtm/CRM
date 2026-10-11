@@ -123,6 +123,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         actions={
           <>
             <ReportFilters years={years} lines={allLines} year={year} />
+            <a href={`/reportes/pdf?${qs}`} className="btn">Descargar PDF</a>
             <a href={`/reportes/excel?${qs}`} className="btn btn-primary">Descargar Excel</a>
           </>
         }
