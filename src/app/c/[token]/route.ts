@@ -3,6 +3,8 @@ import { renderQuotePdf } from "@/lib/quote-pdf";
 import { quoteCode } from "@/lib/quotes";
 
 /** Enlace público de una cotización (para compartir por WhatsApp o correo). */
+export const maxDuration = 60;
+
 export async function GET(_: Request, { params }: { params: Promise<{ token: string }> }) {
   const token = (await params).token;
   if (!/^[A-Za-z0-9_-]{20,40}$/.test(token)) return new Response("No encontrada", { status: 404 });

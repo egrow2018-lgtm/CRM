@@ -168,12 +168,15 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
 
 export async function renderQuotePdf(quote: { year: number; number: number; createdAt: Date; validUntil: Date; snapshot: unknown }) {
   const { quoteCode } = await import("./quotes");
-  return renderToBuffer(
-    <QuoteDocument
-      code={quoteCode(quote.year, quote.number)}
-      createdAt={quote.createdAt}
-      validUntil={quote.validUntil}
-      q={quote.snapshot as QuoteSnapshot}
-    />,
-  );
+  const render = (q: QuoteSnapshot) =>
+    renderToBuffer(<QuoteDocument code={quoteCode(quote.year, quote.number)} createdAt={quote.createdAt} validUntil={quote.validUntil} q={q} />);
+  const snap = quote.snapshot as QuoteSnapshot;
+  try {
+    return await render(snap);
+  } catch (e) {
+    // Si el logo de la marca no se puede leer, la cotización sale igual con el logo de e-grow
+    if (!snap.brand?.logo) throw e;
+    console.error("No se pudo usar el logo de la marca en la cotización; se usa el de e-grow", e);
+    return render({ ...snap, brand: { ...snap.brand, logo: null } });
+  }
 }

@@ -353,6 +353,10 @@ model Quote {
   snapshot    Json
   total       Decimal  @db.Decimal(14, 2)
   sentAt      DateTime?
+  status      QuoteStatus @default(EMITIDA)
+  statusChangedAt DateTime?
+  /// Clave del formulario que la creó: evita duplicados si se pulsa dos veces «Generar»
+  requestKey  String?  @unique
   createdAt   DateTime @default(now())
 
   links  DocumentLink[]
@@ -360,6 +364,14 @@ model Quote {
 
   @@unique([year, number])
   @@index([dealId])
+}
+
+/// Estado de una cotización frente al cliente
+enum QuoteStatus {
+  EMITIDA
+  EN_REVISION
+  APROBADA
+  NO_APROBADA
 }
 
 /// Ajustes generales (datos de la empresa para cotizaciones, etc.)

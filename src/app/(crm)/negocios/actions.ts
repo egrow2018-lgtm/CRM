@@ -136,44 +136,6 @@ export async function deleteDeal(id: string) {
   redirect("/negocios");
 }
 
-async function recalcAmount(tx: Prisma.TransactionClient, dealId: string) {
-  const items = await tx.dealItem.findMany({ where: { dealId } });
-  const total = items.reduce(
-    (sum, i) => sum + Number(i.quantity) * Number(i.unitPrice) * (1 - Number(i.discount) / 100),
-    0,
-  );
-  await tx.deal.update({ where: { id: dealId }, data: { amount: Math.round(total * 100) / 100 } });
-}
-
-export async function addDealItem(dealId: string, _: ActionState, form: FormData) {
-  return runAction(async () => {
-    const user = await requireUser();
-    if (!can(user, "deals:write")) throw new Error("No tienes permisos para editar productos del negocio.");
-    const productId = str(form, "productId");
-    const product = productId ? await prisma.product.findUnique({ where: { id: productId } }) : null;
-    const description = str(form, "description") ?? product?.name;
-    if (!description) throw new Error("Selecciona un producto o escribe una descripción.");
-    const quantity = num(form, "quantity") ?? 1;
-    const unitPrice = num(form, "unitPrice") ?? Number(product?.unitPrice ?? 0);
-    const discount = Math.min(100, Math.max(0, num(form, "discount") ?? 0));
-    await prisma.$transaction(async (tx) => {
-      await tx.dealItem.create({ data: { dealId, productId: product?.id, description, quantity, unitPrice, discount } });
-      await recalcAmount(tx, dealId);
-    });
-    revalidatePath(`/negocios/${dealId}`);
-    revalidatePath("/negocios");
-  });
-}
-
-export async function removeDealItem(itemId: string) {
-  const user = await requireUser();
-  if (!can(user, "deals:write")) throw new Error("No tienes permisos.");
-  const item = await prisma.dealItem.delete({ where: { id: itemId } });
-  await prisma.$transaction((tx) => recalcAmount(tx, item.dealId));
-  revalidatePath(`/negocios/${item.dealId}`);
-  revalidatePath("/negocios");
-}
-
 /** Guarda los campos adicionales de la línea de negocio (ej. datos del proyecto E-learning). */
 export async function updateDealCustomData(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
