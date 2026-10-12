@@ -136,6 +136,19 @@ export async function deleteDeal(id: string) {
   redirect("/negocios");
 }
 
+/** Borra varios negocios a la vez (con sus actividades y cotizaciones). */
+export async function deleteDeals(ids: string[]) {
+  try {
+    await requirePermission("deals:delete");
+    const { count } = await prisma.deal.deleteMany({ where: { id: { in: ids.filter((x) => typeof x === "string").slice(0, 500) } } });
+    revalidatePath("/negocios");
+    revalidatePath("/cotizaciones");
+    return { deleted: count };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudieron eliminar." };
+  }
+}
+
 /** Guarda los campos adicionales de la línea de negocio (ej. datos del proyecto E-learning). */
 export async function updateDealCustomData(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {

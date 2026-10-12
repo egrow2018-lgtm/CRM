@@ -5,7 +5,9 @@ import { can } from "@/lib/permissions";
 import { dealCardInclude, dealWhere, getFilterOptions, type DealFilters } from "@/lib/queries";
 import type { Prisma } from "@prisma/client";
 import { contactName, formatDate, formatMoney, timeAgo, toNumber } from "@/lib/format";
-import { Pager, SortHeader, pageParams } from "@/components/pager";
+import { Pager, SortHeader, hrefWith, pageParams } from "@/components/pager";
+import { BulkCheckCell, BulkCheckHeader, BulkSelection } from "@/components/bulk-selection";
+import { deleteDeals } from "./actions";
 import { parseCustomData } from "@/lib/custom-fields";
 import { zoomConfigured } from "@/lib/zoom";
 import { emailConfigured } from "@/lib/email";
@@ -37,6 +39,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const user = await requireUser();
   const sp = await searchParams;
   const isList = sp.view === "list";
+  const canDelete = can(user, "deals:delete");
   const where = dealWhere(sp, user.id);
   const { page, per, skip } = pageParams(sp);
   const [sortField, sortDir] = (sp.sort ?? "closeDate_desc").split("_");
@@ -90,13 +93,22 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         }
       />
       <DealFiltersBar options={filterOptions} />
-      <div className="-mt-2 mb-3"><SemaforoLegend /></div>
+      <div className="-mt-2 mb-3 flex flex-wrap items-center justify-between gap-2">
+        <SemaforoLegend />
+        {canDelete && !isList && (
+          <Link href={hrefWith("/negocios", spRecord, { view: "list" })} className="btn btn-sm" title="La selección múltiple está en la vista de lista">
+            Seleccionar
+          </Link>
+        )}
+      </div>
       {isList ? (
         <>
+          <BulkSelection enabled={canDelete} onDelete={deleteDeals} noun={{ one: "negocio", many: "negocios" }}>
           <div className="card overflow-x-auto">
             <table className="table">
               <thead>
                 <tr>
+                  {canDelete && <BulkCheckHeader />}
                   <th title="Semáforo">●</th>
                   <SortHeader label="Nombre del negocio" field="name" path="/negocios" sp={spRecord} />
                   <SortHeader label="Etapa" field="stage" path="/negocios" sp={spRecord} />
@@ -116,6 +128,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                   const reasons = [al.next, al.close, al.delivery].filter((x) => x && x.level !== "verde").map((x) => x!.label);
                   return (
                     <tr key={d.id} className="hover:bg-slate-50">
+                      {canDelete && <BulkCheckCell id={d.id} label={d.name} />}
                       <td>{al.health && <SemaforoDot level={al.health} title={reasons.join(" · ") || "Al día"} />}</td>
                       <td className="max-w-72"><Link className="link line-clamp-2" href={`/negocios/${d.id}`}>{d.name}</Link></td>
                       <td className="whitespace-nowrap">
@@ -138,6 +151,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
               </tbody>
             </table>
           </div>
+          </BulkSelection>
           <Pager path="/negocios" sp={spRecord} total={totals.length} page={page} per={per} />
         </>
       ) : (
