@@ -1,8 +1,8 @@
 import "server-only";
 import type { User } from "@prisma/client";
 import { prisma } from "./db";
-import { appUrl, emailButton, emailLayout, escapeHtml, sendEmail, type EmailAttachment, type EmailBrand } from "./email";
-import { docIdsIn, isEmail, openPixel, personalLayout, plainText, renderBody, senderFor, signatureHtml } from "./email-compose";
+import { appUrl, egrowBrand, emailButton, emailLayout, escapeHtml, sendEmail, type EmailAttachment, type EmailBrand } from "./email";
+import { docIdsIn, imageIdsIn, isEmail, openPixel, personalLayout, plainText, renderBody, senderFor, signatureHtml } from "./email-compose";
 import { randomToken } from "./doc-stats";
 import { quoteCode } from "./quotes";
 import { contactName } from "./format";
@@ -42,6 +42,8 @@ export async function sendClientEmail(p: {
   const sender = senderFor(p.user, process.env.EMAIL_FROM ?? "");
   const app = appUrl();
   const docs = await prisma.document.findMany({ where: { id: { in: docIdsIn(p.body) } }, select: { id: true, name: true } });
+  const images = await prisma.emailImage.findMany({ where: { id: { in: imageIdsIn(p.body) } }, select: { id: true, name: true } });
+  const brand: EmailBrand | null = p.brand === "egrow" ? egrowBrand() : (p.brand ?? null);
 
   const message = await prisma.emailMessage.create({
     data: {
@@ -77,7 +79,7 @@ export async function sendClientEmail(p: {
       : null;
 
     const links: string[] = [];
-    const color = p.brand && p.brand !== "egrow" ? p.brand.primary : "#1c315e";
+    const color = brand?.primary ?? "#1c315e";
     const build = (forClient: boolean) => {
       const body = renderBody(p.body, {
         linkColor: color,
@@ -85,6 +87,10 @@ export async function sendClientEmail(p: {
           const d = docs.find((x) => x.id === id);
           if (!d) return null;
           return { name: d.name, href: forClient ? `${app}/d/${linkFor.get(id)}` : `${app}/documentos/${id}` };
+        },
+        image: (id) => {
+          const i = images.find((x) => x.id === id);
+          return i ? { src: `${app}/api/img/${i.id}`, name: i.name } : null;
         },
         wrapLink: forClient
           ? (url) => {
@@ -102,8 +108,8 @@ export async function sendClientEmail(p: {
       const note = forClient
         ? ""
         : `<div style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;background:#f1f5f9;padding:8px 12px;margin-bottom:12px;border-radius:6px">Copia de tu correo enviado desde el CRM a ${escapeHtml(to.join(", "))}. Los enlaces de esta copia no cuentan como vistas del cliente.</div>`;
-      if (p.brand) {
-        const html = emailLayout(p.subject, `${note}${body}${quoteBlock}<p style="color:#475569;margin-top:18px">${signature}</p>`, p.brand === "egrow" ? undefined : p.brand);
+      if (brand) {
+        const html = emailLayout("", `${note}${body}${quoteBlock}<p style="color:#475569;margin-top:18px">${signature}</p>`, brand);
         return html.replace("</body>", `${pixel}</body>`);
       }
       return personalLayout(`${note}${body}${quoteBlock}`, signature, pixel);
@@ -111,7 +117,7 @@ export async function sendClientEmail(p: {
 
     const clientHtml = build(true);
     const copyHtml = build(false);
-    await sendEmail({ from: sender.from, replyTo: sender.replyTo, to, cc, subject: p.subject.trim(), html: clientHtml, attachments: p.attachments });
+    const sent = await sendEmail({ from: sender.from, replyTo: sender.replyTo, to, cc, subject: p.subject.trim(), html: clientHtml, attachments: p.attachments });
     // Copia para el vendedor (si falla, el correo al cliente ya salió)
     await sendEmail({ from: sender.from, to: sender.replyTo, subject: p.subject.trim(), html: copyHtml, attachments: p.attachments }).catch((e) =>
       console.error("No se pudo enviar la copia al vendedor", e),
@@ -120,7 +126,10 @@ export async function sendClientEmail(p: {
     const now = new Date();
     const text = plainText(p.body, (id) => docs.find((d) => d.id === id)?.name ?? null);
     await prisma.$transaction([
-      prisma.emailMessage.update({ where: { id: message.id }, data: { html: copyHtml, links, sentAt: now } }),
+      prisma.emailMessage.update({
+        where: { id: message.id },
+        data: { html: copyHtml, links, sentAt: now, providerId: sent.skipped ? null : (sent.id ?? null) },
+      }),
       prisma.activity.create({
         data: {
           type: "EMAIL",

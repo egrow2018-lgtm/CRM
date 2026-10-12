@@ -41,16 +41,23 @@ export default async function CatalogPage() {
 
       <div className="space-y-4">
         {lines.map((line) => (
-          <section key={line.id} className={`card overflow-hidden ${line.active ? "" : "opacity-60"}`}>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3" style={{ borderLeft: `4px solid ${line.color}` }}>
-              <div>
-                <h2 className="text-base">
-                  {line.name} {!line.active && <span className="badge bg-slate-200 text-slate-600">Inactiva</span>}
-                </h2>
-                {line.description && <p className="text-xs text-slate-500">{line.description}</p>}
+          // Cada línea va plegada: se ve el encabezado y se despliega al pulsarlo
+          <details key={line.id} className={`group card overflow-hidden ${line.active ? "" : "opacity-60"}`}>
+            <summary
+              className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3 hover:bg-slate-50 group-open:border-b group-open:border-slate-100 [&::-webkit-details-marker]:hidden"
+              style={{ borderLeft: `4px solid ${line.color}` }}
+            >
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 text-slate-400 transition group-open:rotate-90" aria-hidden>▸</span>
+                <div>
+                  <h2 className="text-base">
+                    {line.name} {!line.active && <span className="badge bg-slate-200 text-slate-600">Inactiva</span>}
+                  </h2>
+                  {line.description && <p className="text-xs text-slate-500">{line.description}</p>}
+                </div>
               </div>
               <span className="text-xs text-slate-500">{line.products.length} productos · {line._count.deals} negocios</span>
-            </div>
+            </summary>
             <div className="overflow-x-auto">
               <table className="table">
                 <thead>
@@ -170,7 +177,7 @@ export default async function CatalogPage() {
                 </details>
               </div>
             )}
-          </section>
+          </details>
         ))}
       </div>
     </div>

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
+import { findCompanyDuplicate } from "@/lib/duplicates";
 
 function companyData(form: FormData) {
   return {
@@ -22,20 +23,65 @@ function companyData(form: FormData) {
   };
 }
 
+/** No se permiten dos empresas con el mismo RUC o el mismo sitio web. */
+async function assertNoDuplicate(data: { taxId: string | null; website: string | null }, excludeId?: string) {
+  if (!data.taxId && !data.website) return;
+  const companies = await prisma.company.findMany({
+    where: { OR: [{ taxId: { not: null } }, { website: { not: null } }] },
+    select: { id: true, name: true, taxId: true, website: true },
+  });
+  const dup = findCompanyDuplicate(data, companies, excludeId);
+  if (dup) {
+    throw new Error(
+      `Ya existe la empresa «${dup.company.name}» con ${dup.reason === "ruc" ? `el RUC ${dup.company.taxId}` : `el sitio web ${dup.company.website}`}. ` +
+        "Búscala en Empresas en lugar de crearla de nuevo.",
+    );
+  }
+}
+
+/** Contactos elegidos en el formulario para vincularlos a la empresa. */
+function contactIds(form: FormData) {
+  return form
+    .getAll("contactIds")
+    .filter((v): v is string => typeof v === "string" && !!v)
+    .slice(0, 500);
+}
+
 export async function createCompany(_: ActionState, form: FormData) {
   return runAction(async () => {
     const user = await requirePermission("companies:write");
     const data = companyData(form);
-    const company = await prisma.company.create({ data: { ...data, ownerId: data.ownerId ?? user.id } });
+    await assertNoDuplicate(data);
+    const ids = contactIds(form);
+    const company = await prisma.$transaction(async (tx) => {
+      const created = await tx.company.create({ data: { ...data, ownerId: data.ownerId ?? user.id } });
+      if (ids.length) await tx.contact.updateMany({ where: { id: { in: ids } }, data: { companyId: created.id } });
+      return created;
+    });
     revalidatePath("/empresas");
+    revalidatePath("/contactos");
     return `/empresas/${company.id}`;
+  });
+}
+
+/** Vincula contactos existentes a la empresa (por ejemplo, los que quedaron sin empresa). */
+export async function linkContacts(companyId: string, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    await requirePermission("contacts:write");
+    const ids = contactIds(form);
+    if (!ids.length) throw new Error("Elige al menos un contacto.");
+    await prisma.contact.updateMany({ where: { id: { in: ids } }, data: { companyId } });
+    revalidatePath(`/empresas/${companyId}`);
+    revalidatePath("/contactos");
   });
 }
 
 export async function updateCompany(id: string, _: ActionState, form: FormData) {
   return runAction(async () => {
     await requirePermission("companies:write");
-    await prisma.company.update({ where: { id }, data: companyData(form) });
+    const data = companyData(form);
+    await assertNoDuplicate(data, id);
+    await prisma.company.update({ where: { id }, data });
     revalidatePath("/empresas");
     return `/empresas/${id}`;
   });

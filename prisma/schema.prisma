@@ -70,6 +70,7 @@ model User {
   documentLinks      DocumentLink[]
   emailTemplates     EmailTemplate[]
   emailsSent         EmailMessage[]
+  emailImages        EmailImage[]
 }
 
 /// Línea de negocio: e-learning, Rutalink, Ludus, Humand, nuevas representaciones…
@@ -509,6 +510,10 @@ model EmailMessage {
   clickCount  Int      @default(0)
   lastClickedAt DateTime?
   lastNotifiedAt DateTime?
+  /// Id del correo en Resend y último estado de entrega que informó (delivered, bounced, complained…)
+  providerId     String?
+  deliveryStatus String?
+  deliveryCheckedAt DateTime?
 
   events   EmailEvent[]
   docLinks DocumentLink[]
@@ -532,4 +537,17 @@ model EmailEvent {
   createdAt DateTime @default(now())
 
   @@index([emailId, createdAt])
+}
+
+/// Imagen para usar en correos y plantillas (se sirve en /api/img/[id] para que la vean los clientes)
+model EmailImage {
+  id          String   @id @default(cuid())
+  name        String
+  mimeType    String
+  data        Bytes
+  width       Int?
+  height      Int?
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
 }

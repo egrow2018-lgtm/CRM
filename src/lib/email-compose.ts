@@ -5,6 +5,8 @@
  *   - **texto** → negrita
  *   - {{nombre}}, {{empresa}}… → datos del contacto (ver TEMPLATE_VARIABLES)
  *   - [[doc:ID]] → enlace al documento (nombre en negrita), rastreado por destinatario
+ *   - [[img:ID]] o [[img:ID|https://…]] → imagen (con enlace opcional)
+ *   - [texto](https://…) → texto con enlace
  *   - las direcciones web (https://…) se vuelven enlaces
  * Se usa en el navegador (vista previa) y en el servidor (envío), así que no depende de Node.
  */
@@ -45,6 +47,8 @@ export function escapeHtml(s: string) {
 export type RenderOptions = {
   /** Nombre y URL de cada documento citado (null = documento que ya no existe) */
   doc: (id: string) => { name: string; href: string } | null;
+  /** URL pública y nombre de cada imagen citada (null = ya no existe) */
+  image?: (id: string) => { src: string; name: string } | null;
   /** Para rastrear clics: recibe la URL original y devuelve la que va en el correo */
   wrapLink?: (url: string) => string;
   linkColor?: string;
@@ -52,11 +56,16 @@ export type RenderOptions = {
 
 const URL_RE = /\bhttps?:\/\/[^\s<>"')\]]+[^\s<>"')\].,;:!?]/g;
 
+const TOKEN_SPLIT = /(\[\[(?:doc|img):[a-z0-9]+(?:\|[^\]\s]*)?\]\])/i;
+const MD_LINK = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
+
 function inline(line: string, opts: RenderOptions) {
   const color = opts.linkColor ?? "#1c315e";
-  // Se separan los tokens de documento para no escaparlos ni tomarlos como URL
+  const href = (raw: string) => escapeHtml(opts.wrapLink ? opts.wrapLink(raw) : raw);
+  const format = (t: string) => escapeHtml(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  // Se separan los tokens de documento e imagen para no escaparlos ni tomarlos como URL
   return line
-    .split(/(\[\[doc:[a-z0-9]+\]\])/i)
+    .split(TOKEN_SPLIT)
     .map((part) => {
       const doc = /^\[\[doc:([a-z0-9]+)\]\]$/i.exec(part);
       if (doc) {
@@ -64,14 +73,25 @@ function inline(line: string, opts: RenderOptions) {
         if (!d) return "";
         return `<a href="${escapeHtml(d.href)}" style="color:${color};font-weight:bold;text-decoration:underline">📄 <b>${escapeHtml(d.name)}</b></a>`;
       }
-      let html = escapeHtml(part);
-      html = html.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
-      html = html.replace(URL_RE, (url) => {
-        const raw = url.replace(/&amp;/g, "&");
-        const href = opts.wrapLink ? opts.wrapLink(raw) : raw;
-        return `<a href="${escapeHtml(href)}" style="color:${color}">${url}</a>`;
+      const img = /^\[\[img:([a-z0-9]+)(?:\|(https?:\/\/[^\]\s]+))?\]\]$/i.exec(part);
+      if (img) {
+        const i = opts.image?.(img[1]);
+        if (!i) return "";
+        const tag = `<img src="${escapeHtml(i.src)}" alt="${escapeHtml(i.name)}" style="display:block;max-width:100%;height:auto;border:0;margin:8px 0" />`;
+        return img[2] ? `<a href="${href(img[2])}">${tag}</a>` : tag;
+      }
+      // [texto](url): se guardan aparte para que la URL no se convierta dos veces en enlace
+      const links: { label: string; url: string }[] = [];
+      const marked = part.replace(MD_LINK, (_, label: string, url: string) => {
+        links.push({ label, url });
+        return `\u0000${links.length - 1}\u0000`;
       });
-      return html;
+      let html = format(marked);
+      html = html.replace(URL_RE, (url) => `<a href="${href(url.replace(/&amp;/g, "&"))}" style="color:${color}">${url}</a>`);
+      return html.replace(/\u0000(\d+)\u0000/g, (_, n: string) => {
+        const l = links[Number(n)]!;
+        return `<a href="${href(l.url)}" style="color:${color};text-decoration:underline">${format(l.label)}</a>`;
+      });
     })
     .join("");
 }
@@ -117,6 +137,8 @@ export function plainText(text: string, docName: (id: string) => string | null) 
       const n = docName(id);
       return n ? `📄 ${n}` : "";
     })
+    .replace(/\[\[img:[a-z0-9]+(?:\|[^\]\s]*)?\]\]/gi, "")
+    .replace(MD_LINK, "$1 ($2)")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .trim();
 }
@@ -157,18 +179,42 @@ export function editableDocToken(name: string) {
   return `[📄 ${name.replace(/[\]\n]/g, " ")}]`;
 }
 
-/** [[doc:ID]] → [📄 Nombre] (los documentos que ya no existen se quitan). */
-export function toEditable(text: string, docs: DocRef[]) {
-  return text.replace(DOC_TOKEN, (_, id: string) => {
-    const d = docs.find((x) => x.id === id);
-    return d ? editableDocToken(d.name) : "";
-  });
+/* …y las imágenes como [🖼 Nombre] o [🖼 Nombre → https://enlace] */
+const IMG_TOKEN = /\[\[img:([a-z0-9]+)(?:\|(https?:\/\/[^\]\s]+))?\]\]/gi;
+const EDITABLE_IMG = /\[🖼 ([^\]\n→]+?)(?:\s*→\s*(https?:\/\/[^\]\s]+))?\]/g;
+const cleanName = (n: string) => n.replace(/[\]\n→]/g, " ").trim();
+
+export function editableImageToken(name: string, url?: string | null) {
+  return `[🖼 ${cleanName(name)}${url ? ` → ${url}` : ""}]`;
 }
 
-/** [📄 Nombre] → [[doc:ID]] (si el nombre no coincide con ningún documento, se deja como texto). */
-export function fromEditable(text: string, docs: DocRef[]) {
-  return text.replace(EDITABLE_DOC, (whole, name: string) => {
-    const d = docs.find((x) => x.name.replace(/[\]\n]/g, " ").trim() === name.trim());
-    return d ? `[[doc:${d.id}]]` : whole;
-  });
+/** [[doc:ID]] → [📄 Nombre] y [[img:ID|url]] → [🖼 Nombre → url] (los que ya no existen se quitan). */
+export function toEditable(text: string, docs: DocRef[], images: DocRef[] = []) {
+  return text
+    .replace(DOC_TOKEN, (_, id: string) => {
+      const d = docs.find((x) => x.id === id);
+      return d ? editableDocToken(d.name) : "";
+    })
+    .replace(IMG_TOKEN, (_, id: string, url?: string) => {
+      const i = images.find((x) => x.id === id);
+      return i ? editableImageToken(i.name, url) : "";
+    });
+}
+
+/** [📄 Nombre] → [[doc:ID]] y [🖼 Nombre → url] → [[img:ID|url]] (si el nombre no coincide, se deja como texto). */
+export function fromEditable(text: string, docs: DocRef[], images: DocRef[] = []) {
+  return text
+    .replace(EDITABLE_DOC, (whole, name: string) => {
+      const d = docs.find((x) => x.name.replace(/[\]\n]/g, " ").trim() === name.trim());
+      return d ? `[[doc:${d.id}]]` : whole;
+    })
+    .replace(EDITABLE_IMG, (whole, name: string, url?: string) => {
+      const i = images.find((x) => cleanName(x.name) === name.trim());
+      return i ? `[[img:${i.id}${url ? `|${url}` : ""}]]` : whole;
+    });
+}
+
+/** IDs de las imágenes citadas en el texto. */
+export function imageIdsIn(text: string) {
+  return [...new Set([...text.matchAll(IMG_TOKEN)].map((m) => m[1]))];
 }

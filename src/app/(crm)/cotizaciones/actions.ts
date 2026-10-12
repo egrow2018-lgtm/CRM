@@ -13,7 +13,7 @@ import { contactName, toNumber } from "@/lib/format";
 import { QUOTE_STATUS, computeTotals, parseQuoteLines, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { getCompanySettings } from "@/lib/settings";
 import { renderQuotePdf } from "@/lib/quote-pdf";
-import { emailConfigured } from "@/lib/email";
+import { appUrl, emailConfigured } from "@/lib/email";
 import { sendClientEmail } from "@/lib/client-email";
 import { splitEmails } from "@/lib/email-compose";
 import { randomToken } from "@/lib/doc-stats";
@@ -250,6 +250,13 @@ export async function deleteQuote(id: string) {
   redirect("/cotizaciones");
 }
 
+/** URL pública del logo de la marca de la cotización (la línea del negocio o la que tenga ese nombre de marca). */
+async function brandLogoUrl(lineId: string | null, brandName: string) {
+  const lines = await prisma.businessLine.findMany({ where: { brandLogo: { not: null } }, select: { id: true, name: true, brandName: true } });
+  const line = lines.find((l) => l.id === lineId) ?? lines.find((l) => (l.brandName || l.name) === brandName);
+  return line ? `${appUrl()}/api/logo/linea/${line.id}` : null;
+}
+
 export async function sendQuoteEmail(quoteId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
     const current = await requirePermission("deals:write");
@@ -274,7 +281,7 @@ export async function sendQuoteEmail(quoteId: string, _: ActionState, form: Form
       contactId,
       dealId: quote.dealId,
       companyId: quote.deal.companyId,
-      brand: brand ? { name: brand.name, primary: brand.primary, accent: brand.accent } : "egrow",
+      brand: brand ? { name: brand.name, primary: brand.primary, accent: brand.accent, logoUrl: await brandLogoUrl(quote.deal.businessLineId, brand.name) } : "egrow",
       quote: { id: quote.id, code, total: toNumber(quote.total).toFixed(2) },
       attachments: [{ filename: `${code}.pdf`, content: Buffer.from(pdf), contentType: "application/pdf" }],
       activitySubject: `Cotización ${code} enviada a ${to.join(", ")}`,
