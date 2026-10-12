@@ -26,13 +26,15 @@ export async function sendEmail(msg: {
   replyTo?: string;
   cc?: string[];
   attachments?: EmailAttachment[];
+  /** Remitente (por defecto EMAIL_FROM). Debe ser del dominio verificado en Resend. */
+  from?: string;
 }) {
   if (!emailConfigured()) return { skipped: true as const };
   const res = await fetch(`${API()}/emails`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: process.env.EMAIL_FROM,
+      from: msg.from ?? process.env.EMAIL_FROM,
       to: Array.isArray(msg.to) ? msg.to : [msg.to],
       cc: msg.cc?.length ? msg.cc : undefined,
       subject: msg.subject,
@@ -46,7 +48,8 @@ export async function sendEmail(msg: {
     const detail = await res.text().catch(() => "");
     throw new Error(`No se pudo enviar el correo (${res.status}). ${detail.slice(0, 200)}`);
   }
-  return { skipped: false as const };
+  const data = (await res.json().catch(() => ({}))) as { id?: string };
+  return { skipped: false as const, id: data.id };
 }
 
 export function escapeHtml(s: string) {

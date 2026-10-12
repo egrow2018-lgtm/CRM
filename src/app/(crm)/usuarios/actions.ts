@@ -1,5 +1,6 @@
 "use server";
 
+import { emailDomain, isEmail } from "@/lib/email-compose";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
@@ -53,6 +54,11 @@ export async function updateUser(id: string, _: ActionState, form: FormData) {
     const pwd = password(form, false);
     const { emails: extraEmails, invalid } = parseEmails(str(form, "extraEmails"));
     if (invalid.length) throw new Error(`Revisa estos correos adicionales: ${invalid.join(", ")}`);
+    const senderEmail = str(form, "senderEmail")?.toLowerCase() ?? null;
+    const domain = emailDomain(process.env.EMAIL_FROM);
+    if (senderEmail && (!isEmail(senderEmail) || (domain && emailDomain(senderEmail) !== domain))) {
+      throw new Error(`El correo de envío debe ser una dirección @${domain ?? "del dominio verificado"}.`);
+    }
     await prisma.user.update({
       where: { id },
       data: {
@@ -61,6 +67,7 @@ export async function updateUser(id: string, _: ActionState, form: FormData) {
         role: newRole,
         active,
         extraEmails,
+        senderEmail,
         ...(pwd ? { passwordHash: await bcrypt.hash(pwd, 10) } : {}),
       },
     });

@@ -1,3 +1,4 @@
+import { emailDomain } from "@/lib/email-compose";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
 import { ROLE_LABELS, ROLE_PERMISSIONS, permissionsOf } from "@/lib/permissions";
@@ -23,6 +24,8 @@ function RoleSelect({ value }: { value?: string }) {
     </select>
   );
 }
+
+const senderDomain = emailDomain(process.env.EMAIL_FROM);
 
 export default async function UsersPage() {
   await requirePagePermission("users:manage");
@@ -66,6 +69,10 @@ export default async function UsersPage() {
                     <label className="text-xs text-slate-500 sm:col-span-5">
                       Correos adicionales para sus reuniones (reciben copia de cada invitación en la que es anfitrión; ej. su correo personal)
                       <input name="extraEmails" defaultValue={u.extraEmails.join(", ")} placeholder="personal@hotmail.com" className="input mt-1" />
+                    </label>
+                    <label className="text-xs text-slate-500 sm:col-span-5">
+                      Correo desde el que envía a clientes (debe ser {senderDomain ? `@${senderDomain}` : "del dominio verificado"}; vacío = su email de acceso)
+                      <input name="senderEmail" type="email" defaultValue={u.senderEmail ?? ""} placeholder={senderDomain ? `nombre@${senderDomain}` : ""} className="input mt-1" />
                     </label>
                     <div className="sm:col-span-5"><SubmitButton className="btn btn-primary btn-sm">Guardar</SubmitButton></div>
                   </ActionForm>

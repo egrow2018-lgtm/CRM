@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { contactName, formatDate, formatMoney } from "@/lib/format";
+import { contactName, formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
 import { emailConfigured } from "@/lib/email";
+import { EMAIL_TRACKING } from "@/lib/queries";
+import { formatDuration } from "@/lib/doc-stats";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { ContactForm } from "../contact-form";
 import { LEAD_STATUS } from "@/lib/leads";
@@ -24,7 +26,12 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
         owner: true,
         company: true,
         deals: { include: { stage: true, businessLine: { omit: { brandLogo: true } } }, orderBy: { createdAt: "desc" } },
-        activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
+        activities: { include: { author: true, assignee: true, email: { select: EMAIL_TRACKING } }, orderBy: { createdAt: "desc" } },
+        documentLinks: {
+          where: { documentId: { not: null } },
+          include: { document: { select: { id: true, name: true } }, views: { select: { startedAt: true, durationSec: true }, orderBy: { startedAt: "desc" } } },
+          orderBy: { createdAt: "desc" },
+        },
       },
     }),
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -32,6 +39,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
   ]);
   if (!contact) notFound();
   const canWrite = can(user, "contacts:write");
+  const canEmail = can(user, "emails:send") && emailConfigured();
   const editing = edit === "1" && canWrite;
   const phoneDigits = contact.phone?.replace(/\D/g, "");
 
@@ -49,12 +57,15 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
         }
         subtitle={[contact.jobTitle, contact.company?.name].filter(Boolean).join(" · ")}
         actions={
-          canWrite && (
+          (canWrite || canEmail) && (
             <>
-              <Link href={`/negocios/nuevo?contactId=${id}${contact.companyId ? `&companyId=${contact.companyId}` : ""}`} className="btn btn-primary">
+              {canEmail && contact.email && (
+                <Link href={`/correos/nuevo?contactId=${id}`} className="btn btn-primary">Enviar correo</Link>
+              )}
+              {canWrite && <Link href={`/negocios/nuevo?contactId=${id}${contact.companyId ? `&companyId=${contact.companyId}` : ""}`} className="btn btn-primary">
                 Nuevo negocio
-              </Link>
-              <Link href={editing ? `/contactos/${id}` : `/contactos/${id}?edit=1`} className="btn">{editing ? "Cancelar" : "Editar"}</Link>
+              </Link>}
+              {canWrite && <Link href={editing ? `/contactos/${id}` : `/contactos/${id}?edit=1`} className="btn">{editing ? "Cancelar" : "Editar"}</Link>}
               {can(user, "contacts:delete") && (
                 <form action={deleteContact.bind(null, id)}>
                   <ConfirmButton message="¿Eliminar este contacto?">Eliminar</ConfirmButton>
@@ -115,6 +126,26 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
               </table>
             )}
           </div>
+          {contact.documentLinks.length > 0 && (
+            <div className="card p-4">
+              <h2 className="mb-2 text-base">Documentos compartidos</h2>
+              <ul className="divide-y divide-slate-100 text-sm">
+                {contact.documentLinks.map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center gap-x-3 py-2">
+                    <Link className="link" href={`/documentos/${l.document!.id}`}>📄 {l.document!.name}</Link>
+                    <span className="text-xs text-slate-500">Enviado {formatDate(l.createdAt)}</span>
+                    {l.views.length > 0 ? (
+                      <span className="badge bg-amber-50 text-amber-800">
+                        {l.views.length} {l.views.length === 1 ? "vista" : "vistas"} · {formatDuration(l.views.reduce((s, v) => s + v.durationSec, 0))} · última {formatDateTime(l.views[0].startedAt)}
+                      </span>
+                    ) : (
+                      <span className="badge bg-slate-100 text-slate-500">Sin abrir</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
             emailEnabled={emailConfigured()}

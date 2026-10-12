@@ -2,9 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
 export async function middleware(req: NextRequest) {
-  // Formularios y cotizaciones públicas, y tareas programadas (protegidas con CRON_SECRET)
+  // Formularios, cotizaciones y documentos públicos, seguimiento de correos y tareas programadas (con CRON_SECRET)
   const path = req.nextUrl.pathname;
-  if (path.startsWith("/f/") || path.startsWith("/c/") || path.startsWith("/api/cron/")) return NextResponse.next();
+  if (["/f/", "/c/", "/d/", "/api/t/", "/api/cron/"].some((p) => path.startsWith(p))) return NextResponse.next();
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   const isLogin = req.nextUrl.pathname === "/login";
   if (!session && !isLogin) {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { EMAIL_TRACKING } from "@/lib/queries";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { contactName, formatDate, formatMoney } from "@/lib/format";
@@ -27,7 +28,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
         owner: true,
         contacts: { orderBy: { firstName: "asc" } },
         deals: { include: { stage: true, businessLine: { omit: { brandLogo: true } }, contact: true }, orderBy: { createdAt: "desc" } },
-        activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
+        activities: { include: { author: true, assignee: true, email: { select: EMAIL_TRACKING } }, orderBy: { createdAt: "desc" } },
       },
     }),
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),

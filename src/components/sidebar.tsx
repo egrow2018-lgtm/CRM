@@ -13,7 +13,9 @@ import {
   IconContacts,
   IconDeals,
   IconHome,
+  IconFolder,
   IconForm,
+  IconMail,
   IconImport,
   IconInbox,
   IconLogout,
@@ -42,6 +44,12 @@ export function Sidebar({
     { href: "/empresas", label: "Empresas", icon: IconCompany },
     { href: "/agenda", label: "Agenda", icon: IconCalendar },
     { href: "/tareas", label: "Tareas", icon: IconTasks },
+    ...(user.permissions.includes("emails:send")
+      ? [
+          { href: "/correos", label: "Correos", icon: IconMail },
+          { href: "/documentos", label: "Documentos", icon: IconFolder },
+        ]
+      : []),
     { href: "/catalogo", label: "Líneas y productos", icon: IconCatalog },
     ...(user.permissions.includes("forms:manage") ? [{ href: "/formularios", label: "Formularios", icon: IconForm }] : []),
     ...(user.permissions.includes("reports:view") ? [{ href: "/reportes", label: "Reportes", icon: IconChart }] : []),

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmailStatus } from "@/components/email-status";
 import type { Activity, ActivityType } from "@prisma/client";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { deleteActivity, toggleTask, type ActivityTarget } from "@/app/(crm)/actividades/actions";
@@ -32,6 +33,7 @@ type Item = Activity & {
   assignee: { name: string } | null;
   deal?: { id: string; name: string } | null;
   contact?: { id: string; firstName: string; lastName: string | null } | null;
+  email?: { id: string; openCount: number; clickCount: number; lastOpenedAt: Date | null } | null;
 };
 
 export function ActivityPanel({
@@ -91,7 +93,10 @@ export function ActivityPanel({
                 <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-accent-500" />
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`badge ${COLORS[a.type]}`}>{ACTIVITY_LABELS[a.type]}</span>
-                  <span className="text-sm font-medium">{a.subject}</span>
+                  <span className="text-sm font-medium">
+                    {a.email ? <Link href={`/correos/${a.email.id}`} className="hover:underline">{a.subject}</Link> : a.subject}
+                  </span>
+                  {a.email && <EmailStatus email={a.email} />}
                   {a.deal && (
                     <Link href={`/negocios/${a.deal.id}`} className="text-xs text-brand-700 hover:underline">
                       {a.deal.name}

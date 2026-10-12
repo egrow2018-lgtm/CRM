@@ -19,6 +19,8 @@ Un CRM simple hecho para e-grow. Toma de HubSpot solo lo que el equipo usa: un p
 | **Tareas y agenda** | Tareas, llamadas y reuniones programadas, en lista o en tarjetas por vencimiento (vencidas, hoy, próximos 7 días, más adelante, sin fecha). |
 | **Líneas y productos** | Alta de líneas o representaciones, su catálogo de productos y servicios, y los campos adicionales que activan en sus negocios. |
 | **Cotizaciones** | Desde los productos del negocio se genera la cotización en **PDF** con el logo, numeración `COT-2026-0001`, IVA (15 % por defecto), validez y condiciones. Se puede ver, enviar por **correo** con el PDF adjunto (con copia a quien envía) o compartir por **WhatsApp** con un enlace seguro. Al generarla, el negocio pasa a «Cotización-Envío». Los datos de la empresa se editan en Configuración. |
+| **Correos** | Desde un contacto o un negocio se envía un correo **a nombre del vendedor** (desde su dirección @e-growonline.com), con **plantillas** que llenan solas los datos (`{{nombre}}`, `{{empresa}}`, `{{negocio}}`…), negritas, enlaces y **documentos** de la biblioteca. Cada correo mide **aperturas** (píxel) y **clics**, avisa por correo al vendedor cuando lo abren (máx. uno por hora) y queda en el historial. El vendedor recibe una copia limpia en su Outlook. Las cotizaciones enviadas por correo también se rastrean. |
+| **Documentos** | Biblioteca de presentaciones y propuestas por carpetas (los archivos se guardan en Supabase Storage). Cada envío lleva un **enlace único por destinatario** (`/d/…`) que abre el documento en un visor propio: se registra quién lo abrió, cuántas veces, cuánto tiempo y **cuánto tiempo pasó en cada página**. Panel con enlaces creados, visitantes y vistas; enlaces para WhatsApp u Outlook; opción de permitir la descarga y de **privacidad de datos** (aceptar el aviso LOPDP antes de ver). Las vistas del equipo con sesión iniciada no se cuentan. |
 | **Avisos por correo** | Aviso inmediato cuando llega un **lead** de un formulario, y **resumen diario** de lunes a viernes a las 8:00 con reuniones, tareas vencidas, negocios en rojo, leads sin atender y renovaciones. Cada persona puede desactivarlo o ver la vista previa en «Mi perfil». |
 | **Renovaciones** | Los productos recurrentes (licencias Humand, monitoreo Rutalink, Ludus, LMS) se renuevan cada N meses. Al **ganar** el negocio se calcula su fecha de renovación (también editable a mano). **30 días antes** se crea solo el negocio de renovación, con los mismos productos y una tarea para el responsable. Inicio muestra las próximas renovaciones con semáforo. |
 | **GPSBox (Rutalink)** | Las empresas se enlazan con su cliente de GPSBox por **RUC/cédula**. La ficha de la empresa (y la de los negocios de Rutalink) muestra unidades activas, plan y próxima renovación con semáforo, y un botón para **abrir el cliente en GPSBox o crearlo con los datos ya llenos**. Al ganar un negocio de Rutalink se crea una tarea para registrar el cliente y sus unidades en GPSBox. El CRM solo lee los datos de GPSBox. |
@@ -129,7 +131,14 @@ Las reuniones se crean a nombre del anfitrión elegido, usando su email del CRM.
 5. Vuelve a publicar. El archivo `vercel.json` programa la tarea diaria `/api/cron/diario` de lunes a viernes a las 13:00 UTC (8:00 en Ecuador). Esa tarea crea las renovaciones y envía los resúmenes.
 6. En **Configuración → Correo** pulsa «Enviarme un correo de prueba».
 
-### 6. Enlazar con GPSBox (opcional)
+### 6. Activar la biblioteca de documentos (opcional)
+
+1. En Supabase del proyecto del CRM → *Project Settings → API* copia la **Project URL** y la clave **service_role** (es secreta: va solo en Vercel).
+2. En Vercel agrega `SUPABASE_URL` (la Project URL) y `SUPABASE_SERVICE_ROLE_KEY` (la clave) y vuelve a publicar.
+3. El CRM crea solo el bucket privado `documentos` al subir el primer archivo (máx. 50 MB por archivo en el plan gratuito).
+4. En **Usuarios y permisos**, si alguien entra con un correo que no es del dominio verificado, pon su «Correo desde el que envía a clientes» (@e-growonline.com).
+
+### 7. Enlazar con GPSBox (opcional)
 
 1. En Vercel agrega `GPSBOX_URL` con la dirección pública de GPSBox. Esto activa los botones «Abrir / Crear en GPSBox».
 2. Para ver las unidades y renovaciones dentro del CRM, agrega también `GPSBOX_SUPABASE_URL` y `GPSBOX_SUPABASE_SERVICE_KEY`. Están en Supabase del proyecto de GPSBox → *Project Settings → API → service_role*. Esa clave es secreta: va solo en Vercel. El CRM solo lee la tabla `rutalink_data`.
@@ -159,6 +168,6 @@ npm run dev                   # http://localhost:3000
 
 ## Próximas fases sugeridas
 
-- Integración con correo (Gmail u Outlook) y WhatsApp.
+- Registrar en el CRM las respuestas de los clientes (lectura del buzón por IMAP) y WhatsApp.
 - Automatizaciones: por ejemplo, crear una tarea al pasar a "Firma de Contrato".
 - Reportes por vendedor y por línea de negocio con rangos de fechas.

@@ -29,3 +29,4 @@ export const IconPhone = base("M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 
 export const IconCalendar = base("M4 6h16v14H4zM4 10h16M8 3v4M16 3v4");
 export const IconForm = base("M5 3h14v18H5zM8 7h8M8 11h8M8 15h5");
 export const IconInbox = base("M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 13h5l1 3h6l1-3h5");
+export const IconFolder = base("M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z");
