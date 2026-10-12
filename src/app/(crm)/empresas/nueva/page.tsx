@@ -10,8 +10,7 @@ export default async function NewCompanyPage() {
   const [users, contacts] = await Promise.all([
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.contact.findMany({
-      where: { companyId: null },
-      select: { id: true, firstName: true, lastName: true, email: true },
+      select: { id: true, firstName: true, lastName: true, email: true, company: { select: { name: true } } },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     }),
   ]);
@@ -21,7 +20,7 @@ export default async function NewCompanyPage() {
       <div className="card p-5"><CompanyForm
             action={createCompany}
             users={users}
-            contacts={contacts.map((c) => ({ id: c.id, name: contactName(c), email: c.email, company: null }))}
+            contacts={contacts.map((c) => ({ id: c.id, name: contactName(c), email: c.email, company: c.company?.name ?? null }))}
             submitLabel="Crear empresa"
           /></div>
     </div>

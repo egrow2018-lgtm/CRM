@@ -14,7 +14,7 @@ export function CompanyForm({
   action: (s: ActionState, f: FormData) => Promise<ActionState>;
   company?: Company;
   users: { id: string; name: string }[];
-  /** Contactos sin empresa, para vincularlos al crearla */
+  /** Contactos para vincularlos al crearla */
   contacts?: { id: string; name: string; email: string | null; company: string | null }[];
   submitLabel?: string;
 }) {
@@ -44,7 +44,7 @@ export function CompanyForm({
         <textarea name="notes" rows={3} defaultValue={company?.notes ?? ""} className="input" />
       </Field>
       {contacts && contacts.length > 0 && (
-        <Field label="Contactos de esta empresa (opcional: elige los que hoy están sin empresa)" className="sm:col-span-2">
+        <Field label="Contactos de esta empresa (opcional: se muestran los que no tienen empresa; escribe para buscar cualquier otro)" className="sm:col-span-2">
           <ContactPicker contacts={contacts} />
         </Field>
       )}

@@ -56,17 +56,12 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
         })
     : [];
   const canWrite = can(user, "companies:write");
-  // Contactos para asociar: los que están sin empresa y los que tienen correo del dominio de su sitio web
+  // Contactos para asociar: cualquiera que no esté ya en esta empresa; sugeridos los del dominio de su sitio web
   const domain = websiteKey(company.website);
   const linkable = can(user, "contacts:write")
     ? await prisma.contact.findMany({
-        where: {
-          // Ojo: «companyId distinto de esta» deja fuera a los que no tienen empresa, por eso van aparte
-          OR: [
-            { companyId: null },
-            ...(domain ? [{ companyId: { not: id }, email: { endsWith: `@${domain}`, mode: "insensitive" as const } }] : []),
-          ],
-        },
+        // Todos menos los que ya están en esta empresa («distinto de esta» deja fuera a los sin empresa, por eso el OR)
+        where: { OR: [{ companyId: null }, { companyId: { not: id } }] },
         select: { id: true, firstName: true, lastName: true, email: true, company: { select: { name: true } } },
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
       })
