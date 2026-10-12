@@ -6,6 +6,7 @@ import { contactName, formatDateTime } from "@/lib/format";
 import { formatDuration } from "@/lib/doc-stats";
 import { quoteCode } from "@/lib/quotes";
 import { InfoRow, PageHeader } from "@/components/ui";
+import { DELIVERY_LABELS, deliveryStatus } from "@/lib/email";
 import { EmailStatus } from "@/components/email-status";
 
 export default async function EmailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ enviado?: string }> }) {
@@ -31,6 +32,17 @@ export default async function EmailPage({ params, searchParams }: { params: Prom
     },
   });
   if (!email) notFound();
+
+  // Estado de entrega en Resend (se vuelve a consultar mientras no sea definitivo)
+  const FINAL = ["delivered", "bounced", "complained", "failed", "opened", "clicked"];
+  let delivery = email.deliveryStatus;
+  const stale = !email.deliveryCheckedAt || Date.now() - email.deliveryCheckedAt.getTime() > 60_000;
+  if (email.providerId && (!delivery || !FINAL.includes(delivery)) && stale) {
+    const fresh = await deliveryStatus(email.providerId);
+    if (fresh) delivery = fresh;
+    await prisma.emailMessage.update({ where: { id }, data: { deliveryStatus: delivery, deliveryCheckedAt: new Date() } });
+  }
+  const deliveryInfo = delivery ? (DELIVERY_LABELS[delivery] ?? { label: delivery, className: "bg-slate-100 text-slate-600" }) : null;
 
   type Item = { at: Date; text: string; detail?: string };
   const timeline: Item[] = [
@@ -67,6 +79,16 @@ export default async function EmailPage({ params, searchParams }: { params: Prom
               {email.cc.length > 0 && <InfoRow label="CC">{email.cc.join(", ")}</InfoRow>}
               <InfoRow label="De">{email.fromUser?.name} · {email.fromEmail}</InfoRow>
               <InfoRow label="Enviado">{formatDateTime(email.sentAt)}</InfoRow>
+              <InfoRow label="Entrega">
+                {deliveryInfo ? (
+                  <>
+                    <span className={`badge ${deliveryInfo.className}`}>{deliveryInfo.label}</span>
+                    {deliveryInfo.help && <span className="mt-1 block text-xs text-slate-500">{deliveryInfo.help}</span>}
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-500">{email.providerId ? "Consultando…" : "Sin datos de entrega (correo enviado antes de esta función)."}</span>
+                )}
+              </InfoRow>
               {email.contact && <InfoRow label="Contacto"><Link className="link" href={`/contactos/${email.contact.id}`}>{contactName(email.contact)}</Link></InfoRow>}
               {email.company && <InfoRow label="Empresa"><Link className="link" href={`/empresas/${email.company.id}`}>{email.company.name}</Link></InfoRow>}
               {email.deal && <InfoRow label="Negocio"><Link className="link" href={`/negocios/${email.deal.id}`}>{email.deal.name}</Link></InfoRow>}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { docIdsIn, emailDomain, fillTemplate, fromEditable, plainText, renderBody, senderFor, splitEmails, toEditable } from "./email-compose";
+import { docIdsIn, emailDomain, fillTemplate, fromEditable, imageIdsIn, plainText, renderBody, senderFor, splitEmails, toEditable } from "./email-compose";
 
 const docs = [
   { id: "abc123", name: "Presentación Rutalink 2026" },
@@ -62,4 +62,27 @@ test("senderFor usa la dirección del vendedor solo si es del dominio verificado
 
 test("splitEmails", () => {
   assert.deepEqual(splitEmails("a@b.com, c@d.com;e@f.com  g@h.com"), ["a@b.com", "c@d.com", "e@f.com", "g@h.com"]);
+});
+
+test("imágenes con enlace y texto con enlace", () => {
+  const images = [{ id: "img1", name: "Banner Rutalink" }];
+  const editable = "Mira [🖼 Banner Rutalink → https://rutalink.com] y [🖼 Banner Rutalink]\n[nuestra web](https://e-growonline.com/a?x=1) o https://otro.com.";
+  const stored = fromEditable(editable, docs, images);
+  assert.equal(stored, "Mira [[img:img1|https://rutalink.com]] y [[img:img1]]\n[nuestra web](https://e-growonline.com/a?x=1) o https://otro.com.");
+  assert.equal(toEditable(stored, docs, images), editable);
+  assert.deepEqual(imageIdsIn(stored), ["img1"]);
+  const links: string[] = [];
+  const html = renderBody(stored, {
+    doc: () => null,
+    image: (id) => (id === "img1" ? { src: "https://crm/api/img/img1", name: "Banner" } : null),
+    wrapLink: (u) => {
+      links.push(u);
+      return `https://crm/t/${links.length - 1}`;
+    },
+  });
+  assert.deepEqual(links, ["https://rutalink.com", "https://otro.com", "https://e-growonline.com/a?x=1"]);
+  assert.match(html, /<a href="https:\/\/crm\/t\/0"><img src="https:\/\/crm\/api\/img\/img1" alt="Banner"/);
+  assert.match(html, /<a href="https:\/\/crm\/t\/2"[^>]*>nuestra web<\/a>/);
+  assert.match(html, /<a href="https:\/\/crm\/t\/1"[^>]*>https:\/\/otro.com<\/a>\./);
+  assert.equal(plainText(stored, () => null), "Mira  y \nnuestra web (https://e-growonline.com/a?x=1) o https://otro.com.");
 });

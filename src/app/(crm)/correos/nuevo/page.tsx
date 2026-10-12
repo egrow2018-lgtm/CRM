@@ -17,13 +17,14 @@ export default async function NewEmailPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const user = await prisma.user.findUniqueOrThrow({ where: { id: current.id } });
 
-  const [values, templates, docs, lines, deal, contact] = await Promise.all([
+  const [values, templates, docs, lines, deal, contact, images] = await Promise.all([
     templateValues({ contactId: sp.contactId, dealId: sp.dealId, user }),
     prisma.emailTemplate.findMany({ include: { businessLine: { select: { name: true } } }, orderBy: { name: "asc" } }),
     prisma.document.findMany({ select: { id: true, name: true, folder: { select: { name: true } } }, orderBy: { name: "asc" } }),
     prisma.businessLine.findMany({ where: { active: true, brandLogo: { not: null } }, orderBy: { name: "asc" } }),
     sp.dealId ? prisma.deal.findUnique({ where: { id: sp.dealId }, select: { id: true, name: true, businessLineId: true } }) : null,
     sp.contactId ? prisma.contact.findUnique({ where: { id: sp.contactId }, select: { id: true, firstName: true, lastName: true } }) : null,
+    prisma.emailImage.findMany({ select: { id: true, name: true }, orderBy: { createdAt: "desc" } }),
   ]);
   const docList = docs.map((d) => ({ id: d.id, name: d.name, folder: d.folder?.name ?? null }));
   const preDoc = sp.doc ? docList.find((d) => d.id === sp.doc) : null;
@@ -65,6 +66,7 @@ export default async function NewEmailPage({ searchParams }: { searchParams: Pro
               .filter((t) => !deal?.businessLineId || !t.businessLineId || t.businessLineId === deal.businessLineId)
               .map((t) => ({ id: t.id, name: t.name, subject: t.subject, body: t.body, line: t.businessLine?.name ?? null }))}
             docs={docList}
+            images={images}
             brands={brands}
             initialBody={preDoc ? `${greeting}Te comparto ${editableDocToken(preDoc.name)}\n\nQuedo atento a tus comentarios.` : greeting}
             hidden={{ ...(sp.contactId ? { contactId: sp.contactId } : {}), ...(sp.dealId ? { dealId: sp.dealId } : {}), ...(sp.companyId ? { companyId: sp.companyId } : {}) }}

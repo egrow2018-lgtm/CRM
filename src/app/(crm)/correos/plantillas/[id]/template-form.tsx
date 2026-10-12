@@ -2,20 +2,23 @@
 
 import { useState } from "react";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { MessageEditor, MessagePreview } from "../../composer";
+import { MessageEditor, MessagePreview, type Img } from "../../composer";
 
 export function TemplateForm({
   action,
   lines,
   docs,
+  images: initialImages,
   initial,
 }: {
   action: Parameters<typeof ActionForm>[0]["action"];
   lines: { id: string; name: string }[];
   docs: { id: string; name: string; folder: string | null }[];
+  images: Img[];
   initial: { name: string; subject: string; body: string; businessLineId: string };
 }) {
   const [body, setBody] = useState(initial.body);
+  const [images, setImages] = useState(initialImages);
   return (
     <ActionForm action={action} className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-3">
@@ -36,7 +39,7 @@ export function TemplateForm({
           Asunto
           <input name="subject" required defaultValue={initial.subject} className="input mt-1" placeholder="Ej. {{empresa}}: presentación de Rutalink" />
         </label>
-        <MessageEditor value={body} onChange={setBody} docs={docs} rows={14} />
+        <MessageEditor value={body} onChange={setBody} docs={docs} images={images} onImagesChange={setImages} rows={14} />
         <p className="text-xs text-slate-500">
           Los datos entre llaves, como {"{{nombre}}"} o {"{{empresa}}"}, se llenan solos con los del contacto al usar la plantilla. Los documentos
           insertados van como enlace rastreado.
@@ -45,7 +48,7 @@ export function TemplateForm({
       </div>
       <div>
         <div className="mb-1 text-xs font-medium text-slate-500">Vista previa</div>
-        <MessagePreview text={body} docs={docs} />
+        <MessagePreview text={body} docs={docs} images={images} />
       </div>
     </ActionForm>
   );

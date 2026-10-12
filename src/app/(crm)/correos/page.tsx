@@ -8,11 +8,15 @@ import { Pager, pageParams } from "@/components/pager";
 import { SearchBox } from "@/components/search-box";
 import { CorreosTabs } from "./tabs";
 import { EmailStatus } from "@/components/email-status";
+import { BulkCheckCell, BulkCheckHeader, BulkSelection } from "@/components/bulk-selection";
+import { can } from "@/lib/permissions";
+import { DELIVERY_LABELS } from "@/lib/email";
+import { deleteEmails } from "./actions";
 
 type SP = { q?: string; owner?: string; estado?: string; page?: string; per?: string };
 
 export default async function EmailsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requirePagePermission("emails:send");
+  const user = await requirePagePermission("emails:send");
   const sp = await searchParams;
   const { page, per } = pageParams(sp);
   const where: Prisma.EmailMessageWhereInput = {
@@ -49,6 +53,8 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
   ]);
   const opened30 = await prisma.emailMessage.count({ where: { sentAt: { gte: new Date(Date.now() - 30 * 864e5) }, openCount: { gt: 0 } } });
   const spRecord = sp as Record<string, string | undefined>;
+  // Cada quien borra sus correos; quien gestiona plantillas y documentos puede borrar todos
+  const canDeleteAll = can(user, "docs:manage");
 
   return (
     <div>
@@ -83,10 +89,12 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
         </EmptyState>
       ) : (
         <>
+          <BulkSelection onDelete={deleteEmails} noun={{ one: "correo", many: "correos" }}>
           <div className="card overflow-x-auto">
             <table className="table">
               <thead>
                 <tr>
+                  <BulkCheckHeader />
                   <th>Asunto</th>
                   <th>Para</th>
                   <th>Estado</th>
@@ -97,6 +105,7 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
               <tbody>
                 {emails.map((e) => (
                   <tr key={e.id}>
+                    {canDeleteAll || e.fromUserId === user.id ? <BulkCheckCell id={e.id} label={e.subject} /> : <td className="hidden group-data-[selecting=true]:table-cell" />}
                     <td className="max-w-xs">
                       <Link href={`/correos/${e.id}`} className="link line-clamp-1">{e.subject}</Link>
                       {e.deal && <Link href={`/negocios/${e.deal.id}`} className="block text-xs text-slate-500 hover:underline">{e.deal.name}</Link>}
@@ -105,7 +114,12 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
                       {e.contact ? <Link className="hover:underline" href={`/contactos/${e.contact.id}`}>{contactName(e.contact)}</Link> : e.to.join(", ")}
                       {e.company && <span className="block text-xs text-slate-500">{e.company.name}</span>}
                     </td>
-                    <td><EmailStatus email={e} docViews={e.docLinks.reduce((s, l) => s + l._count.views, 0)} /></td>
+                    <td>
+                      <EmailStatus email={e} docViews={e.docLinks.reduce((s, l) => s + l._count.views, 0)} />
+                      {e.deliveryStatus && ["bounced", "complained", "failed", "delivery_delayed"].includes(e.deliveryStatus) && (
+                        <span className={`badge ml-1 ${DELIVERY_LABELS[e.deliveryStatus]!.className}`}>{DELIVERY_LABELS[e.deliveryStatus]!.label}</span>
+                      )}
+                    </td>
                     <td>{e.fromUser?.name ?? "—"}</td>
                     <td className="whitespace-nowrap">{formatDateTime(e.sentAt)}</td>
                   </tr>
@@ -113,6 +127,7 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
               </tbody>
             </table>
           </div>
+          </BulkSelection>
           <Pager path="/correos" sp={spRecord} total={total} page={page} per={per} />
         </>
       )}
