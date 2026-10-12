@@ -23,6 +23,19 @@ export default async function ProfilePage() {
               <a href="/api/resumen" target="_blank" rel="noreferrer" className="link">Ver mi resumen de hoy</a>
             </span>
           </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="trackingAlerts" defaultChecked={dbUser.trackingAlerts} className="mt-1" />
+            <span>Avisarme por correo cuando un cliente <b>abra mis correos o documentos</b> (como máximo un aviso por hora por cada correo o enlace).</span>
+          </label>
+          <Field label="Firma de mis correos a clientes (va al final de cada correo)">
+            <textarea
+              name="signature"
+              rows={4}
+              defaultValue={dbUser.signature ?? ""}
+              className="input"
+              placeholder={`${user.name}\nGerente Comercial · e-grow\n+593 99 999 9999 · www.e-growonline.com`}
+            />
+          </Field>
           <fieldset className="grid gap-3 rounded-lg border border-slate-200 p-4">
             <legend className="px-1 text-sm font-semibold text-slate-700">Cambiar contraseña</legend>
             <Field label="Contraseña actual">

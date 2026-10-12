@@ -39,12 +39,21 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    module: "Correos y documentos",
+    items: [
+      { key: "emails:send", label: "Enviar correos a clientes y compartir documentos" },
+      { key: "docs:manage", label: "Subir documentos y editar plantillas" },
+    ],
+  },
+  {
     module: "Herramientas",
     items: [
       { key: "meetings:schedule", label: "Agendar reuniones (Agenda y Zoom)" },
       { key: "forms:manage", label: "Formularios públicos" },
       { key: "catalog:manage", label: "Líneas de negocio y productos" },
-      { key: "import:run", label: "Importar desde HubSpot" },
+      { key: "reports:view", label: "Ver reportes" },
+      { key: "import:run", label: "Importar datos (HubSpot / CSV)" },
+      { key: "data:export", label: "Exportar datos y descargar respaldos" },
     ],
   },
   {
@@ -64,12 +73,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: ALL_PERMISSIONS,
   GERENTE: [
     "contacts:write", "contacts:delete", "companies:write", "companies:delete", "deals:write", "deals:delete", "deals:production",
-    "activities:write", "meetings:schedule", "leads:take", "forms:manage", "catalog:manage", "import:run",
+    "activities:write", "meetings:schedule", "leads:take", "forms:manage", "catalog:manage", "import:run", "reports:view",
+    "data:export", "emails:send", "docs:manage",
   ],
   // Gestión de negocios: crea clientes y productos y da seguimiento a cada negocio
   COMERCIAL: [
     "contacts:write", "companies:write", "deals:write", "deals:production", "activities:write", "meetings:schedule", "leads:take", "forms:manage",
-    "catalog:manage",
+    "catalog:manage", "reports:view", "emails:send",
   ],
   // Gestión de proyectos: seguimiento de la producción con el equipo de desarrollo
   PROYECTOS: ["deals:production", "activities:write", "meetings:schedule"],

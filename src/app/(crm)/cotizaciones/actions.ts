@@ -11,8 +11,12 @@ import { contactName, toNumber } from "@/lib/format";
 import { computeTotals, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { getCompanySettings } from "@/lib/settings";
 import { renderQuotePdf } from "@/lib/quote-pdf";
-import { appUrl, emailButton, emailConfigured, emailLayout, escapeHtml, sendEmail } from "@/lib/email";
+import { emailConfigured } from "@/lib/email";
+import { sendClientEmail } from "@/lib/client-email";
+import { splitEmails } from "@/lib/email-compose";
+import { randomToken } from "@/lib/doc-stats";
 import { normalize } from "@/lib/csv";
+import { dealBrand } from "@/lib/brand";
 
 export async function createQuote(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
@@ -21,6 +25,7 @@ export async function createQuote(dealId: string, _: ActionState, form: FormData
       where: { id: dealId },
       include: {
         items: { include: { product: { include: { businessLine: true } } }, orderBy: { id: "asc" } },
+        businessLine: true,
         company: true,
         contact: true,
         owner: true,
@@ -69,6 +74,7 @@ export async function createQuote(dealId: string, _: ActionState, form: FormData
       conditions: str(form, "conditions") ?? company.conditions,
       notes: str(form, "notes"),
       validityDays,
+      brand: form.get("useBrand") === "on" ? dealBrand(deal) : null,
     };
 
     const year = new Date().getFullYear();
@@ -98,6 +104,10 @@ export async function createQuote(dealId: string, _: ActionState, form: FormData
         throw e;
       }
     }
+    // Enlace rastreado para compartir por WhatsApp o copiarlo (cuenta las vistas de la propuesta)
+    await prisma.documentLink.create({
+      data: { token: randomToken(), quoteId: quote.id, contactId: deal.contactId, label: "Enlace para compartir", createdById: user.id },
+    });
 
     // El negocio avanza a la etapa de cotización si aún no llegó a ella
     const stages = await prisma.pipelineStage.findMany({ orderBy: { order: "asc" } });
@@ -129,38 +139,34 @@ export async function createQuote(dealId: string, _: ActionState, form: FormData
 
 export async function sendQuoteEmail(quoteId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
-    const user = await requirePermission("deals:write");
+    const current = await requirePermission("deals:write");
     if (!emailConfigured()) throw new Error("El correo aún no está configurado (RESEND_API_KEY y EMAIL_FROM).");
-    const to = reqStr(form, "to", "Para")
-      .split(/[,;\s]+/)
-      .filter(Boolean);
-    if (to.some((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) throw new Error("Revisa los correos del destinatario.");
     const quote = await prisma.quote.findUniqueOrThrow({ where: { id: quoteId }, include: { deal: true } });
-    const me = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: current.id } });
+    const to = splitEmails(reqStr(form, "to", "Para"));
     const code = quoteCode(quote.year, quote.number);
     const message = str(form, "message") ?? "";
     const pdf = await renderQuotePdf(quote);
-    await sendEmail({
+    const brand = (quote.snapshot as unknown as QuoteSnapshot).brand ?? null;
+    // El contacto: el del negocio o, si no, quien tenga el correo del destinatario
+    const contactId =
+      quote.deal.contactId ??
+      (await prisma.contact.findFirst({ where: { email: { equals: to[0], mode: "insensitive" } }, select: { id: true } }))?.id ??
+      null;
+    await sendClientEmail({
+      user,
       to,
-      cc: [me.email],
-      replyTo: me.email,
-      subject: `Cotización ${code} – ${quote.deal.name}`,
-      html: emailLayout(
-        `Cotización ${code}`,
-        `${message ? `<p style="white-space:pre-line">${escapeHtml(message)}</p>` : ""}
-         <p>Adjuntamos la cotización <b>${code}</b> por <b>US$ ${toNumber(quote.total).toFixed(2)}</b>.</p>
-         <p>${emailButton(`${appUrl()}/c/${quote.publicToken}`, "Ver cotización en línea")}</p>
-         <p style="color:#64748b">${escapeHtml(me.name)} · ${escapeHtml(me.email)}</p>`,
-      ),
-      attachments: [{ filename: `${code}.pdf`, content: Buffer.from(pdf) }],
+      subject: `${brand ? `${brand.name} · ` : ""}Cotización ${code} – ${quote.deal.name}`,
+      body: message,
+      contactId,
+      dealId: quote.dealId,
+      companyId: quote.deal.companyId,
+      brand: brand ? { name: brand.name, primary: brand.primary, accent: brand.accent } : "egrow",
+      quote: { id: quote.id, code, total: toNumber(quote.total).toFixed(2) },
+      attachments: [{ filename: `${code}.pdf`, content: Buffer.from(pdf), contentType: "application/pdf" }],
+      activitySubject: `Cotización ${code} enviada a ${to.join(", ")}`,
     });
-    await prisma.$transaction([
-      prisma.quote.update({ where: { id: quoteId }, data: { sentAt: new Date() } }),
-      prisma.activity.create({
-        data: { type: "EMAIL", subject: `Cotización ${code} enviada a ${to.join(", ")}`, body: message || null, dealId: quote.dealId, authorId: user.id, completed: true },
-      }),
-      prisma.deal.update({ where: { id: quote.dealId }, data: { lastActivityAt: new Date() } }),
-    ]);
+    await prisma.quote.update({ where: { id: quoteId }, data: { sentAt: new Date() } });
     revalidatePath(`/negocios/${quote.dealId}`);
   });
 }

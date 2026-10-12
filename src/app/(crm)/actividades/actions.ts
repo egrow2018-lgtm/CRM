@@ -9,6 +9,9 @@ import { bool, date, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { zonedToUtc } from "@/lib/timezone";
 import { createZoomMeeting, deleteZoomMeeting, zoomConfigured } from "@/lib/zoom";
 import { runAction } from "@/lib/run-action";
+import { parseEmails } from "@/lib/ics";
+import { sendMeetingInvite } from "@/lib/meeting-invites";
+import { emailConfigured } from "@/lib/email";
 
 export type ActivityTarget = { dealId?: string; contactId?: string; companyId?: string };
 
@@ -88,6 +91,10 @@ export async function deleteActivity(id: string) {
   if (!isOwn && !(["contacts:delete", "companies:delete", "deals:delete"] as const).some((p) => can(user, p))) throw new Error("Solo puedes eliminar tus propias actividades.");
   // Si es una reunión de Zoom, también se cancela en Zoom
   if (a.zoomMeetingId) await deleteZoomMeeting(a.zoomMeetingId);
+  // Si ya se había enviado la invitación, se avisa la cancelación (también quita el evento de los calendarios)
+  if (a.type === "REUNION" && a.invitedAt && a.startAt && a.startAt > new Date()) {
+    await sendMeetingInvite(a.id, "CANCEL").catch((e) => console.error("No se pudo enviar la cancelación", e));
+  }
   await prisma.activity.delete({ where: { id } });
   if (a.type === "REUNION" && !a.completed) {
     await prisma.activity.create({
@@ -128,18 +135,25 @@ export async function scheduleMeeting(target: ActivityTarget, _: ActionState, fo
     const hostId = str(form, "assigneeId") ?? user.id;
     const host = await prisma.user.findUniqueOrThrow({ where: { id: hostId } });
     const upcoming = startAt.getTime() + duration * 60000 > Date.now();
-    const wantsZoom = bool(form, "zoom") && upcoming;
+    // Modalidad: Zoom, presencial o en línea con otro enlace (Meet, Teams…)
+    const mode = str(form, "mode") ?? (bool(form, "zoom") ? "zoom" : "online");
+    const wantsZoom = mode === "zoom" && upcoming;
+    const location = mode === "presencial" ? str(form, "location") : null;
+    if (mode === "presencial" && !location) throw new Error("Indica el lugar de la reunión presencial.");
+    const { emails: guests, invalid } = parseEmails(str(form, "guests"));
+    if (invalid.length) throw new Error(`Revisa estos correos de invitados: ${invalid.join(", ")}`);
     if (wantsZoom && !zoomConfigured()) throw new Error("Zoom aún no está conectado. Pide al administrador que lo configure.");
 
     const zoom = wantsZoom
       ? await createZoomMeeting({ hostEmail: host.email, topic: subject, agenda: body, start: startAt, durationMinutes: duration })
       : null;
-    const manualUrl = str(form, "meetingUrl");
+    const manualUrl = mode === "online" ? str(form, "meetingUrl") : null;
     if (manualUrl && !/^https?:\/\//i.test(manualUrl)) throw new Error("El enlace de la reunión debe empezar con https://");
 
+    let activityId: string;
     try {
-      await prisma.$transaction(async (tx) => {
-        await tx.activity.create({
+      activityId = await prisma.$transaction(async (tx) => {
+        const created = await tx.activity.create({
           data: {
             type: "REUNION",
             subject,
@@ -151,6 +165,8 @@ export async function scheduleMeeting(target: ActivityTarget, _: ActionState, fo
             hostUrl: zoom?.startUrl ?? null,
             meetingPassword: zoom?.password ?? null,
             zoomMeetingId: zoom?.id ?? null,
+            location,
+            guests,
             assigneeId: hostId,
             authorId: user.id,
             completed: !upcoming,
@@ -159,11 +175,36 @@ export async function scheduleMeeting(target: ActivityTarget, _: ActionState, fo
           },
         });
         await touch(tx, rel);
+        return created.id;
       });
     } catch (e) {
       if (zoom) await deleteZoomMeeting(zoom.id).catch(() => undefined);
       throw e;
     }
     [...pathsFor(rel), "/agenda"].forEach((p) => revalidatePath(p));
+    // Invitación por correo (con .ics) a los invitados, al anfitrión y a sus correos adicionales
+    if (upcoming && bool(form, "sendInvite")) {
+      if (!emailConfigured()) throw new Error("La reunión se creó, pero el correo aún no está configurado para enviar la invitación.");
+      await sendMeetingInvite(activityId).catch((e) => {
+        console.error(e);
+        throw new Error("La reunión se creó, pero no se pudo enviar la invitación por correo. Usa «Reenviar invitación».");
+      });
+    }
+  });
+}
+
+/** Vuelve a enviar la invitación de una reunión por correo (por ejemplo, tras agregar invitados). */
+export async function resendInvite(id: string, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    await requirePermission("meetings:schedule");
+    if (!emailConfigured()) throw new Error("El correo aún no está configurado.");
+    const { emails, invalid } = parseEmails(str(form, "guests"));
+    if (invalid.length) throw new Error(`Revisa estos correos: ${invalid.join(", ")}`);
+    const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
+    if (a.type !== "REUNION") throw new Error("Solo las reuniones tienen invitación.");
+    await prisma.activity.update({ where: { id }, data: { guests: [...new Set([...a.guests, ...emails])] } });
+    await sendMeetingInvite(id);
+    revalidatePath("/agenda");
+    [...pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined })].forEach((p) => revalidatePath(p));
   });
 }

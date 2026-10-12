@@ -2,9 +2,8 @@ import "server-only";
 import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { LOGO_DATA_URI } from "./logo-data";
 import type { QuoteSnapshot } from "./quotes";
+import { EGROW_ACCENT, EGROW_PRIMARY, textOn } from "./brand";
 
-const NAVY = "#1c315e";
-const GREEN = "#b9d43a";
 const MUTED = "#64748b";
 
 const money = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
@@ -15,16 +14,16 @@ const s = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   logo: { width: 130 },
   company: { textAlign: "right", fontSize: 8.5, color: MUTED, lineHeight: 1.4 },
-  bar: { height: 4, backgroundColor: GREEN, marginTop: 14, marginBottom: 16 },
+  bar: { height: 4, marginTop: 14, marginBottom: 16 },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 14 },
-  title: { fontSize: 20, fontFamily: "Helvetica-Bold", color: NAVY },
-  code: { fontSize: 11, fontFamily: "Helvetica-Bold", color: NAVY, textAlign: "right" },
+  title: { fontSize: 20, fontFamily: "Helvetica-Bold" },
+  code: { fontSize: 11, fontFamily: "Helvetica-Bold", textAlign: "right" },
   meta: { fontSize: 8.5, color: MUTED, textAlign: "right", marginTop: 2 },
   boxes: { flexDirection: "row", gap: 12, marginBottom: 16 },
   box: { flex: 1, borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 4, padding: 8 },
   boxLabel: { fontSize: 7.5, color: MUTED, textTransform: "uppercase", marginBottom: 3, letterSpacing: 0.5 },
   bold: { fontFamily: "Helvetica-Bold" },
-  th: { flexDirection: "row", backgroundColor: NAVY, color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 8.5, paddingVertical: 6, paddingHorizontal: 6 },
+  th: { flexDirection: "row", fontFamily: "Helvetica-Bold", fontSize: 8.5, paddingVertical: 6, paddingHorizontal: 6 },
   tr: { flexDirection: "row", paddingVertical: 6, paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: "#e2e8f0" },
   cDesc: { flex: 1 },
   cQty: { width: 45, textAlign: "right" },
@@ -33,35 +32,46 @@ const s = StyleSheet.create({
   cTotal: { width: 80, textAlign: "right" },
   totals: { alignSelf: "flex-end", width: 230, marginTop: 10 },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
-  grand: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 6, marginTop: 4, backgroundColor: GREEN, color: NAVY, fontFamily: "Helvetica-Bold", fontSize: 11 },
+  grand: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 6, marginTop: 4, fontFamily: "Helvetica-Bold", fontSize: 11 },
   section: { marginTop: 18 },
-  sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", color: NAVY, marginBottom: 4 },
+  sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 },
   footer: { position: "absolute", bottom: 24, left: 40, right: 40, fontSize: 7.5, color: MUTED, textAlign: "center", borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 6 },
 });
 
 export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string; createdAt: Date; validUntil: Date; q: QuoteSnapshot }) {
   const c = q.company;
+  // Marca: la de la línea (ej. Rutalink) o la de e-grow
+  const b = q.brand;
+  const primary = b?.primary ?? EGROW_PRIMARY;
+  const accent = b?.accent ?? EGROW_ACCENT;
+  const onAccent = b ? textOn(accent) : EGROW_PRIMARY;
+  const brandName = b?.name ?? c.name;
+  const website = b?.website ?? c.website;
+  // Logos claros: el encabezado va sobre un fondo de color
+  const headerBg = b?.headerBg ?? null;
+  const headerText = headerBg ? textOn(headerBg) : null;
   return (
-    <Document title={`${code} – ${q.dealName}`} author={c.name}>
+    <Document title={`${code} – ${q.dealName}`} author={brandName}>
       <Page size="A4" style={s.page}>
-        <View style={s.header}>
+        <View style={[s.header, headerBg ? { backgroundColor: headerBg, margin: -40, marginBottom: 0, padding: 24, paddingHorizontal: 40 } : {}]}>
           {/* eslint-disable-next-line jsx-a11y/alt-text */}
-          <Image src={LOGO_DATA_URI} style={s.logo} />
-          <View style={s.company}>
-            <Text style={[s.bold, { color: NAVY, fontSize: 10 }]}>{c.legalName || c.name}</Text>
+          <Image src={b?.logo ?? LOGO_DATA_URI} style={[s.logo, { maxHeight: 60, objectFit: "contain" }]} />
+          <View style={[s.company, headerText ? { color: headerText } : {}]}>
+            {b ? <Text style={[s.bold, { color: headerText ?? primary, fontSize: 11 }]}>{b.name}</Text> : null}
+            <Text style={[s.bold, { color: headerText ?? (b ? "#334155" : primary), fontSize: b ? 8.5 : 10 }]}>{c.legalName || c.name}</Text>
             {c.taxId ? <Text>RUC: {c.taxId}</Text> : null}
             {c.address ? <Text>{c.address}</Text> : null}
             {c.phone ? <Text>{c.phone}</Text> : null}
             {c.email ? <Text>{c.email}</Text> : null}
-            {c.website ? <Text>{c.website}</Text> : null}
+            {website ? <Text>{website}</Text> : null}
           </View>
         </View>
-        <View style={s.bar} />
+        <View style={[s.bar, { backgroundColor: accent }, headerBg ? { marginTop: 0, marginHorizontal: -40 } : {}]} />
 
         <View style={s.titleRow}>
-          <Text style={s.title}>Cotización</Text>
+          <Text style={[s.title, { color: primary }]}>Cotización</Text>
           <View>
-            <Text style={s.code}>{code}</Text>
+            <Text style={[s.code, { color: primary }]}>{code}</Text>
             <Text style={s.meta}>Fecha: {date.format(createdAt)}</Text>
             <Text style={s.meta}>Válida hasta: {date.format(validUntil)}</Text>
           </View>
@@ -89,7 +99,7 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
           </View>
         </View>
 
-        <View style={s.th}>
+        <View style={[s.th, { backgroundColor: primary, color: textOn(primary) }]}>
           <Text style={s.cDesc}>Descripción</Text>
           <Text style={s.cQty}>Cant.</Text>
           <Text style={s.cPrice}>Precio unit.</Text>
@@ -124,7 +134,7 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
             <Text style={{ color: MUTED }}>IVA {q.ivaPercent}%</Text>
             <Text>{money.format(q.iva)}</Text>
           </View>
-          <View style={s.grand}>
+          <View style={[s.grand, { backgroundColor: accent, color: onAccent }]}>
             <Text>TOTAL</Text>
             <Text>{money.format(q.total)}</Text>
           </View>
@@ -132,13 +142,13 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
 
         {q.notes ? (
           <View style={s.section} wrap={false}>
-            <Text style={s.sectionTitle}>Observaciones</Text>
+            <Text style={[s.sectionTitle, { color: primary }]}>Observaciones</Text>
             <Text>{q.notes}</Text>
           </View>
         ) : null}
         {q.conditions ? (
           <View style={s.section} wrap={false}>
-            <Text style={s.sectionTitle}>Condiciones comerciales</Text>
+            <Text style={[s.sectionTitle, { color: primary }]}>Condiciones comerciales</Text>
             {q.conditions.split("\n").filter(Boolean).map((line, i) => (
               <Text key={i} style={{ marginBottom: 2 }}>• {line}</Text>
             ))}
@@ -148,7 +158,7 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
 
         <Text
           style={s.footer}
-          render={({ pageNumber, totalPages }) => `${c.name} · ${c.website} · ${code} · Página ${pageNumber} de ${totalPages}`}
+          render={({ pageNumber, totalPages }) => `${brandName}${website ? ` · ${website}` : ""} · ${code} · Página ${pageNumber} de ${totalPages}`}
           fixed
         />
       </Page>

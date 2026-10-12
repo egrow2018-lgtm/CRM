@@ -10,4 +10,6 @@ test("la plantilla usa los colores de marca y escapa el título", () => {
   const html = emailLayout("Nuevo lead <script>", "<p>x</p>");
   assert.ok(html.includes("#1c315e") && html.includes("#b9d43a"));
   assert.ok(html.includes("Nuevo lead &lt;script&gt;"));
+  const rutalink = emailLayout("Cotización", "<p>x</p>", { name: "Rutalink", primary: "#111111", accent: "#ff6600" });
+  assert.ok(rutalink.includes("#111111") && rutalink.includes("#ff6600") && rutalink.includes("Rutalink"));
 });

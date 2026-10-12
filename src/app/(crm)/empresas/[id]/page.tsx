@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { EMAIL_TRACKING } from "@/lib/queries";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { contactName, formatDate, formatMoney } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
+import { emailConfigured } from "@/lib/email";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { CompanyForm } from "../company-form";
 import { GpsboxCard } from "@/components/gpsbox-card";
@@ -25,8 +27,8 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
       include: {
         owner: true,
         contacts: { orderBy: { firstName: "asc" } },
-        deals: { include: { stage: true, businessLine: true, contact: true }, orderBy: { createdAt: "desc" } },
-        activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
+        deals: { include: { stage: true, businessLine: { omit: { brandLogo: true } }, contact: true }, orderBy: { createdAt: "desc" } },
+        activities: { include: { author: true, assignee: true, email: { select: EMAIL_TRACKING } }, orderBy: { createdAt: "desc" } },
       },
     }),
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -171,6 +173,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
           </div>
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
+            emailEnabled={emailConfigured()}
             canMeet={can(user, "meetings:schedule")}
             viewerId={user.id} target={{ companyId: id }} activities={company.activities} users={users} canWrite={can(user, "activities:write")} />
         </div>

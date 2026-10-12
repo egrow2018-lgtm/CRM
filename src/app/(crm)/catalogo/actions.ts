@@ -7,6 +7,8 @@ import { requirePermission } from "@/lib/auth";
 import { bool, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { parseCustomFields, toKey } from "@/lib/custom-fields";
+import { validLogo } from "@/lib/forms-builder";
+import { EGROW_ACCENT, EGROW_PRIMARY, validHex } from "@/lib/brand";
 
 export async function saveBusinessLine(id: string | null, _: ActionState, form: FormData) {
   return runAction(async () => {
@@ -66,6 +68,25 @@ export async function saveLineFields(id: string, _: ActionState, form: FormData)
     if (fields.some((f) => !f.label)) throw new Error("Todos los campos necesitan un nombre.");
     if (new Set(fields.map((f) => f.key)).size !== fields.length) throw new Error("Hay campos con el mismo nombre.");
     await prisma.businessLine.update({ where: { id }, data: { customFields: fields } });
+    revalidatePath("/catalogo");
+  });
+}
+
+/** Marca propia de la línea para las cotizaciones (logo, colores, nombre y web). */
+export async function saveLineBrand(id: string, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    await requirePermission("catalog:manage");
+    await prisma.businessLine.update({
+      where: { id },
+      data: {
+        brandName: str(form, "brandName"),
+        brandWebsite: str(form, "brandWebsite"),
+        brandLogo: validLogo(str(form, "brandLogo"), { pdf: true }),
+        brandPrimary: validHex(str(form, "brandPrimary"), EGROW_PRIMARY),
+        brandAccent: validHex(str(form, "brandAccent"), EGROW_ACCENT),
+        brandHeaderBg: form.get("darkHeader") === "on" ? validHex(str(form, "brandHeaderBg"), "#111827") : null,
+      },
+    });
     revalidatePath("/catalogo");
   });
 }

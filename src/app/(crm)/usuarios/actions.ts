@@ -1,5 +1,6 @@
 "use server";
 
+import { emailDomain, isEmail } from "@/lib/email-compose";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
@@ -8,6 +9,7 @@ import { requirePermission } from "@/lib/auth";
 import { bool, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { ALL_PERMISSIONS, ROLE_LABELS } from "@/lib/permissions";
+import { parseEmails } from "@/lib/ics";
 
 function role(form: FormData): Role {
   const r = str(form, "role") as Role;
@@ -50,6 +52,13 @@ export async function updateUser(id: string, _: ActionState, form: FormData) {
       throw new Error("No puedes desactivarte ni quitarte el perfil de administrador a ti mismo.");
     }
     const pwd = password(form, false);
+    const { emails: extraEmails, invalid } = parseEmails(str(form, "extraEmails"));
+    if (invalid.length) throw new Error(`Revisa estos correos adicionales: ${invalid.join(", ")}`);
+    const senderEmail = str(form, "senderEmail")?.toLowerCase() ?? null;
+    const domain = emailDomain(process.env.EMAIL_FROM);
+    if (senderEmail && (!isEmail(senderEmail) || (domain && emailDomain(senderEmail) !== domain))) {
+      throw new Error(`El correo de envío debe ser una dirección @${domain ?? "del dominio verificado"}.`);
+    }
     await prisma.user.update({
       where: { id },
       data: {
@@ -57,6 +66,8 @@ export async function updateUser(id: string, _: ActionState, form: FormData) {
         email: reqStr(form, "email", "Email").toLowerCase(),
         role: newRole,
         active,
+        extraEmails,
+        senderEmail,
         ...(pwd ? { passwordHash: await bcrypt.hash(pwd, 10) } : {}),
       },
     });

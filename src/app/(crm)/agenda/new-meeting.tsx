@@ -14,11 +14,13 @@ export function NewMeetingButton({
   deals,
   contacts,
   zoomEnabled,
+  emailEnabled,
 }: {
   users: Opt[];
   deals: Opt[];
   contacts: Opt[];
   zoomEnabled: boolean;
+  emailEnabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -57,7 +59,7 @@ export function NewMeetingButton({
                     </select>
                   </label>
                 </div>
-                <MeetingFields users={users} zoomEnabled={zoomEnabled} />
+                <MeetingFields users={users} zoomEnabled={zoomEnabled} emailEnabled={emailEnabled} />
                 <div className="flex justify-end gap-2">
                   <button type="button" className="btn" onClick={() => setOpen(false)}>Cancelar</button>
                   <SubmitButton pendingText="Agendando…">Agendar</SubmitButton>

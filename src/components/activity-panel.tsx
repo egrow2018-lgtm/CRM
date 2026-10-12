@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmailStatus } from "@/components/email-status";
 import type { Activity, ActivityType } from "@prisma/client";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { deleteActivity, toggleTask, type ActivityTarget } from "@/app/(crm)/actividades/actions";
@@ -32,6 +33,7 @@ type Item = Activity & {
   assignee: { name: string } | null;
   deal?: { id: string; name: string } | null;
   contact?: { id: string; firstName: string; lastName: string | null } | null;
+  email?: { id: string; openCount: number; clickCount: number; lastOpenedAt: Date | null } | null;
 };
 
 export function ActivityPanel({
@@ -41,6 +43,7 @@ export function ActivityPanel({
   canWrite,
   contact,
   zoomEnabled,
+  emailEnabled,
   canMeet = true,
   viewerId,
 }: {
@@ -50,6 +53,7 @@ export function ActivityPanel({
   canWrite: boolean;
   contact?: { name: string; email?: string | null; phone?: string | null } | null;
   zoomEnabled?: boolean;
+  emailEnabled?: boolean;
   canMeet?: boolean;
   viewerId?: string;
 }) {
@@ -63,7 +67,7 @@ export function ActivityPanel({
       {canWrite && (
         <div className="card p-4">
           <h2 className="mb-3 text-base">Registrar seguimiento</h2>
-          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} canMeet={canMeet} />
+          <QuickActions target={target} users={users} contact={contact} zoomEnabled={zoomEnabled} emailEnabled={emailEnabled} canMeet={canMeet} />
         </div>
       )}
 
@@ -72,7 +76,7 @@ export function ActivityPanel({
           <h2 className="mb-2 text-base">Próximas actividades</h2>
           <ul className="divide-y divide-slate-100">
             {tasks.map((t) => (
-              <TaskRow key={t.id} task={t} canWrite={canWrite} viewerId={viewerId} inviteEmail={contact?.email} />
+              <TaskRow key={t.id} task={t} canWrite={canWrite} viewerId={viewerId} inviteEmail={contact?.email} emailEnabled={emailEnabled} />
             ))}
           </ul>
         </div>
@@ -89,7 +93,10 @@ export function ActivityPanel({
                 <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-accent-500" />
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`badge ${COLORS[a.type]}`}>{ACTIVITY_LABELS[a.type]}</span>
-                  <span className="text-sm font-medium">{a.subject}</span>
+                  <span className="text-sm font-medium">
+                    {a.email ? <Link href={`/correos/${a.email.id}`} className="hover:underline">{a.subject}</Link> : a.subject}
+                  </span>
+                  {a.email && <EmailStatus email={a.email} />}
                   {a.deal && (
                     <Link href={`/negocios/${a.deal.id}`} className="text-xs text-brand-700 hover:underline">
                       {a.deal.name}
@@ -120,12 +127,14 @@ export function TaskRow({
   showDeal,
   viewerId,
   inviteEmail,
+  emailEnabled = false,
 }: {
   task: Item;
   canWrite: boolean;
   showDeal?: boolean;
   viewerId?: string;
   inviteEmail?: string | null;
+  emailEnabled?: boolean;
 }) {
   const alert = !task.completed && task.dueDate ? nextActivityAlert(task.dueDate, true) : null;
   return (
@@ -174,6 +183,10 @@ export function TaskRow({
             calendarUrl={googleCalendarUrl({ ...task, startAt: task.startAt })}
             inviteEmail={inviteEmail}
             canCancel={canWrite}
+            location={task.location}
+            guests={task.guests}
+            invitedAt={task.invitedAt}
+            emailEnabled={emailEnabled}
           />
         )}
       </div>

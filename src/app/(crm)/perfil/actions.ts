@@ -24,7 +24,13 @@ export async function updateProfile(_: ActionState, form: FormData) {
     }
     await prisma.user.update({
       where: { id: me.id },
-      data: { name: reqStr(form, "name", "Nombre"), digestEnabled: bool(form, "digestEnabled"), ...(passwordHash ? { passwordHash } : {}) },
+      data: {
+        name: reqStr(form, "name", "Nombre"),
+        digestEnabled: bool(form, "digestEnabled"),
+        trackingAlerts: bool(form, "trackingAlerts"),
+        signature: str(form, "signature")?.slice(0, 1000) ?? null,
+        ...(passwordHash ? { passwordHash } : {}),
+      },
     });
     revalidatePath("/", "layout");
   });

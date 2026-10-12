@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { getFormOptions } from "@/lib/queries";
+import { EMAIL_TRACKING, getFormOptions } from "@/lib/queries";
 import { contactName, formatDate, formatMoney, formatMoneyExact, toNumber } from "@/lib/format";
 import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
@@ -16,6 +16,7 @@ import { renewalAlert } from "@/lib/alerts";
 import { Semaforo } from "@/components/semaforo";
 import { CustomFieldsCard } from "@/components/custom-fields-form";
 import { QuotesCard } from "@/components/quotes-card";
+import { dealBrand } from "@/lib/brand";
 import { GpsboxCard } from "@/components/gpsbox-card";
 import { normalize } from "@/lib/csv";
 import { getCompanySettings } from "@/lib/settings";
@@ -35,8 +36,11 @@ export default async function DealPage({ params, searchParams }: { params: Promi
       contact: true,
       businessLine: true,
       items: { include: { product: { include: { businessLine: true } } }, orderBy: { id: "asc" } },
-      activities: { include: { author: true, assignee: true }, orderBy: { createdAt: "desc" } },
-      quotes: { orderBy: { createdAt: "desc" } },
+      activities: { include: { author: true, assignee: true, email: { select: EMAIL_TRACKING } }, orderBy: { createdAt: "desc" } },
+      quotes: {
+        orderBy: { createdAt: "desc" },
+        include: { links: { select: { token: true, emailId: true, views: { select: { startedAt: true }, orderBy: { startedAt: "desc" } } }, orderBy: { createdAt: "asc" } } },
+      },
       renewalOf: { select: { id: true, name: true } },
       renewals: { select: { id: true, name: true, stage: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
     },
@@ -46,10 +50,11 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const options = await getFormOptions();
   const products = await prisma.product.findMany({
     where: { active: true },
-    include: { businessLine: true },
+    include: { businessLine: { omit: { brandLogo: true } } },
     orderBy: [{ businessLine: { name: "asc" } }, { name: "asc" }],
   });
   const canWrite = can(user, "deals:write");
+  const canEmail = can(user, "emails:send") && emailConfigured();
   const editing = edit === "1" && canWrite;
   const weighted = (toNumber(deal.amount) * deal.stage.probability) / 100;
   const renewal = renewalAlert(deal.renewalDate);
@@ -78,11 +83,16 @@ export default async function DealPage({ params, searchParams }: { params: Promi
           </span>
         }
         actions={
-          canWrite && (
+          (canWrite || canEmail) && (
             <>
-              <Link href={editing ? `/negocios/${id}` : `/negocios/${id}?edit=1`} className="btn">
+              {canEmail && (
+                <Link href={`/correos/nuevo?dealId=${id}${deal.contactId ? `&contactId=${deal.contactId}` : ""}`} className="btn btn-primary">
+                  Enviar correo
+                </Link>
+              )}
+              {canWrite && <Link href={editing ? `/negocios/${id}` : `/negocios/${id}?edit=1`} className="btn">
                 {editing ? "Cancelar edición" : "Editar"}
-              </Link>
+              </Link>}
               {can(user, "deals:delete") && (
                 <form action={deleteDeal.bind(null, id)}>
                   <ConfirmButton message="¿Eliminar este negocio y todo su historial?">Eliminar</ConfirmButton>
@@ -251,10 +261,12 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             baseUrl={appUrl()}
             contactEmail={deal.contact?.email ?? null}
             emailEnabled={emailConfigured()}
+            brandName={dealBrand(deal)?.name ?? null}
           />
 
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
+            emailEnabled={emailConfigured()}
             canMeet={can(user, "meetings:schedule")}
             viewerId={user.id}
             target={{ dealId: id }}

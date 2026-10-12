@@ -5,7 +5,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { CONTACT_MAPPINGS, FORM_FIELD_TYPES, type ContactMapping, type FormField, type FormFieldType } from "@/lib/forms-builder";
 import { toKey } from "@/lib/custom-fields";
 import type { ActionState } from "@/lib/forms";
-import { LogoInput } from "./logo-input";
+import { LogoInput } from "@/components/logo-input";
 
 type FormValues = {
   name: string;
