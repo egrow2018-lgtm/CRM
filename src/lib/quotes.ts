@@ -1,5 +1,7 @@
 /** Cálculos y formato de las cotizaciones (sin dependencias de servidor, para poder probarlos). */
 export type QuoteItem = {
+  /** Producto del catálogo (para pasarlo a los productos del negocio al aceptarla) */
+  productId?: string | null;
   description: string;
   detail?: string | null;
   quantity: number;
@@ -51,4 +53,35 @@ export function computeTotals(
 
 export function quoteCode(year: number, number: number) {
   return `COT-${year}-${String(number).padStart(4, "0")}`;
+}
+
+export const QUOTE_STATUS = {
+  EMITIDA: { label: "Emitida", className: "bg-slate-100 text-slate-700" },
+  EN_REVISION: { label: "En revisión", className: "bg-amber-50 text-amber-800" },
+  APROBADA: { label: "Aprobada", className: "bg-emerald-50 text-emerald-700" },
+  NO_APROBADA: { label: "No aprobada", className: "bg-red-50 text-red-700" },
+} as const;
+
+export type QuoteStatusKey = keyof typeof QUOTE_STATUS;
+
+/** Líneas de la cotización tal como llegan del formulario (JSON), validadas y limpias. */
+export function parseQuoteLines(raw: unknown) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r) => {
+      const o = (r ?? {}) as Record<string, unknown>;
+      const n = (v: unknown, def = 0) => {
+        const x = typeof v === "number" ? v : Number(String(v ?? "").replace(",", "."));
+        return Number.isFinite(x) ? x : def;
+      };
+      return {
+        productId: typeof o.productId === "string" && o.productId ? o.productId : null,
+        description: String(o.description ?? "").trim().slice(0, 300),
+        quantity: Math.max(0, n(o.quantity, 1)),
+        unitPrice: Math.max(0, n(o.unitPrice)),
+        discount: Math.min(100, Math.max(0, n(o.discount))),
+      };
+    })
+    .filter((l) => l.description && l.quantity > 0)
+    .slice(0, 100);
 }

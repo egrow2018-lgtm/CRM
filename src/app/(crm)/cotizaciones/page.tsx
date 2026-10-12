@@ -8,11 +8,16 @@ import { EmptyState, LineBadge, PageHeader } from "@/components/ui";
 import { SemaforoPunto } from "@/components/semaforo";
 import { Pager, hrefWith, pageParams } from "@/components/pager";
 import { QuoteFilters } from "./filters";
+import { QuoteStatusSelect } from "./status-select";
+import { deleteQuotes } from "./actions";
+import { can } from "@/lib/permissions";
+import { BulkCheckCell, BulkCheckHeader, BulkSelection } from "@/components/bulk-selection";
 
 type SP = { q?: string; line?: string; year?: string; status?: string; owner?: string; page?: string; per?: string };
 
 export default async function QuotesPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requireUser();
+  const user = await requireUser();
+  const canWrite = can(user, "deals:write");
   const sp = await searchParams;
   const now = new Date();
 
@@ -38,6 +43,8 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
   if (sp.status === "enviada") base.push({ sentAt: { not: null } });
   if (sp.status === "sin-enviar") base.push({ sentAt: null });
   if (sp.status === "ganada") base.push({ deal: { stage: { isWon: true } } });
+  const byStatus = { emitida: "EMITIDA", "en-revision": "EN_REVISION", aprobada: "APROBADA", "no-aprobada": "NO_APROBADA" } as const;
+  if (sp.status && sp.status in byStatus) base.push({ status: byStatus[sp.status as keyof typeof byStatus] });
   // Línea: la del negocio o la de alguno de sus productos
   const lineWhere = (lineId: string): Prisma.QuoteWhereInput => ({
     deal: { OR: [{ businessLineId: lineId }, { items: { some: { product: { businessLineId: lineId } } } }] },
@@ -83,7 +90,8 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
     <div>
       <PageHeader
         title="Cotizaciones"
-        subtitle={`${total} cotizaciones · ${formatMoney(sum._sum.total)} cotizado. Para crear una, abre el negocio y usa «Generar cotización».`}
+        subtitle={`${total} cotizaciones · ${formatMoney(sum._sum.total)} cotizado`}
+        actions={canWrite && <Link href="/cotizaciones/nueva" className="btn btn-primary">Nueva cotización</Link>}
       />
       <QuoteFilters lines={lines} users={users} years={yearRows.map((r) => r.year)} />
 
@@ -111,11 +119,14 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
         <EmptyState>No hay cotizaciones con estos filtros.</EmptyState>
       ) : (
         <>
+          <BulkSelection enabled={canWrite} onDelete={deleteQuotes} noun={{ one: "cotización", many: "cotizaciones" }}>
           <div className="card overflow-x-auto">
             <table className="table">
               <thead>
                 <tr>
+                  {canWrite && <BulkCheckHeader />}
                   <th>Número</th>
+                  <th>Estado</th>
                   <th>Negocio</th>
                   <th>Cliente</th>
                   <th>Línea</th>
@@ -134,9 +145,12 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                   const client = q.deal.company?.name ?? snap.client?.company ?? snap.client?.contact ?? "—";
                   return (
                     <tr key={q.id} className="hover:bg-slate-50">
+                      {canWrite && <BulkCheckCell id={q.id} label={quoteCode(q.year, q.number)} />}
                       <td className="whitespace-nowrap">
-                        <a className="link" href={`/cotizaciones/${q.id}/pdf`} target="_blank" rel="noreferrer">{quoteCode(q.year, q.number)}</a>
+                        <Link className="link" href={`/cotizaciones/${q.id}`}>{quoteCode(q.year, q.number)}</Link>
+                        <a className="ml-2 text-xs text-slate-400 hover:text-brand-700" href={`/cotizaciones/${q.id}/pdf`} target="_blank" rel="noreferrer">PDF</a>
                       </td>
+                      <td className="whitespace-nowrap"><QuoteStatusSelect id={q.id} status={q.status} disabled={!canWrite} /></td>
                       <td className="max-w-56 truncate"><Link className="hover:underline" href={`/negocios/${q.deal.id}`}>{q.deal.name}</Link></td>
                       <td className="max-w-48 truncate">
                         {q.deal.company ? <Link className="hover:underline" href={`/empresas/${q.deal.company.id}`}>{client}</Link> : client}
@@ -162,6 +176,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
               </tbody>
             </table>
           </div>
+          </BulkSelection>
           <Pager path="/cotizaciones" sp={spRecord} total={total} page={page} per={per} />
         </>
       )}

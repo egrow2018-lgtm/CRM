@@ -4,7 +4,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IconSearch } from "@/components/icons";
 
-export const QUOTE_STATUS: Record<string, string> = {
+const QUOTE_FILTERS: Record<string, string> = {
+  emitida: "Emitidas",
+  "en-revision": "En revisión",
+  aprobada: "Aprobadas",
+  "no-aprobada": "No aprobadas",
   vigente: "Vigentes",
   vencida: "Vencidas",
   enviada: "Enviadas por correo",
@@ -62,7 +66,7 @@ export function QuoteFilters({
       </div>
       {select("line", "Línea de negocio", lines.map((l) => [l.id, l.name]))}
       {select("year", "Año", years.map((y) => [String(y), String(y)]))}
-      {select("status", "Estado", Object.entries(QUOTE_STATUS))}
+      {select("status", "Estado", Object.entries(QUOTE_FILTERS))}
       {select("owner", "Responsable", users.map((u) => [u.id, u.name]))}
       {keys.some((k) => params.get(k)) && (
         <button

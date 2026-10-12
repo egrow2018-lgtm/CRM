@@ -5,21 +5,19 @@ import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { EMAIL_TRACKING, getFormOptions } from "@/lib/queries";
 import { contactName, formatDate, formatMoney, formatMoneyExact, toNumber } from "@/lib/format";
-import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
+import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { DealForm } from "../deal-form";
 import { StageBar } from "../stage-bar";
-import { addDealItem, createRenewalNow, deleteDeal, removeDealItem, updateDeal, updateDealCustomData } from "../actions";
+import { createRenewalNow, deleteDeal, updateDeal, updateDealCustomData } from "../actions";
 import { renewalAlert } from "@/lib/alerts";
 import { Semaforo } from "@/components/semaforo";
 import { CustomFieldsCard } from "@/components/custom-fields-form";
 import { QuotesCard } from "@/components/quotes-card";
-import { dealBrand } from "@/lib/brand";
 import { GpsboxCard } from "@/components/gpsbox-card";
 import { normalize } from "@/lib/csv";
-import { getCompanySettings } from "@/lib/settings";
 import { appUrl, emailConfigured } from "@/lib/email";
 import { parseCustomData, parseCustomFields } from "@/lib/custom-fields";
 
@@ -48,26 +46,11 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   if (!deal) notFound();
 
   const options = await getFormOptions();
-  const products = await prisma.product.findMany({
-    where: { active: true },
-    include: { businessLine: { omit: { brandLogo: true } } },
-    orderBy: [{ businessLine: { name: "asc" } }, { name: "asc" }],
-  });
   const canWrite = can(user, "deals:write");
   const canEmail = can(user, "emails:send") && emailConfigured();
   const editing = edit === "1" && canWrite;
   const weighted = (toNumber(deal.amount) * deal.stage.probability) / 100;
   const renewal = renewalAlert(deal.renewalDate);
-
-  // Productos agrupados por línea, mostrando primero la línea del negocio
-  const groups = new Map<string, typeof products>();
-  for (const p of products) {
-    const key = p.businessLine.name;
-    groups.set(key, [...(groups.get(key) ?? []), p]);
-  }
-  const groupEntries = [...groups.entries()].sort(([a], [b]) =>
-    a === deal.businessLine?.name ? -1 : b === deal.businessLine?.name ? 1 : a.localeCompare(b),
-  );
 
   return (
     <div>
@@ -178,90 +161,15 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         </div>
 
         <div className="space-y-4 lg:col-span-2">
-          <div className="card p-4">
-            <h2 className="mb-3 text-base">Productos y servicios</h2>
-            {deal.items.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Descripción</th>
-                      <th className="text-right">Cant.</th>
-                      <th className="text-right">Precio unit.</th>
-                      <th className="text-right">Desc. %</th>
-                      <th className="text-right">Subtotal</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deal.items.map((it) => {
-                      const subtotal = toNumber(it.quantity) * toNumber(it.unitPrice) * (1 - toNumber(it.discount) / 100);
-                      return (
-                        <tr key={it.id}>
-                          <td>
-                            {it.description}
-                            {it.product && <div className="text-xs text-slate-400">{it.product.businessLine.name}</div>}
-                          </td>
-                          <td className="text-right tabular-nums">{toNumber(it.quantity)}</td>
-                          <td className="text-right tabular-nums">{formatMoneyExact(it.unitPrice)}</td>
-                          <td className="text-right tabular-nums">{toNumber(it.discount)}</td>
-                          <td className="text-right font-medium tabular-nums">{formatMoneyExact(subtotal)}</td>
-                          <td className="text-right">
-                            {canWrite && (
-                              <form action={removeDealItem.bind(null, it.id)}>
-                                <button className="text-xs text-slate-400 hover:text-red-600">Quitar</button>
-                              </form>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    <tr>
-                      <td colSpan={4} className="text-right font-semibold">Total</td>
-                      <td className="text-right font-semibold tabular-nums">{formatMoneyExact(deal.amount)}</td>
-                      <td />
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="mb-2 text-sm text-slate-500">
-                Sin productos. Al agregar productos, el valor del negocio se calcula automáticamente.
-              </p>
-            )}
-            {canWrite && (
-              <ActionForm action={addDealItem.bind(null, id)} resetOnSuccess className="mt-3 grid gap-2 sm:grid-cols-12">
-                <select name="productId" className="input sm:col-span-4" defaultValue="">
-                  <option value="">— Producto del catálogo —</option>
-                  {groupEntries.map(([line, items]) => (
-                    <optgroup key={line} label={line}>
-                      {items.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}{toNumber(p.unitPrice) > 0 ? ` · ${formatMoney(p.unitPrice)}` : ""}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                <input name="description" placeholder="Descripción (opcional)" className="input sm:col-span-3" />
-                <input name="quantity" type="number" step="0.01" min="0" placeholder="Cant." defaultValue="1" className="input sm:col-span-1" />
-                <input name="unitPrice" type="number" step="0.01" min="0" placeholder="Precio" className="input sm:col-span-2" title="Vacío = precio del catálogo" />
-                <input name="discount" type="number" step="0.01" min="0" max="100" placeholder="Desc %" className="input sm:col-span-1" />
-                <SubmitButton className="btn btn-primary sm:col-span-1" pendingText="…">+</SubmitButton>
-              </ActionForm>
-            )}
-          </div>
-
           <QuotesCard
             dealId={id}
-            quotes={deal.quotes}
-            hasItems={deal.items.length > 0}
+            // La aceptada va primero; las demás, debajo
+            quotes={[...deal.quotes].sort((a, b) => Number(b.status === "APROBADA") - Number(a.status === "APROBADA"))}
             canWrite={canWrite}
-            defaults={await getCompanySettings()}
+            canAccept={canWrite || can(user, "deals:production")}
             baseUrl={appUrl()}
             contactEmail={deal.contact?.email ?? null}
             emailEnabled={emailConfigured()}
-            brandName={dealBrand(deal)?.name ?? null}
           />
 
           <ActivityPanel

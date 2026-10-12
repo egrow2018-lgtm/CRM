@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeTotals, quoteCode } from "./quotes";
+import { computeTotals, parseQuoteLines, quoteCode } from "./quotes";
 
 test("totales con descuento e IVA 15%", () => {
   const t = computeTotals(
@@ -25,4 +25,18 @@ test("IVA 0% y redondeo a centavos", () => {
 
 test("código de cotización", () => {
   assert.equal(quoteCode(2026, 7), "COT-2026-0007");
+});
+
+test("parseQuoteLines limpia las líneas del formulario", () => {
+  const lines = parseQuoteLines([
+    { productId: "p1", description: " Cámara GPS ", quantity: "2", unitPrice: "650,5", discount: "150" },
+    { productId: "", description: "", quantity: "1", unitPrice: "10" },
+    { description: "Instalación", quantity: "-1", unitPrice: "x" },
+    { description: "Soporte", quantity: "1", unitPrice: "-5", discount: "-3" },
+  ]);
+  assert.deepEqual(lines, [
+    { productId: "p1", description: "Cámara GPS", quantity: 2, unitPrice: 650.5, discount: 100 },
+    { productId: null, description: "Soporte", quantity: 1, unitPrice: 0, discount: 0 },
+  ]);
+  assert.deepEqual(parseQuoteLines("nada"), []);
 });

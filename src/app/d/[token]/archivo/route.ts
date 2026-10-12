@@ -4,6 +4,8 @@ import { signedFileUrl } from "@/lib/storage";
 import { renderQuotePdf } from "@/lib/quote-pdf";
 import { quoteCode } from "@/lib/quotes";
 
+export const maxDuration = 60;
+
 export const dynamic = "force-dynamic";
 
 /** Archivo de un enlace rastreado: el visor lo lee de aquí (y el botón Descargar). */

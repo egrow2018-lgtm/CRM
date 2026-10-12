@@ -37,6 +37,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       },
     });
     after(() => notifyDocumentView(link.id, view.viewerEmail).catch((e) => console.error("Aviso de vista", e)));
+    // El cliente abrió la cotización: pasa a «En revisión»
+    if (link.quoteId) {
+      await prisma.quote.updateMany({ where: { id: link.quoteId, status: "EMITIDA" }, data: { status: "EN_REVISION", statusChangedAt: new Date() } });
+    }
     return Response.json({ viewId: view.id });
   }
 
