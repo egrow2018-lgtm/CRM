@@ -66,6 +66,9 @@ export async function getFilterOptions() {
 export type FilterOptions = Awaited<ReturnType<typeof getFilterOptions>>;
 
 /** Actividades pendientes: tareas y llamadas o reuniones programadas (las notas nunca quedan pendientes). */
+/** Estado de seguimiento del correo de una actividad (para el historial). */
+export const EMAIL_TRACKING = { id: true, openCount: true, clickCount: true, lastOpenedAt: true } satisfies Prisma.EmailMessageSelect;
+
 export const PENDING = { completed: false, type: { in: ["TAREA", "LLAMADA", "REUNION"] } } satisfies Prisma.ActivityWhereInput;
 
 export const dealCardInclude = {

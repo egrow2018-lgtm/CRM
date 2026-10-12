@@ -50,6 +50,12 @@ model User {
   permissions       String[] @default([])
   /// Otros correos que reciben copia de sus reuniones (ej. el correo personal)
   extraEmails       String[] @default([])
+  /// Dirección desde la que salen sus correos a clientes (debe ser del dominio verificado en Resend)
+  senderEmail       String?
+  /// Firma que se agrega al final de sus correos
+  signature         String?
+  /// Avisarle por correo cuando abran sus correos o documentos
+  trackingAlerts    Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -60,6 +66,10 @@ model User {
   activitiesAssigned Activity[] @relation("ActivityAssignee")
   formsAssigned      Form[]     @relation("FormAssignee")
   quotes             Quote[]
+  documents          Document[]
+  documentLinks      DocumentLink[]
+  emailTemplates     EmailTemplate[]
+  emailsSent         EmailMessage[]
 }
 
 /// Línea de negocio: e-learning, Rutalink, Ludus, Humand, nuevas representaciones…
@@ -83,6 +93,7 @@ model BusinessLine {
   products Product[]
   deals    Deal[]
   forms    Form[]
+  emailTemplates EmailTemplate[]
 }
 
 model Product {
@@ -136,6 +147,7 @@ model Company {
   contacts   Contact[]
   deals      Deal[]
   activities Activity[]
+  emails     EmailMessage[]
 
   @@index([name])
   @@index([ownerId])
@@ -164,6 +176,8 @@ model Contact {
   deals       Deal[]
   activities  Activity[]
   submissions FormSubmission[]
+  emails        EmailMessage[]
+  documentLinks DocumentLink[]
 
   @@index([companyId])
   @@index([leadStatus])
@@ -203,6 +217,7 @@ model Deal {
   items      DealItem[]
   activities Activity[]
   quotes     Quote[]
+  emails     EmailMessage[]
 
   @@index([stageId])
   @@index([renewalDate])
@@ -245,6 +260,9 @@ model Activity {
   guests          String[]  @default([])
   /// Cuándo se envió la invitación por correo (null = no se envió)
   invitedAt       DateTime?
+  /// Correo enviado desde el CRM (con seguimiento de aperturas)
+  emailId         String?   @unique
+  email           EmailMessage? @relation(fields: [emailId], references: [id], onDelete: SetNull)
   completed   Boolean      @default(false)
   completedAt DateTime?
   dealId      String?
@@ -337,6 +355,9 @@ model Quote {
   sentAt      DateTime?
   createdAt   DateTime @default(now())
 
+  links  DocumentLink[]
+  emails EmailMessage[]
+
   @@unique([year, number])
   @@index([dealId])
 }
@@ -345,4 +366,158 @@ model Quote {
 model AppSetting {
   key   String @id
   value Json
+}
+
+/// Carpeta de la biblioteca de documentos
+model DocumentFolder {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  documents Document[]
+}
+
+/// Documento de la biblioteca (el archivo se guarda en Supabase Storage)
+model Document {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  fileName        String
+  mimeType        String
+  size            Int
+  storagePath     String   @unique
+  pageCount       Int?
+  /// Miniatura de la primera página (data URL JPEG)
+  thumbnail       String?
+  allowDownload   Boolean  @default(true)
+  /// Pide aceptar el aviso de uso de datos antes de ver el documento
+  consentRequired Boolean  @default(false)
+  folderId        String?
+  folder          DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  ownerId         String?
+  owner           User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  links DocumentLink[]
+
+  @@index([folderId])
+}
+
+/// Enlace rastreado a un documento o a una cotización (uno por destinatario)
+model DocumentLink {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  documentId  String?
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  quoteId     String?
+  quote       Quote?    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  emailId     String?
+  email       EmailMessage? @relation(fields: [emailId], references: [id], onDelete: SetNull)
+  /// Para enlaces sin contacto (ej. "Grupo de WhatsApp")
+  label       String?
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  lastNotifiedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  views DocumentView[]
+
+  @@index([documentId])
+  @@index([quoteId])
+  @@index([contactId])
+}
+
+/// Una visita a un documento: tiempo total y por página
+model DocumentView {
+  id          String   @id @default(cuid())
+  linkId      String
+  link        DocumentLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  startedAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  durationSec Int      @default(0)
+  /// { "1": segundos, "2": segundos, … }
+  pageTimes   Json     @default("{}")
+  downloaded  Boolean  @default(false)
+  /// Correo que escribió el visitante (enlaces sin contacto con aviso de datos)
+  viewerEmail String?
+  consentAt   DateTime?
+  userAgent   String?
+
+  @@index([linkId, startedAt])
+}
+
+/// Plantilla de correo. El cuerpo admite **negrita**, {{variables}} y [[doc:ID]] para documentos.
+model EmailTemplate {
+  id             String   @id @default(cuid())
+  name           String
+  subject        String
+  body           String
+  businessLineId String?
+  businessLine   BusinessLine? @relation(fields: [businessLineId], references: [id], onDelete: SetNull)
+  createdById    String?
+  createdBy      User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  emails EmailMessage[]
+}
+
+/// Correo enviado desde el CRM, con seguimiento de aperturas y clics
+model EmailMessage {
+  id          String   @id @default(cuid())
+  /// Token del píxel de apertura y de los enlaces rastreados
+  token       String   @unique
+  fromUserId  String?
+  fromUser    User?    @relation(fields: [fromUserId], references: [id], onDelete: SetNull)
+  fromEmail   String
+  to          String[]
+  cc          String[] @default([])
+  subject     String
+  /// Texto tal como lo escribió el vendedor y HTML enviado (sin píxel)
+  body        String
+  html        String
+  /// Destinos de los enlaces rastreados, por posición
+  links       String[] @default([])
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId      String?
+  deal        Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  quoteId     String?
+  quote       Quote?   @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  templateId  String?
+  template    EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  sentAt      DateTime @default(now())
+  openCount   Int      @default(0)
+  firstOpenedAt DateTime?
+  lastOpenedAt  DateTime?
+  clickCount  Int      @default(0)
+  lastClickedAt DateTime?
+  lastNotifiedAt DateTime?
+
+  events   EmailEvent[]
+  docLinks DocumentLink[]
+  activity Activity?
+
+  @@index([fromUserId, sentAt])
+  @@index([contactId])
+  @@index([dealId])
+  @@index([sentAt])
+}
+
+/// Apertura o clic de un correo enviado desde el CRM
+model EmailEvent {
+  id        String   @id @default(cuid())
+  emailId   String
+  email     EmailMessage @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  /// "open" o "click"
+  type      String
+  url       String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([emailId, createdAt])
 }

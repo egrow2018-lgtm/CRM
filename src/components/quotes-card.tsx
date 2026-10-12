@@ -1,7 +1,7 @@
 import type { Quote } from "@prisma/client";
 import { ActionForm, SubmitButton } from "./action-form";
 import { CopyButton } from "./copy-button";
-import { formatDate, formatMoneyExact } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoneyExact } from "@/lib/format";
 import { quoteCode } from "@/lib/quotes";
 import { createQuote, sendQuoteEmail } from "@/app/(crm)/cotizaciones/actions";
 import type { CompanySettings } from "@/lib/settings";
@@ -19,7 +19,7 @@ export function QuotesCard({
   brandName,
 }: {
   dealId: string;
-  quotes: Quote[];
+  quotes: (Quote & { links?: { token: string; emailId: string | null; views: { startedAt: Date }[] }[] })[];
   hasItems: boolean;
   canWrite: boolean;
   defaults: CompanySettings;
@@ -72,7 +72,10 @@ export function QuotesCard({
         <ul className="divide-y divide-slate-100">
           {quotes.map((q) => {
             const code = quoteCode(q.year, q.number);
-            const publicUrl = `${baseUrl}/c/${q.publicToken}`;
+            // Enlace rastreado para compartir (las cotizaciones antiguas usan el enlace público sin seguimiento)
+            const share = q.links?.find((l) => !l.emailId);
+            const publicUrl = share ? `${baseUrl}/d/${share.token}` : `${baseUrl}/c/${q.publicToken}`;
+            const views = (q.links ?? []).flatMap((l) => l.views).sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
             const expired = q.validUntil < new Date();
             const wa = `Hola, te comparto la cotización ${code}: ${publicUrl}`;
             return (
@@ -86,6 +89,13 @@ export function QuotesCard({
                     {expired ? "Vencida" : "Válida hasta"} {formatDate(q.validUntil)}
                   </span>
                   {q.sentAt && <span className="badge bg-brand-50 text-brand-700">Enviada {formatDate(q.sentAt)}</span>}
+                  {views.length > 0 ? (
+                    <span className="badge bg-amber-50 text-amber-800" title={`Última vista: ${formatDateTime(views[0].startedAt)}`}>
+                      👀 Vista {views.length} {views.length === 1 ? "vez" : "veces"} · última {formatDateTime(views[0].startedAt)}
+                    </span>
+                  ) : (
+                    q.sentAt && <span className="badge bg-slate-100 text-slate-500">Aún no la abren</span>
+                  )}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <a href={`/cotizaciones/${q.id}/pdf`} target="_blank" rel="noreferrer" className="btn btn-sm">Ver PDF</a>
@@ -103,7 +113,7 @@ export function QuotesCard({
                             className="input"
                             defaultValue={`Estimado/a,\n\nAdjunto la cotización ${code}. Quedo atento/a a sus comentarios.\n\nSaludos cordiales.`}
                           />
-                          <p className="text-xs text-slate-500">Se adjunta el PDF y recibes una copia.</p>
+                          <p className="text-xs text-slate-500">Se adjunta el PDF y un botón para verla en línea: te avisaremos cuando la abran. Recibes una copia.</p>
                           <div><SubmitButton pendingText="Enviando…">Enviar</SubmitButton></div>
                         </ActionForm>
                       ) : (
