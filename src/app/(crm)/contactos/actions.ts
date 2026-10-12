@@ -23,10 +23,24 @@ function contactData(form: FormData) {
   };
 }
 
+/** No se permiten dos contactos con el mismo correo. */
+async function assertUniqueEmail(email: string | null, excludeId?: string) {
+  if (!email) return;
+  const other = await prisma.contact.findFirst({
+    where: { email: { equals: email, mode: "insensitive" }, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    select: { firstName: true, lastName: true, company: { select: { name: true } } },
+  });
+  if (other) {
+    const who = [other.firstName, other.lastName].filter(Boolean).join(" ");
+    throw new Error(`Ya existe el contacto «${who}»${other.company ? ` (${other.company.name})` : ""} con el correo ${email}. Búscalo en Contactos en lugar de crearlo de nuevo.`);
+  }
+}
+
 export async function createContact(_: ActionState, form: FormData) {
   return runAction(async () => {
     const user = await requirePermission("contacts:write");
     const data = contactData(form);
+    await assertUniqueEmail(data.email);
     const contact = await prisma.contact.create({ data: { ...data, ownerId: data.ownerId ?? user.id } });
     revalidatePath("/contactos");
     return `/contactos/${contact.id}`;
@@ -36,7 +50,9 @@ export async function createContact(_: ActionState, form: FormData) {
 export async function updateContact(id: string, _: ActionState, form: FormData) {
   return runAction(async () => {
     await requirePermission("contacts:write");
-    await prisma.contact.update({ where: { id }, data: contactData(form) });
+    const data = contactData(form);
+    await assertUniqueEmail(data.email, id);
+    await prisma.contact.update({ where: { id }, data });
     revalidatePath("/contactos");
     return `/contactos/${id}`;
   });

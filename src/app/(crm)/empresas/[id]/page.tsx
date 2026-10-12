@@ -5,7 +5,8 @@ import { EMAIL_TRACKING } from "@/lib/queries";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { contactName, formatDate, formatMoney } from "@/lib/format";
-import { ConfirmButton } from "@/components/action-form";
+import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
+import { ContactPicker } from "@/components/contact-picker";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
 import { emailConfigured } from "@/lib/email";
@@ -14,8 +15,8 @@ import { CompanyForm } from "../company-form";
 import { GpsboxCard } from "@/components/gpsbox-card";
 import { companyKey, normalize, websiteDomain } from "@/lib/csv";
 import { CompanyLogo } from "@/components/company-logo";
-import { duplicateGroups } from "@/lib/duplicates";
-import { deleteCompany, mergeCompany, updateCompany } from "../actions";
+import { duplicateGroups, websiteKey } from "@/lib/duplicates";
+import { deleteCompany, linkContacts, mergeCompany, updateCompany } from "../actions";
 
 export default async function CompanyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
   const user = await requireUser();
@@ -38,7 +39,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
   const firstWord = companyKey(company.name).split(" ")[0] ?? "";
   const duplicates = can(user, "companies:delete")
     ? await prisma.company
-        .findMany({ select: { id: true, name: true, website: true } })
+        .findMany({ select: { id: true, name: true, website: true, taxId: true } })
         .then(async (all) => {
           const group = duplicateGroups(all).find((g) => g.some((c) => c.id === id)) ?? [];
           const ids = new Set(group.map((c) => c.id));
@@ -55,6 +56,22 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
         })
     : [];
   const canWrite = can(user, "companies:write");
+  // Contactos para asociar: los que están sin empresa y los que tienen correo del dominio de su sitio web
+  const domain = websiteKey(company.website);
+  const linkable = can(user, "contacts:write")
+    ? await prisma.contact.findMany({
+        where: {
+          // Ojo: «companyId distinto de esta» deja fuera a los que no tienen empresa, por eso van aparte
+          OR: [
+            { companyId: null },
+            ...(domain ? [{ companyId: { not: id }, email: { endsWith: `@${domain}`, mode: "insensitive" as const } }] : []),
+          ],
+        },
+        select: { id: true, firstName: true, lastName: true, email: true, company: { select: { name: true } } },
+        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      })
+    : [];
+  const suggested = domain ? linkable.filter((c) => c.email?.toLowerCase().endsWith(`@${domain}`)).map((c) => c.id) : [];
   const editing = edit === "1" && canWrite;
   // GPSBox: se muestra si la empresa tiene negocios de Rutalink o ya tiene RUC
   const showGpsbox = company.deals.some((d) => normalize(d.businessLine?.name ?? "") === "rutalink") || !!company.taxId;
@@ -149,6 +166,21 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
                 </li>
               ))}
             </ul>
+            {linkable.length > 0 && (
+              <details className="mt-3" open={suggested.length > 0 && company.contacts.length === 0}>
+                <summary className="cursor-pointer text-sm font-medium text-brand-700">
+                  + Asociar contactos existentes
+                  {suggested.length > 0 && <span className="badge ml-1 bg-accent-100 text-brand-800">{suggested.length} sugeridos</span>}
+                </summary>
+                <ActionForm action={linkContacts.bind(null, id)} resetOnSuccess successMessage="Contactos asociados." className="mt-2 space-y-2">
+                  <ContactPicker
+                    contacts={linkable.map((c) => ({ id: c.id, name: contactName(c), email: c.email, company: c.company?.name ?? null }))}
+                    suggested={suggested}
+                  />
+                  <SubmitButton className="btn btn-primary btn-sm" pendingText="Asociando…">Asociar a {company.name}</SubmitButton>
+                </ActionForm>
+              </details>
+            )}
           </div>
         </div>
         <div className="space-y-4 lg:col-span-2">

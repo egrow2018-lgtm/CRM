@@ -61,11 +61,17 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
   if (sp.lead === "none") base.push({ leadStatus: null });
   else if (sp.lead && sp.lead in LEAD_STATUS) base.push({ leadStatus: sp.lead as LeadStatus });
 
+  // Correos que se repiten en más de un contacto (para revisar duplicados)
+  const repeated = (
+    await prisma.$queryRaw<{ e: string }[]>`SELECT lower(email) AS e FROM "Contact" WHERE email IS NOT NULL GROUP BY 1 HAVING count(*) > 1`
+  ).map((r) => r.e);
   const ISSUES: { key: string; label: string; where: Prisma.ContactWhereInput }[] = [
     { key: "sin-propietario", label: "Contactos falta el propietario", where: { ownerId: null } },
     { key: "sin-email", label: "Contactos falta e-mail", where: { email: null } },
     { key: "sin-estado", label: "Contactos falta estado del lead", where: { leadStatus: null } },
     { key: "sin-actividad", label: "Contactos sin actividad reciente", where: noRecentActivity },
+    { key: "sin-empresa", label: "Contactos sin empresa", where: { companyId: null } },
+    { key: "repetidos", label: "Contactos con correo repetido", where: { email: { in: repeated, mode: "insensitive" } } },
   ];
   const issue = ISSUES.find((i) => i.key === sp.issue);
   const where: Prisma.ContactWhereInput = { AND: [...base, ...(issue ? [issue.where] : [])] };
@@ -94,7 +100,14 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
             }),
           ),
         ).then((groups) => groups.flat())
-      : prisma.contact.findMany({ where, include, orderBy: [orderBy, { id: "asc" }], skip, take: per }),
+      : prisma.contact.findMany({
+          where,
+          include,
+          // Los repetidos se ordenan por correo para verlos juntos
+          orderBy: issue?.key === "repetidos" ? [{ email: "asc" }, { createdAt: "asc" }] : [orderBy, { id: "asc" }],
+          skip,
+          take: per,
+        }),
     prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     isBoard ? prisma.contact.groupBy({ by: ["leadStatus"], where, _count: true }) : Promise.resolve([]),
   ]);
@@ -126,7 +139,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
 
       <ContactFilters users={users} />
 
-      <div className="card mb-4 grid grid-cols-2 divide-slate-100 lg:grid-cols-4 lg:divide-x">
+      <div className="card mb-4 grid grid-cols-2 divide-slate-100 sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
         {ISSUES.map((i, idx) => {
           const active = sp.issue === i.key;
           return (
