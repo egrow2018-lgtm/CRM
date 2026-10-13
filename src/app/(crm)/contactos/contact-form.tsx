@@ -1,4 +1,5 @@
 import type { Contact } from "@prisma/client";
+import { PhoneInput } from "@/components/phone-input";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field } from "@/components/ui";
 import type { ActionState } from "@/lib/forms";
@@ -26,7 +27,7 @@ export function ContactForm({
       <Field label="Nombre *"><input name="firstName" required defaultValue={contact?.firstName} className="input" /></Field>
       <Field label="Apellido"><input name="lastName" defaultValue={contact?.lastName ?? ""} className="input" /></Field>
       <Field label="Email"><input name="email" type="email" defaultValue={contact?.email ?? ""} className="input" /></Field>
-      <Field label="Teléfono / WhatsApp"><input name="phone" defaultValue={contact?.phone ?? ""} className="input" /></Field>
+      <Field label="Teléfono / WhatsApp" className="sm:col-span-2"><PhoneInput defaultValue={contact?.phone} /></Field>
       <Field label="Cargo"><input name="jobTitle" defaultValue={contact?.jobTitle ?? ""} className="input" /></Field>
       <Field label="Empresa">
         <select name="companyId" defaultValue={contact?.companyId ?? defaultCompanyId ?? ""} className="input">

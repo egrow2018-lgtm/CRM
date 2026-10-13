@@ -12,6 +12,7 @@ import { sendClientEmail } from "@/lib/client-email";
 import { fillTemplate, fromEditable, splitEmails } from "@/lib/email-compose";
 import { templateValues } from "@/lib/email-context";
 import { lineBrand } from "@/lib/brand";
+import { createEmailImage } from "@/lib/email-images";
 
 export async function sendEmailAction(_: ActionState, form: FormData) {
   return runAction(async () => {
@@ -116,20 +117,8 @@ export async function deleteEmails(ids: string[]) {
 export async function uploadEmailImage(input: { name: string; data: string; width?: number; height?: number }) {
   try {
     const user = await requirePermission("emails:send");
-    const m = /^data:(image\/(?:png|jpeg|gif));base64,([A-Za-z0-9+/=]+)$/.exec(input.data ?? "");
-    if (!m) throw new Error("Usa una imagen PNG, JPG o GIF.");
-    const bytes = Buffer.from(m[2]!, "base64");
-    if (bytes.length > 1_500_000) throw new Error("La imagen pesa más de 1,5 MB incluso reducida. Prueba con otra.");
-    // Nombre único (en el editor la imagen se identifica por su nombre)
-    const base = (input.name || "imagen").replace(/[\]\n→\[]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60) || "imagen";
-    const taken = new Set((await prisma.emailImage.findMany({ where: { name: { startsWith: base } }, select: { name: true } })).map((i) => i.name));
-    let name = base;
-    for (let n = 2; taken.has(name); n++) name = `${base} (${n})`;
-    const img = await prisma.emailImage.create({
-      data: { name, mimeType: m[1]!, data: bytes, width: input.width ?? null, height: input.height ?? null, createdById: user.id },
-      select: { id: true, name: true },
-    });
-    return img;
+    const img = await createEmailImage(input, user.id);
+    return { id: img.id, name: img.name };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "No se pudo subir la imagen." };
   }

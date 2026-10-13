@@ -1,4 +1,5 @@
 import type { Company } from "@prisma/client";
+import { PhoneInput } from "@/components/phone-input";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field } from "@/components/ui";
 import type { ActionState } from "@/lib/forms";
@@ -28,7 +29,7 @@ export function CompanyForm({
       </Field>
       <Field label="Industria"><input name="industry" defaultValue={company?.industry ?? ""} className="input" /></Field>
       <Field label="Sitio web (no se repite)"><input name="website" defaultValue={company?.website ?? ""} className="input" placeholder="https://" /></Field>
-      <Field label="Teléfono"><input name="phone" defaultValue={company?.phone ?? ""} className="input" /></Field>
+      <Field label="Teléfono"><PhoneInput defaultValue={company?.phone} placeholder="2 451 3888" /></Field>
       <Field label="Dirección" className="sm:col-span-2"><input name="address" defaultValue={company?.address ?? ""} className="input" /></Field>
       <Field label="Ciudad"><input name="city" defaultValue={company?.city ?? ""} className="input" /></Field>
       <Field label="País"><input name="country" defaultValue={company?.country ?? ""} className="input" /></Field>

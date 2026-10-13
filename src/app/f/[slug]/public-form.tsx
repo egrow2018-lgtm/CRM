@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import { PhoneInput } from "@/components/phone-input";
 import type { FormField } from "@/lib/forms-builder";
 import { submitPublicForm } from "./actions";
 
@@ -65,6 +66,8 @@ export function PublicForm({
                     <option key={o} value={o}>{o}</option>
                   ))}
                 </select>
+              ) : f.type === "tel" ? (
+                <PhoneInput name={f.key} required={f.required} placeholder={f.placeholder || "99 543 9203"} className="text-base" />
               ) : (
                 <input
                   name={f.key}

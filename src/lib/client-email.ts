@@ -2,7 +2,7 @@ import "server-only";
 import type { User } from "@prisma/client";
 import { prisma } from "./db";
 import { appUrl, egrowBrand, emailButton, emailLayout, escapeHtml, sendEmail, type EmailAttachment, type EmailBrand } from "./email";
-import { docIdsIn, imageIdsIn, isEmail, openPixel, personalLayout, plainText, renderBody, senderFor, signatureHtml } from "./email-compose";
+import { docIdsIn, imageIdsIn, isEmail, signatureWidth, openPixel, personalLayout, plainText, renderBody, senderFor, signatureHtml } from "./email-compose";
 import { randomToken } from "./doc-stats";
 import { quoteCode } from "./quotes";
 import { contactName } from "./format";
@@ -44,6 +44,11 @@ export async function sendClientEmail(p: {
   const docs = await prisma.document.findMany({ where: { id: { in: docIdsIn(p.body) } }, select: { id: true, name: true } });
   const images = await prisma.emailImage.findMany({ where: { id: { in: imageIdsIn(p.body) } }, select: { id: true, name: true } });
   const brand: EmailBrand | null = p.brand === "egrow" ? egrowBrand() : (p.brand ?? null);
+  // Imagen de firma del vendedor (Mi perfil)
+  const sigImg = p.user.signatureImageId
+    ? await prisma.emailImage.findUnique({ where: { id: p.user.signatureImageId }, select: { id: true, width: true } })
+    : null;
+  const sigImage = sigImg ? { src: `${app}/api/img/${sigImg.id}`, width: signatureWidth(p.user.signatureImageWidth, sigImg.width) } : null;
 
   const message = await prisma.emailMessage.create({
     data: {
@@ -103,7 +108,7 @@ export async function sendClientEmail(p: {
         ? `<p>Adjuntamos la cotización <b>${escapeHtml(p.quote.code)}</b> por <b>US$ ${escapeHtml(p.quote.total)}</b>.</p>
            <p>${emailButton(forClient ? `${app}/d/${quoteLink!.token}` : `${app}${p.dealId ? `/negocios/${p.dealId}` : "/cotizaciones"}`, "Ver cotización en línea", color)}</p>`
         : "";
-      const signature = signatureHtml(p.user, sender.replyTo);
+      const signature = signatureHtml(p.user, sender.replyTo, sigImage);
       const pixel = forClient ? openPixel(`${app}/api/t/o/${message.token}`) : "";
       const note = forClient
         ? ""

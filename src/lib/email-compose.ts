@@ -117,12 +117,30 @@ ${signatureHtml ? `<div style="margin-top:18px;padding-top:10px;border-top:1px s
 }
 
 /** Firma: el texto que escribió la persona o, si no tiene, su nombre y correo. */
-export function signatureHtml(user: { name: string; signature?: string | null }, email: string) {
+export function signatureHtml(
+  user: { name: string; signature?: string | null },
+  email: string,
+  /** Imagen de firma (como la de Outlook): URL pública y ancho en px */
+  image?: { src: string; width: number } | null,
+) {
+  const lines = (t: string) => t.split("\n").map(escapeHtml);
+  if (image) {
+    // Con imagen: la imagen es la firma; el texto (si hay) va debajo en letra pequeña, como un aviso legal
+    const w = Math.round(Math.min(Math.max(image.width, 120), 700));
+    const img = `<img src="${escapeHtml(image.src)}" alt="${escapeHtml(user.name)}" width="${w}" style="display:block;width:${w}px;max-width:100%;height:auto;border:0" />`;
+    const text = user.signature?.trim();
+    return text ? `${img}<div style="margin-top:8px;font-size:10px;line-height:1.4;color:#64748b">${lines(text).join("<br>")}</div>` : img;
+  }
   const text = user.signature?.trim() || `${user.name}\n${email}`;
-  return text
-    .split("\n")
-    .map((l, i) => (i === 0 ? `<b>${escapeHtml(l)}</b>` : escapeHtml(l)))
+  return lines(text)
+    .map((l, i) => (i === 0 ? `<b>${l}</b>` : l))
     .join("<br>");
+}
+
+/** Ancho de la imagen de firma: el elegido o, en automático, su ancho natural hasta 560 px (el ancho del correo). */
+export function signatureWidth(chosen: number | null | undefined, natural: number | null | undefined) {
+  if (chosen && chosen > 0) return chosen;
+  return Math.min(natural ?? 500, 560);
 }
 
 /** Píxel de apertura (imagen de 1×1 que se carga al abrir el correo). */
