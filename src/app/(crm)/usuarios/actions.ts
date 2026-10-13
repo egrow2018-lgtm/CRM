@@ -68,6 +68,7 @@ export async function updateUser(id: string, _: ActionState, form: FormData) {
         active,
         extraEmails,
         senderEmail,
+        productionReport: bool(form, "productionReport"),
         ...(pwd ? { passwordHash: await bcrypt.hash(pwd, 10) } : {}),
       },
     });

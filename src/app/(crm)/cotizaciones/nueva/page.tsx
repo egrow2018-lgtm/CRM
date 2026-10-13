@@ -7,12 +7,12 @@ import { quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { PageHeader } from "@/components/ui";
 import { QuoteForm } from "./quote-form";
 
-type SP = { dealId?: string; desde?: string };
+type SP = { dealId?: string; desde?: string; contactId?: string };
 
 export default async function NewQuotePage({ searchParams }: { searchParams: Promise<SP> }) {
   await requirePagePermission("deals:write");
   const sp = await searchParams;
-  const [deals, products, brandLines, company, source] = await Promise.all([
+  const [deals, products, brandLines, company, source, quoteLines, contacts] = await Promise.all([
     prisma.deal.findMany({
       where: { OR: [{ stage: { isLost: false } }, ...(sp.dealId ? [{ id: sp.dealId }] : [])] },
       select: { id: true, name: true, businessLineId: true, company: { select: { name: true } }, contact: { select: { firstName: true, lastName: true } } },
@@ -32,8 +32,16 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
       : sp.dealId
         ? prisma.quote.findFirst({ where: { dealId: sp.dealId }, orderBy: { createdAt: "desc" } })
         : null,
+    // Líneas que permiten cotizar directo a un contacto, sin negocio (ej. Rutalink para personas naturales)
+    prisma.businessLine.findMany({ where: { quoteWithoutDeal: true, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.contact.findMany({
+      select: { id: true, firstName: true, lastName: true, email: true, company: { select: { name: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 5000,
+    }),
   ]);
   const dealId = sp.dealId ?? source?.dealId ?? "";
+  const contactMode = quoteLines.length > 0 && !dealId && (!!sp.contactId || (!!source && !source.dealId));
   const dealItems = dealId ? await prisma.dealItem.findMany({ where: { dealId }, orderBy: { id: "asc" } }) : [];
   const snap = source ? (source.snapshot as unknown as Partial<QuoteSnapshot>) : null;
 
@@ -62,10 +70,14 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
       </div>
       <PageHeader
         title="Nueva cotización"
-        subtitle={sp.desde && source ? `Basada en ${quoteCode(source.year, source.number)}: ajusta lo que cambió y genera la nueva versión.` : "Se genera el PDF con número correlativo y queda atada al negocio."}
+        subtitle={
+          sp.desde && source
+            ? `Basada en ${quoteCode(source.year, source.number)}: ajusta lo que cambió y genera la nueva versión.`
+            : "Se genera el PDF con número correlativo y queda atada al negocio (o al contacto, en las líneas que cotizan sin negocio)."
+        }
       />
       <QuoteForm
-        key={`${dealId}-${source?.id ?? ""}`}
+        key={`${dealId}-${source?.id ?? ""}-${sp.contactId ?? ""}`}
         deals={deals.map((d) => ({
           id: d.id,
           label: [d.name, d.company?.name ?? (d.contact ? contactName(d.contact) : null)].filter(Boolean).join(" · "),
@@ -73,7 +85,14 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
         }))}
         products={products.map((p) => ({ id: p.id, name: p.name, price: toNumber(p.unitPrice), lineId: p.businessLineId, lineName: p.businessLine.name }))}
         brandByLine={Object.fromEntries(brandLines.map((l) => [l.id, l.brandName || l.name]))}
+        quoteLines={quoteLines}
+        contacts={contacts.map((c) => ({ id: c.id, label: [contactName(c), c.email, c.company?.name].filter(Boolean).join(" · ") }))}
         initial={{
+          mode: contactMode ? "contacto" : "negocio",
+          contactId: sp.contactId ?? source?.contactId ?? "",
+          lineId: (source && !source.dealId ? source.businessLineId : null) ?? quoteLines[0]?.id ?? "",
+          taxId: (!source?.dealId && snap?.client?.taxId) || "",
+          address: (!source?.dealId && snap?.client?.address) || "",
           dealId,
           lines,
           validityDays: snap?.validityDays ?? company.validityDays,

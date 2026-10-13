@@ -9,6 +9,7 @@ import { parseCustomData } from "./custom-fields";
 import { contactName, formatDate } from "./format";
 import { formatTimeTz, utcToZoned } from "./timezone";
 import { createRenewalDeal } from "./renewals";
+import { buildProductionReport, getProductionFrequency, isReportDay } from "./production-report";
 
 const DOT: Record<string, string> = { rojo: "#dc2626", amarillo: "#f59e0b", verde: "#16a34a" };
 const dot = (level: string) =>
@@ -157,5 +158,16 @@ export async function runDailyJobs() {
       sent++;
     }
   }
-  return { renewalsCreated, digestsSent: sent };
+  // 3) Reporte de negocios en producción (a quienes lo tienen activado en Usuarios y permisos)
+  let productionReports = 0;
+  if (emailConfigured()) {
+    const frequency = await getProductionFrequency();
+    const recipients = await prisma.user.findMany({ where: { active: true, productionReport: true }, select: { email: true } });
+    if (recipients.length && isReportDay(frequency)) {
+      const report = await buildProductionReport(frequency);
+      await sendEmail({ to: recipients.map((r) => r.email), subject: report.subject, html: report.html });
+      productionReports = recipients.length;
+    }
+  }
+  return { renewalsCreated, digestsSent: sent, productionReports };
 }

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { ROLE_LABELS, type Permission } from "@/lib/permissions";
-import { initials } from "@/lib/format";
+import type { Permission } from "@/lib/permissions";
 import {
   IconCalendar,
   IconCatalog,
@@ -18,7 +17,6 @@ import {
   IconMail,
   IconImport,
   IconInbox,
-  IconLogout,
   IconSettings,
   IconNote,
   IconShield,
@@ -27,11 +25,9 @@ import {
 
 export function Sidebar({
   user,
-  logout,
   newLeads,
 }: {
   user: { name: string; role: Role; permissions: Permission[] };
-  logout: () => Promise<void>;
   newLeads: number;
 }) {
   const pathname = usePathname();
@@ -88,22 +84,6 @@ export function Sidebar({
           );
         })}
       </nav>
-      <div className="border-t border-slate-200 p-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-700 text-xs font-semibold text-white">
-            {initials(user.name)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <Link href="/perfil" className="block truncate text-sm font-medium text-slate-900 hover:underline">{user.name}</Link>
-            <div className="text-xs text-slate-500">{ROLE_LABELS[user.role]}</div>
-          </div>
-          <form action={logout}>
-            <button title="Cerrar sesión" className="rounded p-1.5 hover:bg-slate-100">
-              <IconLogout />
-            </button>
-          </form>
-        </div>
-      </div>
     </aside>
   );
 }

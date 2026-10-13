@@ -18,6 +18,7 @@ export async function saveBusinessLine(id: string | null, _: ActionState, form: 
       description: str(form, "description"),
       color: str(form, "color") ?? "#1c315e",
       active: id ? bool(form, "active") : true,
+      quoteWithoutDeal: bool(form, "quoteWithoutDeal"),
     };
     if (id) await prisma.businessLine.update({ where: { id }, data });
     else await prisma.businessLine.create({ data });
@@ -42,6 +43,7 @@ export async function saveProduct(id: string | null, _: ActionState, form: FormD
       })(),
       businessLineId: reqStr(form, "businessLineId", "Línea de negocio"),
       active: id ? bool(form, "active") : true,
+      quoteWithoutDeal: bool(form, "quoteWithoutDeal"),
     };
     if (id) await prisma.product.update({ where: { id }, data });
     else await prisma.product.create({ data });

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { buildProductionReport, getProductionFrequency, saveProductionFrequency } from "@/lib/production-report";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
@@ -97,5 +98,25 @@ export async function sendTestEmail() {
       subject: "Prueba de correo del CRM de e-grow",
       html: emailLayout("¡El correo funciona!", `<p>Hola ${escapeHtml(me.name)}, este es un correo de prueba del CRM.</p>`),
     });
+  });
+}
+
+/** Frecuencia del reporte de negocios en producción. */
+export async function saveProductionReport(_: ActionState, form: FormData) {
+  return runAction(async () => {
+    await requirePermission("pipeline:configure");
+    await saveProductionFrequency(str(form, "frequency") === "diario" ? "diario" : "semanal");
+    revalidatePath("/configuracion");
+  });
+}
+
+/** Envía ahora el reporte de producción a quienes lo reciben (o a quien lo pide, si nadie lo tiene activado). */
+export async function sendProductionReportNow() {
+  return runAction(async () => {
+    const me = await requirePermission("pipeline:configure");
+    if (!emailConfigured()) throw new Error("Faltan RESEND_API_KEY y EMAIL_FROM.");
+    const recipients = await prisma.user.findMany({ where: { active: true, productionReport: true }, select: { email: true } });
+    const report = await buildProductionReport(await getProductionFrequency());
+    await sendEmail({ to: recipients.length ? recipients.map((r) => r.email) : me.email, subject: report.subject, html: report.html });
   });
 }

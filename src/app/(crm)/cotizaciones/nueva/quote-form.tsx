@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { computeTotals } from "@/lib/quotes";
+import { PhoneInput } from "@/components/phone-input";
 import { createQuote } from "../actions";
 
 type Deal = { id: string; label: string; lineId: string | null };
+type Option = { id: string; label: string };
 type Product = { id: string; name: string; price: number; lineId: string; lineName: string };
 type Line = { productId: string; description: string; quantity: string; unitPrice: string; discount: string };
 
@@ -22,13 +24,23 @@ export function QuoteForm({
   deals,
   products,
   brandByLine,
+  quoteLines,
+  contacts,
   initial,
 }: {
   deals: Deal[];
   products: Product[];
   /** Líneas con marca propia (ej. Rutalink): id → nombre de la marca */
   brandByLine: Record<string, string>;
+  /** Líneas que permiten cotizar a un contacto sin negocio (ej. Rutalink) */
+  quoteLines: { id: string; name: string }[];
+  contacts: Option[];
   initial: {
+    mode: "negocio" | "contacto";
+    contactId: string;
+    lineId: string;
+    taxId: string;
+    address: string;
     dealId: string;
     lines: Line[];
     validityDays: number;
@@ -38,16 +50,23 @@ export function QuoteForm({
   };
 }) {
   const router = useRouter();
+  const [mode, setMode] = useState(initial.mode);
   const [dealId, setDealId] = useState(initial.dealId);
+  const [lineId, setLineId] = useState(initial.lineId);
+  const [contactId, setContactId] = useState(initial.contactId);
+  const [firstName, setFirstName] = useState("");
+  const direct = mode === "contacto";
   const [lines, setLines] = useState<Line[]>(initial.lines.length ? initial.lines : [emptyLine()]);
   const [iva, setIva] = useState(String(initial.ivaPercent));
   // Clave única de este formulario: si se pulsa «Generar» dos veces, el servidor no duplica la cotización
   const [requestKey, setRequestKey] = useState("");
   useEffect(() => setRequestKey(crypto.randomUUID()), []);
 
-  const deal = deals.find((d) => d.id === dealId) ?? null;
+  const deal = direct ? null : (deals.find((d) => d.id === dealId) ?? null);
+  const targetLine = direct ? lineId || null : (deal?.lineId ?? null);
   const productLines = new Set(lines.flatMap((l) => products.filter((p) => p.id === l.productId).map((p) => p.lineId)));
-  const brandLine = deal?.lineId ?? (productLines.size === 1 ? [...productLines][0] : null);
+  const brandLine = targetLine ?? (productLines.size === 1 ? [...productLines][0] : null);
+  const ready = direct ? !!lineId && (!!contactId || !!firstName.trim()) : !!dealId;
   const brandName = brandLine ? brandByLine[brandLine] : undefined;
 
   const valid = lines.filter((l) => l.description.trim() && num(l.quantity) > 0);
@@ -65,7 +84,7 @@ export function QuoteForm({
   // Productos agrupados por línea, primero la del negocio
   const groups = new Map<string, Product[]>();
   for (const p of products) groups.set(p.lineName, [...(groups.get(p.lineName) ?? []), p]);
-  const lineName = products.find((p) => p.lineId === deal?.lineId)?.lineName;
+  const lineName = products.find((p) => p.lineId === targetLine)?.lineName;
   const groupEntries = [...groups.entries()].sort(([a], [b]) => (a === lineName ? -1 : b === lineName ? 1 : a.localeCompare(b)));
 
   return (
@@ -77,29 +96,107 @@ export function QuoteForm({
         value={JSON.stringify(valid.map((l) => ({ productId: l.productId || null, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice || "0", discount: l.discount || "0" })))}
       />
 
+      <input type="hidden" name="mode" value={mode} />
       <div className="card p-4">
-        <label className="block text-sm font-medium text-slate-700">
-          Negocio
-          <select
-            name="dealId"
-            required
-            value={dealId}
-            onChange={(e) => {
-              setDealId(e.target.value);
-              // Si aún no hay productos escritos, se cargan los del negocio elegido
-              if (e.target.value && !lines.some((l) => l.description.trim())) router.replace(`/cotizaciones/nueva?dealId=${e.target.value}`);
-            }}
-            className="input mt-1"
-          >
-            <option value="">— Elige el negocio —</option>
-            {deals.map((d) => (
-              <option key={d.id} value={d.id}>{d.label}</option>
+        {quoteLines.length > 0 && (
+          <div className="mb-3 inline-flex rounded-lg border border-slate-300 p-0.5 text-sm" role="tablist">
+            {(
+              [
+                ["negocio", "Para un negocio"],
+                ["contacto", `Para un contacto, sin negocio (${quoteLines.map((l) => l.name).join(", ")})`],
+              ] as const
+            ).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => setMode(m)}
+                className={`rounded-md px-3 py-1 ${mode === m ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              >
+                {label}
+              </button>
             ))}
-          </select>
-        </label>
-        <p className="mt-1 text-xs text-slate-500">
-          Los datos del cliente salen del negocio (empresa y contacto). ¿No existe? <Link className="link" href="/negocios/nuevo">Crea el negocio</Link> primero.
-        </p>
+          </div>
+        )}
+        {!direct ? (
+          <>
+            <label className="block text-sm font-medium text-slate-700">
+              Negocio
+              <select
+                name="dealId"
+                required
+                value={dealId}
+                onChange={(e) => {
+                  setDealId(e.target.value);
+                  // Si aún no hay productos escritos, se cargan los del negocio elegido
+                  if (e.target.value && !lines.some((l) => l.description.trim())) router.replace(`/cotizaciones/nueva?dealId=${e.target.value}`);
+                }}
+                className="input mt-1"
+              >
+                <option value="">— Elige el negocio —</option>
+                {deals.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+            </label>
+            <p className="mt-1 text-xs text-slate-500">
+              Los datos del cliente salen del negocio (empresa y contacto). ¿No existe? <Link className="link" href="/negocios/nuevo">Crea el negocio</Link> primero.
+            </p>
+          </>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium text-slate-700">
+              Línea de negocio
+              <select name="businessLineId" required value={lineId} onChange={(e) => setLineId(e.target.value)} className="input mt-1">
+                {quoteLines.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-medium text-slate-700">
+              Contacto
+              <select name="contactId" value={contactId} onChange={(e) => setContactId(e.target.value)} className="input mt-1">
+                <option value="">+ Crear un contacto nuevo</option>
+                {contacts.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+            {!contactId && (
+              <>
+                <label className="text-xs text-slate-500">
+                  Nombre *
+                  <input name="firstName" required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="input mt-1" />
+                </label>
+                <label className="text-xs text-slate-500">
+                  Apellido
+                  <input name="lastName" className="input mt-1" />
+                </label>
+                <label className="text-xs text-slate-500">
+                  Correo
+                  <input name="email" type="email" className="input mt-1" placeholder="correo@ejemplo.com" />
+                </label>
+                <div className="text-xs text-slate-500">
+                  Teléfono
+                  <PhoneInput className="mt-1" />
+                </div>
+              </>
+            )}
+            <label className="text-xs text-slate-500">
+              Cédula / RUC (opcional)
+              <input name="taxId" defaultValue={initial.taxId} className="input mt-1" />
+            </label>
+            <label className="text-xs text-slate-500">
+              Dirección (opcional)
+              <input name="address" defaultValue={initial.address} className="input mt-1" />
+            </label>
+            <p className="text-xs text-slate-500 sm:col-span-2">
+              {contactId ? "El contacto" : "El contacto nuevo se guarda en Contactos y"} queda como lead «En seguimiento». Si el cliente acepta la cotización, al marcarla «Aceptada» se crea el negocio
+              en producción.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="card p-4">
@@ -189,10 +286,12 @@ export function QuoteForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <SubmitButton pendingText="Generando cotización…" disabled={!requestKey || !dealId || valid.length === 0}>
+        <SubmitButton pendingText="Generando cotización…" disabled={!requestKey || !ready || valid.length === 0}>
           Generar cotización
         </SubmitButton>
-        {(!dealId || valid.length === 0) && <span className="text-xs text-slate-500">Elige el negocio y agrega al menos un producto o servicio.</span>}
+        {(!ready || valid.length === 0) && (
+          <span className="text-xs text-slate-500">{direct ? "Elige o crea el contacto" : "Elige el negocio"} y agrega al menos un producto o servicio.</span>
+        )}
       </div>
     </ActionForm>
   );

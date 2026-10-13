@@ -58,6 +58,8 @@ model User {
   signatureImageId    String?
   signatureImage      EmailImage? @relation("SignatureImage", fields: [signatureImageId], references: [id], onDelete: SetNull)
   signatureImageWidth Int?
+  /// Recibe el reporte de negocios en producción (seguimiento de proyectos)
+  productionReport  Boolean  @default(false)
   /// Avisarle por correo cuando abran sus correos o documentos
   trackingAlerts    Boolean  @default(true)
   createdAt    DateTime @default(now())
@@ -93,12 +95,15 @@ model BusinessLine {
   brandAccent  String? /// color de acento (barra y total)
   brandWebsite String?
   brandHeaderBg String? /// fondo del encabezado del PDF (para logos claros); vacío = blanco
+  /// Permite cotizar directo a un contacto, sin crear un negocio (personas naturales)
+  quoteWithoutDeal Boolean @default(false)
   createdAt   DateTime @default(now())
 
   products Product[]
   deals    Deal[]
   forms    Form[]
   emailTemplates EmailTemplate[]
+  quotes   Quote[]
 }
 
 model Product {
@@ -183,6 +188,7 @@ model Contact {
   submissions FormSubmission[]
   emails        EmailMessage[]
   documentLinks DocumentLink[]
+  quotes        Quote[]
 
   @@index([companyId])
   @@index([leadStatus])
@@ -347,8 +353,13 @@ model Quote {
   id          String   @id @default(cuid())
   year        Int
   number      Int
-  dealId      String
-  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  /// Negocio de la cotización (vacío = cotización directa a un contacto, ej. persona natural de Rutalink)
+  dealId      String?
+  deal        Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  businessLineId String?
+  businessLine   BusinessLine? @relation(fields: [businessLineId], references: [id], onDelete: SetNull)
   createdById String?
   createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
   /// Token aleatorio para el enlace público del PDF (para WhatsApp o correo)
@@ -369,6 +380,7 @@ model Quote {
 
   @@unique([year, number])
   @@index([dealId])
+  @@index([contactId])
 }
 
 /// Estado de una cotización frente al cliente

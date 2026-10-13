@@ -3,7 +3,8 @@ import { PhoneInput } from "@/components/phone-input";
 import { requirePagePermission } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
-import { deleteStage, saveCompany, saveStage, sendTestEmail } from "./actions";
+import { deleteStage, saveCompany, saveProductionReport, saveStage, sendProductionReportNow, sendTestEmail } from "./actions";
+import { getProductionFrequency } from "@/lib/production-report";
 import { getCompanySettings } from "@/lib/settings";
 import { emailConfigured } from "@/lib/email";
 import { Field } from "@/components/ui";
@@ -13,6 +14,10 @@ import { zoomConfigured } from "@/lib/zoom";
 export default async function SettingsPage() {
   await requirePagePermission("pipeline:configure");
   const company = await getCompanySettings();
+  const [productionFrequency, productionRecipients] = await Promise.all([
+    getProductionFrequency(),
+    prisma.user.findMany({ where: { active: true, productionReport: true }, select: { name: true }, orderBy: { name: "asc" } }),
+  ]);
   const stages = await prisma.pipelineStage.findMany({ orderBy: { order: "asc" }, include: { _count: { select: { deals: true } } } });
 
   return (
@@ -60,6 +65,31 @@ export default async function SettingsPage() {
           <ActionForm action={sendTestEmail} successMessage="Correo de prueba enviado a tu email.">
             <SubmitButton className="btn btn-sm" pendingText="Enviando…">Enviarme un correo de prueba</SubmitButton>
           </ActionForm>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-1">Reporte de negocios en producción</h2>
+        <div className="card space-y-3 p-4 text-sm">
+          <p className="text-slate-600">
+            Correo automático con los negocios en la etapa «En Producción», sus tareas por realizar (con las vencidas en rojo) y los seguimientos
+            realizados. Lo reciben las personas marcadas en <a className="link" href="/usuarios">Usuarios y permisos</a>
+            {productionRecipients.length ? <> (hoy: <b>{productionRecipients.map((u) => u.name).join(", ")}</b>)</> : " (aún nadie)"}.
+          </p>
+          <ActionForm action={saveProductionReport} successMessage="Guardado." className="flex flex-wrap items-center gap-2">
+            <span className="text-slate-600">Enviar</span>
+            <select name="frequency" defaultValue={productionFrequency} className="input w-auto">
+              <option value="semanal">cada lunes, 8:00</option>
+              <option value="diario">de lunes a viernes, 8:00</option>
+            </select>
+            <SubmitButton className="btn btn-sm">Guardar</SubmitButton>
+          </ActionForm>
+          <div className="flex flex-wrap items-center gap-2">
+            <a href="/api/reporte-produccion" target="_blank" rel="noreferrer" className="btn btn-sm">Ver el reporte de hoy</a>
+            <ActionForm action={sendProductionReportNow} successMessage="Reporte enviado.">
+              <SubmitButton className="btn btn-sm" pendingText="Enviando…">Enviarlo ahora</SubmitButton>
+            </ActionForm>
+          </div>
         </div>
       </section>
 

@@ -30,8 +30,15 @@ export async function loadReportData(lineId?: string) {
       },
     }),
     prisma.quote.findMany({
-      where: lineId ? { deal: dealLine } : {},
-      select: { createdAt: true, total: true, deal: { select: { businessLineId: true, ownerId: true, stage: { select: { isWon: true } } } } },
+      where: lineId ? { OR: [{ deal: dealLine }, { dealId: null, businessLineId: lineId }] } : {},
+      select: {
+        createdAt: true,
+        total: true,
+        businessLineId: true,
+        createdById: true,
+        contact: { select: { ownerId: true } },
+        deal: { select: { businessLineId: true, ownerId: true, stage: { select: { isWon: true } } } },
+      },
     }),
     prisma.contact.findMany({ select: { createdAt: true, source: true } }),
     prisma.businessLine.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, color: true } }),
@@ -61,9 +68,10 @@ export async function loadReportData(lineId?: string) {
   const rQuotes: RQuote[] = quotes.map((q) => ({
     createdAt: q.createdAt,
     total: toNumber(q.total),
-    lineId: q.deal.businessLineId,
-    ownerId: q.deal.ownerId,
-    dealWon: q.deal.stage.isWon,
+    // Sin negocio (cotización directa a un contacto): la línea de la cotización y el dueño del contacto
+    lineId: q.deal ? q.deal.businessLineId : q.businessLineId,
+    ownerId: q.deal ? q.deal.ownerId : (q.contact?.ownerId ?? q.createdById),
+    dealWon: q.deal?.stage.isWon ?? false,
   }));
   const rLeads: RLead[] = leads;
   return { deals: rDeals, quotes: rQuotes, leads: rLeads, lines: lineId ? lines.filter((l) => l.id === lineId) : lines, allLines: lines };

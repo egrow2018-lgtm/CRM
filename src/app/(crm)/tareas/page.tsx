@@ -9,6 +9,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { ViewToggle } from "@/components/view-toggle";
 import { toggleTask } from "../actividades/actions";
 import { emailConfigured } from "@/lib/email";
+import { NewTask } from "./new-task";
 
 const DAY = 86400000;
 
@@ -33,6 +34,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     orderBy: done === "1" ? { completedAt: "desc" } : [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     take: 300,
   });
+  const users = await prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime();
   const canWrite = can(user, "activities:write");
   const query = (extra: Record<string, string>) =>
@@ -56,9 +58,14 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     <div className={isBoard ? "" : "max-w-4xl"}>
       <PageHeader
         title="Tareas y agenda"
-        subtitle="Tareas, llamadas y reuniones programadas. Se crean con los íconos de seguimiento de cada negocio, contacto o empresa."
+        subtitle="Tareas, llamadas y reuniones programadas. Las tareas de un negocio, contacto o empresa se crean desde su ficha; las demás (ej. cobrar una factura), aquí."
         actions={<ViewToggle defaultView="list" />}
       />
+      {canWrite && (
+        <div className="mb-4">
+          <NewTask users={users} meId={user.id} />
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap gap-2">
         {tab("Mis tareas", query({}), who === "me" && done !== "1")}
         {tab("Todas las pendientes", query({ who: "all" }), who === "all" && done !== "1")}
