@@ -27,7 +27,7 @@ export function ContactForm({
       <Field label="Nombre *"><input name="firstName" required defaultValue={contact?.firstName} className="input" /></Field>
       <Field label="Apellido"><input name="lastName" defaultValue={contact?.lastName ?? ""} className="input" /></Field>
       <Field label="Email"><input name="email" type="email" defaultValue={contact?.email ?? ""} className="input" /></Field>
-      <Field label="Teléfono / WhatsApp" className="sm:col-span-2"><PhoneInput defaultValue={contact?.phone} /></Field>
+      <Field label="Teléfono / WhatsApp"><PhoneInput defaultValue={contact?.phone} /></Field>
       <Field label="Cargo"><input name="jobTitle" defaultValue={contact?.jobTitle ?? ""} className="input" /></Field>
       <Field label="Empresa">
         <select name="companyId" defaultValue={contact?.companyId ?? defaultCompanyId ?? ""} className="input">
