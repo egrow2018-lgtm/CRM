@@ -53,6 +53,13 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     { key: "sinfecha", label: "Sin fecha", tone: "bg-slate-200", test: (t: number | null) => t === null },
   ];
   const isBoard = sp.view === "board" && done !== "1";
+  const tabs = (
+    <>
+      {tab("Mis tareas", query({}), who === "me" && done !== "1")}
+      {tab("Todas las pendientes", query({ who: "all" }), who === "all" && done !== "1")}
+      {tab("Completadas", query({ who, done: "1" }), done === "1")}
+    </>
+  );
 
   return (
     <div className={isBoard ? "" : "max-w-4xl"}>
@@ -61,16 +68,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         subtitle="Tareas, llamadas y reuniones programadas. Las tareas de un negocio, contacto o empresa se crean desde su ficha; las demás (ej. cobrar una factura), aquí."
         actions={<ViewToggle defaultView="list" />}
       />
-      {canWrite && (
-        <div className="mb-4">
-          <NewTask users={users} meId={user.id} />
-        </div>
-      )}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {tab("Mis tareas", query({}), who === "me" && done !== "1")}
-        {tab("Todas las pendientes", query({ who: "all" }), who === "all" && done !== "1")}
-        {tab("Completadas", query({ who, done: "1" }), done === "1")}
-      </div>
+      {canWrite ? <NewTask users={users} meId={user.id}>{tabs}</NewTask> : <div className="mb-4 flex flex-wrap gap-2">{tabs}</div>}
       {tasks.length === 0 ? (
         <EmptyState>No hay tareas aquí. 🎉</EmptyState>
       ) : isBoard ? (
