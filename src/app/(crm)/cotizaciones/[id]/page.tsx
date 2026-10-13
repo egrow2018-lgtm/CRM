@@ -31,6 +31,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           _count: { select: { quotes: true } },
         },
       },
+      contact: { select: { id: true, firstName: true, lastName: true, email: true, company: { select: { id: true, name: true } } } },
+      businessLine: { select: { name: true, color: true } },
       links: { select: { token: true, emailId: true, views: { select: { startedAt: true }, orderBy: { startedAt: "desc" } } }, orderBy: { createdAt: "asc" } },
       emails: { orderBy: { sentAt: "desc" }, select: { id: true, to: true, sentAt: true, openCount: true, clickCount: true, lastOpenedAt: true } },
     },
@@ -39,6 +41,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const snap = quote.snapshot as unknown as QuoteSnapshot;
   const code = quoteCode(quote.year, quote.number);
   const canWrite = can(user, "deals:write");
+  // Sin negocio (cotización directa a un contacto): los datos salen del contacto
+  const contact = quote.deal?.contact ?? quote.contact;
+  const company = quote.deal ? quote.deal.company : (quote.contact?.company ?? null);
 
   return (
     <div>
@@ -52,9 +57,18 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         }
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
-            <Link className="link" href={`/negocios/${quote.deal.id}`}>{quote.deal.name}</Link>
-            <LineBadge line={quote.deal.businessLine} />
-            <span>Etapa: {quote.deal.stage.name}</span>
+            {quote.deal ? (
+              <>
+                <Link className="link" href={`/negocios/${quote.deal.id}`}>{quote.deal.name}</Link>
+                <LineBadge line={quote.deal.businessLine} />
+                <span>Etapa: {quote.deal.stage.name}</span>
+              </>
+            ) : (
+              <>
+                <span>Sin negocio · se crea al marcarla «Aceptada»</span>
+                <LineBadge line={quote.businessLine} />
+              </>
+            )}
             {snap.brand && <span className="badge bg-slate-100 text-slate-600">Marca {snap.brand.name}</span>}
           </span>
         }
@@ -74,11 +88,12 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           <div className="card p-4">
             <dl>
               <InfoRow label="Cliente">
-                {quote.deal.company ? <Link className="link" href={`/empresas/${quote.deal.company.id}`}>{quote.deal.company.name}</Link> : (snap.client.company ?? "—")}
+                {company ? <Link className="link" href={`/empresas/${company.id}`}>{company.name}</Link> : (snap.client.company ?? (contact ? "Persona natural" : "—"))}
               </InfoRow>
               <InfoRow label="Contacto">
-                {quote.deal.contact ? <Link className="link" href={`/contactos/${quote.deal.contact.id}`}>{contactName(quote.deal.contact)}</Link> : snap.client.contact}
+                {contact ? <Link className="link" href={`/contactos/${contact.id}`}>{contactName(contact)}</Link> : snap.client.contact}
               </InfoRow>
+              {snap.client.taxId && <InfoRow label="Cédula / RUC">{snap.client.taxId}</InfoRow>}
               <InfoRow label="Emitida">{formatDate(quote.createdAt)}{quote.createdBy && ` · ${quote.createdBy.name}`}</InfoRow>
               <InfoRow label="Válida hasta">{formatDate(quote.validUntil)}</InfoRow>
               {quote.statusChangedAt && <InfoRow label="Último cambio de estado">{formatDateTime(quote.statusChangedAt)}</InfoRow>}
@@ -110,7 +125,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 canWrite={canWrite}
                 canAccept={canWrite || can(user, "deals:production")}
                 baseUrl={appUrl()}
-                contactEmail={quote.deal.contact?.email ?? null}
+                contactEmail={contact?.email ?? null}
                 emailEnabled={emailConfigured()}
               />
             </ul>
@@ -142,7 +157,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               </tbody>
             </table>
           </div>
-          {quote.deal._count.quotes > 1 && (
+          {quote.deal && quote.deal._count.quotes > 1 && (
             <p className="text-sm text-slate-500">
               Este negocio tiene {quote.deal._count.quotes} cotizaciones. <Link className="link" href={`/negocios/${quote.deal.id}`}>Verlas en el negocio</Link>.
             </p>

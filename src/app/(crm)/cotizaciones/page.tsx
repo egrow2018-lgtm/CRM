@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { formatDate, formatMoney, formatMoneyExact, toNumber } from "@/lib/format";
+import { contactName, formatDate, formatMoney, formatMoneyExact, toNumber } from "@/lib/format";
 import { quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { EmptyState, LineBadge, PageHeader } from "@/components/ui";
 import { SemaforoPunto } from "@/components/semaforo";
@@ -33,11 +33,13 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
         { deal: { company: { name: { contains: q, mode: "insensitive" } } } },
         { deal: { contact: { firstName: { contains: q, mode: "insensitive" } } } },
         { deal: { contact: { lastName: { contains: q, mode: "insensitive" } } } },
+        { contact: { firstName: { contains: q, mode: "insensitive" } } },
+        { contact: { lastName: { contains: q, mode: "insensitive" } } },
       ],
     });
   }
   if (Number(sp.year)) base.push({ year: Number(sp.year) });
-  if (sp.owner) base.push({ deal: { ownerId: sp.owner } });
+  if (sp.owner) base.push({ OR: [{ deal: { ownerId: sp.owner } }, { dealId: null, contact: { ownerId: sp.owner } }] });
   if (sp.status === "vigente") base.push({ validUntil: { gte: now } });
   if (sp.status === "vencida") base.push({ validUntil: { lt: now } });
   if (sp.status === "enviada") base.push({ sentAt: { not: null } });
@@ -46,8 +48,12 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
   const byStatus = { emitida: "EMITIDA", "en-revision": "EN_REVISION", aprobada: "APROBADA", "no-aprobada": "NO_APROBADA" } as const;
   if (sp.status && sp.status in byStatus) base.push({ status: byStatus[sp.status as keyof typeof byStatus] });
   // Línea: la del negocio o la de alguno de sus productos
+  // (sin negocio: la línea elegida al cotizar)
   const lineWhere = (lineId: string): Prisma.QuoteWhereInput => ({
-    deal: { OR: [{ businessLineId: lineId }, { items: { some: { product: { businessLineId: lineId } } } }] },
+    OR: [
+      { deal: { OR: [{ businessLineId: lineId }, { items: { some: { product: { businessLineId: lineId } } } }] } },
+      { dealId: null, businessLineId: lineId },
+    ],
   });
   const where: Prisma.QuoteWhereInput = { AND: [...base, ...(sp.line ? [lineWhere(sp.line)] : [])] };
 
@@ -68,6 +74,8 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
             stage: { select: { name: true, isWon: true, isLost: true } },
           },
         },
+        contact: { select: { id: true, firstName: true, lastName: true, owner: { select: { name: true } } } },
+        businessLine: { select: { name: true, color: true } },
       },
       orderBy: [{ year: "desc" }, { number: "desc" }],
       skip,
@@ -142,7 +150,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                 {quotes.map((q) => {
                   const snap = q.snapshot as unknown as QuoteSnapshot;
                   const expired = q.validUntil < now;
-                  const client = q.deal.company?.name ?? snap.client?.company ?? snap.client?.contact ?? "—";
+                  const client = q.deal?.company?.name ?? snap.client?.company ?? snap.client?.contact ?? "—";
                   return (
                     <tr key={q.id} className="hover:bg-slate-50">
                       {canWrite && <BulkCheckCell id={q.id} label={quoteCode(q.year, q.number)} />}
@@ -151,11 +159,19 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                         <a className="ml-2 text-xs text-slate-400 hover:text-brand-700" href={`/cotizaciones/${q.id}/pdf`} target="_blank" rel="noreferrer">PDF</a>
                       </td>
                       <td className="whitespace-nowrap"><QuoteStatusSelect id={q.id} status={q.status} disabled={!canWrite} /></td>
-                      <td className="max-w-56 truncate"><Link className="hover:underline" href={`/negocios/${q.deal.id}`}>{q.deal.name}</Link></td>
-                      <td className="max-w-48 truncate">
-                        {q.deal.company ? <Link className="hover:underline" href={`/empresas/${q.deal.company.id}`}>{client}</Link> : client}
+                      <td className="max-w-56 truncate">
+                        {q.deal ? <Link className="hover:underline" href={`/negocios/${q.deal.id}`}>{q.deal.name}</Link> : <span className="text-xs text-slate-400">Sin negocio</span>}
                       </td>
-                      <td><LineBadge line={q.deal.businessLine} /></td>
+                      <td className="max-w-48 truncate">
+                        {q.deal?.company ? (
+                          <Link className="hover:underline" href={`/empresas/${q.deal.company.id}`}>{client}</Link>
+                        ) : !q.deal && q.contact ? (
+                          <Link className="hover:underline" href={`/contactos/${q.contact.id}`}>{contactName(q.contact)}</Link>
+                        ) : (
+                          client
+                        )}
+                      </td>
+                      <td><LineBadge line={q.deal?.businessLine ?? q.businessLine} /></td>
                       <td className="text-right tabular-nums">{formatMoneyExact(q.total)}</td>
                       <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(q.createdAt)}</td>
                       <td className="whitespace-nowrap text-xs text-slate-500">
@@ -165,11 +181,15 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                       </td>
                       <td className="whitespace-nowrap text-xs text-slate-500">{q.sentAt ? `Enviada ${formatDate(q.sentAt)}` : "—"}</td>
                       <td className="whitespace-nowrap text-xs">
-                        <span className={q.deal.stage.isWon ? "font-semibold text-emerald-700" : q.deal.stage.isLost ? "text-slate-400" : "text-slate-600"}>
-                          {q.deal.stage.name}
-                        </span>
+                        {q.deal ? (
+                          <span className={q.deal.stage.isWon ? "font-semibold text-emerald-700" : q.deal.stage.isLost ? "text-slate-400" : "text-slate-600"}>
+                            {q.deal.stage.name}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </td>
-                      <td className="whitespace-nowrap text-xs">{q.deal.owner?.name ?? "—"}</td>
+                      <td className="whitespace-nowrap text-xs">{(q.deal ? q.deal.owner?.name : q.contact?.owner?.name) ?? "—"}</td>
                     </tr>
                   );
                 })}

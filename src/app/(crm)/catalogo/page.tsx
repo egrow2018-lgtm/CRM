@@ -172,6 +172,9 @@ export default async function CatalogPage() {
                     <input name="description" defaultValue={line.description ?? ""} className="input sm:col-span-2" />
                     <input name="color" type="color" defaultValue={line.color} className="input h-9 p-1" />
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={line.active} /> Activa</label>
+                    <label className="flex items-center gap-2 text-sm sm:col-span-6">
+                      <input type="checkbox" name="quoteWithoutDeal" defaultChecked={line.quoteWithoutDeal} /> Permite cotizar a un contacto sin crear el negocio (personas naturales)
+                    </label>
                     <div className="sm:col-span-6"><SubmitButton className="btn btn-sm btn-primary">Guardar línea</SubmitButton></div>
                   </ActionForm>
                 </details>

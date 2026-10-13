@@ -239,7 +239,7 @@ export async function notifyDocumentView(linkId: string, viewerEmail: string | n
     ? `${contactName(link.contact)}${link.contact.company ? ` (${link.contact.company.name})` : ""}`
     : (viewerEmail ?? link.email?.to.join(", ") ?? (link.label ? `Alguien con el enlace «${link.label}»` : "Alguien"));
   const what = link.document ? link.document.name : `la cotización ${quoteCode(link.quote!.year, link.quote!.number)}`;
-  const href = link.document ? `/documentos/${link.document.id}` : `/negocios/${link.quote!.dealId}`;
+  const href = link.document ? `/documentos/${link.document.id}` : link.quote!.dealId ? `/negocios/${link.quote!.dealId}` : `/cotizaciones/${link.quote!.id}`;
   const previous = link._count.views - 1;
   await sendEmail({
     to: recipient.email,

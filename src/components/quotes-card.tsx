@@ -112,7 +112,7 @@ export function QuoteRow({
           <form action={acceptQuote.bind(null, q.id)}>
             <ConfirmButton
               className="btn btn-sm border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-              message={`¿El cliente aceptó la cotización ${code}? Quedará «Aprobada», sus productos pasan al negocio y el negocio avanza a «En Producción».`}
+              message={q.dealId ? `¿El cliente aceptó la cotización ${code}? Quedará «Aprobada», sus productos pasan al negocio y el negocio avanza a «En Producción».` : `¿El cliente aceptó la cotización ${code}? Quedará «Aprobada», se creará el negocio en «En Producción» y el contacto pasa a lead calificado.`}
             >
               ✓ Aceptada
             </ConfirmButton>

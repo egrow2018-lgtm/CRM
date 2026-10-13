@@ -13,19 +13,21 @@ import { formatDuration } from "@/lib/doc-stats";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { ContactForm } from "../contact-form";
 import { LEAD_STATUS } from "@/lib/leads";
+import { QUOTE_STATUS, quoteCode } from "@/lib/quotes";
 import { deleteContact, updateContact } from "../actions";
 
 export default async function ContactPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
   const user = await requireUser();
   const { id } = await params;
   const { edit } = await searchParams;
-  const [contact, users, companies] = await Promise.all([
+  const [contact, users, companies, quoteLines] = await Promise.all([
     prisma.contact.findUnique({
       where: { id },
       include: {
         owner: true,
         company: true,
         deals: { include: { stage: true, businessLine: { omit: { brandLogo: true } } }, orderBy: { createdAt: "desc" } },
+        quotes: { where: { dealId: null }, include: { businessLine: { select: { name: true, color: true } } }, orderBy: { createdAt: "desc" } },
         activities: { include: { author: true, assignee: true, email: { select: EMAIL_TRACKING } }, orderBy: { createdAt: "desc" } },
         documentLinks: {
           where: { documentId: { not: null } },
@@ -36,6 +38,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
     }),
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.businessLine.findMany({ where: { quoteWithoutDeal: true, active: true }, select: { name: true } }),
   ]);
   if (!contact) notFound();
   const canWrite = can(user, "contacts:write");
@@ -126,6 +129,33 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
               </table>
             )}
           </div>
+          {(contact.quotes.length > 0 || (can(user, "deals:write") && quoteLines.length > 0)) && (
+            <div className="card p-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-base">Cotizaciones sin negocio ({contact.quotes.length})</h2>
+                {can(user, "deals:write") && quoteLines.length > 0 && (
+                  <Link href={`/cotizaciones/nueva?contactId=${contact.id}`} className="btn btn-sm">+ Cotizar sin negocio</Link>
+                )}
+              </div>
+              {contact.quotes.length === 0 ? (
+                <p className="text-sm text-slate-500">Para personas naturales de {quoteLines.map((l) => l.name).join(", ")}: se cotiza sin crear el negocio.</p>
+              ) : (
+                <table className="table">
+                  <tbody>
+                    {contact.quotes.map((q) => (
+                      <tr key={q.id}>
+                        <td><Link className="link" href={`/cotizaciones/${q.id}`}>{quoteCode(q.year, q.number)}</Link></td>
+                        <td><LineBadge line={q.businessLine} /></td>
+                        <td>{QUOTE_STATUS[q.status].label}</td>
+                        <td className="text-xs text-slate-500">{formatDate(q.createdAt)}</td>
+                        <td className="text-right tabular-nums">{formatMoney(q.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
           {contact.documentLinks.length > 0 && (
             <div className="card p-4">
               <h2 className="mb-2 text-base">Documentos compartidos</h2>

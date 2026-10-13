@@ -19,12 +19,88 @@ import { splitEmails } from "@/lib/email-compose";
 import { randomToken } from "@/lib/doc-stats";
 import { normalize } from "@/lib/csv";
 import { dealBrand } from "@/lib/brand";
+import { normalizePhone } from "@/lib/phone";
 
-/** Crea la cotización desde el módulo de Cotizaciones, atada a un negocio. */
+/** Datos del cliente de la cotización: los de un negocio o, sin negocio, los de un contacto (persona natural). */
+async function quoteTarget(form: FormData, userId: string) {
+  if (str(form, "mode") !== "contacto") {
+    const dealId = reqStr(form, "dealId", "Negocio");
+    const deal = await prisma.deal.findUniqueOrThrow({
+      where: { id: dealId },
+      include: { businessLine: true, company: true, contact: true, owner: true, stage: true },
+    });
+    return {
+      deal,
+      contact: deal.contact,
+      businessLine: deal.businessLine,
+      owner: deal.owner,
+      dealName: deal.name,
+      client: {
+        company: deal.company?.name ?? null,
+        contact: deal.contact ? contactName(deal.contact) : null,
+        email: deal.contact?.email ?? null,
+        phone: deal.contact?.phone ?? deal.company?.phone ?? null,
+        taxId: deal.company?.taxId ?? null,
+        address: deal.company?.address ?? null,
+      },
+    };
+  }
+
+  // Cotización directa a un contacto: solo en las líneas que lo permiten (ej. Rutalink)
+  const lineId = reqStr(form, "businessLineId", "Línea de negocio");
+  const businessLine = await prisma.businessLine.findUniqueOrThrow({ where: { id: lineId } });
+  if (!businessLine.quoteWithoutDeal) throw new Error(`La línea ${businessLine.name} no permite cotizar sin negocio. Elige o crea el negocio.`);
+  const taxId = str(form, "taxId");
+  const address = str(form, "address");
+  let contactId = str(form, "contactId");
+  if (!contactId) {
+    const email = str(form, "email")?.toLowerCase() ?? null;
+    // Si ya existe un contacto con ese correo, se usa ese (no se duplica)
+    const existing = email ? await prisma.contact.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true } }) : null;
+    contactId =
+      existing?.id ??
+      (
+        await prisma.contact.create({
+          data: {
+            firstName: reqStr(form, "firstName", "Nombre"),
+            lastName: str(form, "lastName"),
+            email,
+            phone: normalizePhone(str(form, "phone")),
+            source: "Cotización",
+            notes: [taxId && `Cédula/RUC: ${taxId}`, address && `Dirección: ${address}`].filter(Boolean).join("\n") || null,
+            ownerId: userId,
+            leadStatus: "EN_SEGUIMIENTO",
+          },
+        })
+      ).id;
+  }
+  const contact = await prisma.contact.findUniqueOrThrow({ where: { id: contactId }, include: { company: true, owner: true } });
+  // Queda como lead en seguimiento (si aún no lo era)
+  if (!contact.leadStatus || contact.leadStatus === "NUEVO") {
+    await prisma.contact.update({ where: { id: contact.id }, data: { leadStatus: "EN_SEGUIMIENTO" } });
+  }
+  const name = contactName(contact);
+  return {
+    deal: null,
+    contact,
+    businessLine,
+    owner: contact.owner,
+    dealName: `${businessLine.brandName || businessLine.name} · ${name}`,
+    client: {
+      company: contact.company?.name ?? null,
+      contact: name,
+      email: contact.email,
+      phone: contact.phone ?? contact.company?.phone ?? null,
+      taxId: taxId ?? contact.company?.taxId ?? null,
+      address: address ?? contact.company?.address ?? null,
+    },
+  };
+}
+
+/** Crea la cotización desde el módulo de Cotizaciones, atada a un negocio o directa a un contacto. */
 export async function createQuote(_: ActionState, form: FormData) {
   return runAction(async () => {
     const user = await requirePermission("deals:write");
-    const dealId = reqStr(form, "dealId", "Negocio");
     const requestKey = str(form, "requestKey");
     // Doble clic o reintento: si esta solicitud ya creó la cotización, se abre esa
     if (requestKey) {
@@ -39,10 +115,9 @@ export async function createQuote(_: ActionState, form: FormData) {
     }
     if (lines.length === 0) throw new Error("Agrega al menos un producto o servicio con su descripción.");
 
-    const deal = await prisma.deal.findUniqueOrThrow({
-      where: { id: dealId },
-      include: { businessLine: true, company: true, contact: true, owner: true, stage: true },
-    });
+    const target = await quoteTarget(form, user.id);
+    const { deal } = target;
+    const dealId = deal?.id ?? null;
     const products = await prisma.product.findMany({
       where: { id: { in: lines.flatMap((l) => (l.productId ? [l.productId] : [])) } },
       include: { businessLine: true },
@@ -53,11 +128,11 @@ export async function createQuote(_: ActionState, form: FormData) {
     const ivaPercent = Math.min(100, Math.max(0, num(form, "ivaPercent") ?? company.ivaPercent));
     const validityDays = Math.min(365, Math.max(1, Math.round(num(form, "validityDays") ?? company.validityDays)));
     const totals = computeTotals(lines, ivaPercent);
-    const owner = deal.owner ?? (await prisma.user.findUnique({ where: { id: user.id } }));
+    const owner = target.owner ?? (await prisma.user.findUnique({ where: { id: user.id } }));
     // Marca: la de la línea del negocio o, si no tiene, la línea común de los productos cotizados
     const brand =
       form.get("useBrand") === "on"
-        ? dealBrand({ businessLine: deal.businessLine, items: lines.map((l) => ({ product: productOf(l.productId) })) })
+        ? dealBrand({ businessLine: target.businessLine, items: lines.map((l) => ({ product: productOf(l.productId) })) })
         : null;
 
     const snapshot: QuoteSnapshot = {
@@ -70,15 +145,8 @@ export async function createQuote(_: ActionState, form: FormData) {
         email: company.email,
         website: company.website,
       },
-      client: {
-        company: deal.company?.name ?? null,
-        contact: deal.contact ? contactName(deal.contact) : null,
-        email: deal.contact?.email ?? null,
-        phone: deal.contact?.phone ?? deal.company?.phone ?? null,
-        taxId: deal.company?.taxId ?? null,
-        address: deal.company?.address ?? null,
-      },
-      dealName: deal.name,
+      client: target.client,
+      dealName: target.dealName,
       owner: owner ? { name: owner.name, email: owner.email } : null,
       items: lines.map((l, idx) => ({
         ...l,
@@ -109,6 +177,8 @@ export async function createQuote(_: ActionState, form: FormData) {
               year,
               number: (last._max.number ?? 0) + 1,
               dealId,
+              contactId: target.contact?.id ?? null,
+              businessLineId: target.businessLine?.id ?? null,
               createdById: user.id,
               publicToken: randomBytes(18).toString("base64url"),
               validUntil,
@@ -134,8 +204,22 @@ export async function createQuote(_: ActionState, form: FormData) {
     }
     // Enlace rastreado para compartir por WhatsApp o copiarlo (cuenta las vistas de la propuesta)
     await prisma.documentLink.create({
-      data: { token: randomToken(), quoteId: quote.id, contactId: deal.contactId, label: "Enlace para compartir", createdById: user.id },
+      data: { token: randomToken(), quoteId: quote.id, contactId: target.contact?.id ?? null, label: "Enlace para compartir", createdById: user.id },
     });
+    const noteSubject = `Cotización ${quoteCode(quote.year, quote.number)} generada por US$ ${totals.total.toFixed(2)}`;
+
+    if (!deal) {
+      // Sin negocio: la nota queda en el historial del contacto
+      const contactId = target.contact!.id;
+      await prisma.$transaction([
+        prisma.activity.create({ data: { type: "NOTA", subject: noteSubject, contactId, authorId: user.id, completed: true } }),
+        prisma.contact.update({ where: { id: contactId }, data: { lastActivityAt: new Date() } }),
+      ]);
+      revalidatePath(`/contactos/${contactId}`);
+      revalidatePath("/contactos");
+      revalidatePath("/cotizaciones");
+      return `/cotizaciones/${quote.id}`;
+    }
 
     // Los productos del negocio y su valor quedan como en la última cotización
     // (así siguen funcionando los reportes por producto y las renovaciones)
@@ -144,28 +228,22 @@ export async function createQuote(_: ActionState, form: FormData) {
     const moved = quoteStage && !deal.stage.isWon && !deal.stage.isLost && deal.stage.order < quoteStage.order;
     const now = new Date();
     await prisma.$transaction([
-      prisma.dealItem.deleteMany({ where: { dealId } }),
+      prisma.dealItem.deleteMany({ where: { dealId: deal.id } }),
       prisma.dealItem.createMany({
-        data: lines.map((l) => ({ dealId, productId: productOf(l.productId)?.id ?? null, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })),
+        data: lines.map((l) => ({ dealId: deal.id, productId: productOf(l.productId)?.id ?? null, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })),
       }),
       prisma.deal.update({
-        where: { id: dealId },
+        where: { id: deal.id },
         data: { amount: totals.subtotal, lastActivityAt: now, ...(moved ? { stageId: quoteStage.id, stageChangedAt: now } : {}) },
       }),
       ...(moved
-        ? [prisma.activity.create({ data: { type: "CAMBIO_ETAPA", subject: `Etapa: ${deal.stage.name} → ${quoteStage.name}`, dealId, authorId: user.id, completed: true } })]
+        ? [prisma.activity.create({ data: { type: "CAMBIO_ETAPA", subject: `Etapa: ${deal.stage.name} → ${quoteStage.name}`, dealId: deal.id, authorId: user.id, completed: true } })]
         : []),
       prisma.activity.create({
-        data: {
-          type: "NOTA",
-          subject: `Cotización ${quoteCode(quote.year, quote.number)} generada por US$ ${totals.total.toFixed(2)}`,
-          dealId,
-          authorId: user.id,
-          completed: true,
-        },
+        data: { type: "NOTA", subject: noteSubject, dealId: deal.id, authorId: user.id, completed: true },
       }),
     ]);
-    revalidatePath(`/negocios/${dealId}`);
+    revalidatePath(`/negocios/${deal.id}`);
     revalidatePath("/negocios");
     revalidatePath("/cotizaciones");
     return `/cotizaciones/${quote.id}`;
@@ -178,12 +256,14 @@ export async function setQuoteStatus(quoteId: string, status: QuoteStatus) {
   const quote = await prisma.quote.update({ where: { id: quoteId }, data: { status, statusChangedAt: new Date() } });
   revalidatePath("/cotizaciones");
   revalidatePath(`/cotizaciones/${quoteId}`);
-  revalidatePath(`/negocios/${quote.dealId}`);
+  if (quote.dealId) revalidatePath(`/negocios/${quote.dealId}`);
+  if (quote.contactId) revalidatePath(`/contactos/${quote.contactId}`);
 }
 
 /**
  * El cliente aceptó la cotización: queda «Aprobada», sus productos pasan a ser los del negocio
- * y el negocio avanza a «En Producción».
+ * y el negocio avanza a «En Producción». Si se cotizó sin negocio (persona natural), el negocio
+ * se crea en ese momento, ya en producción, y el contacto queda como lead calificado.
  */
 export async function acceptQuote(quoteId: string) {
   const user = await requireUser();
@@ -192,13 +272,38 @@ export async function acceptQuote(quoteId: string) {
   const snap = quote.snapshot as unknown as QuoteSnapshot;
   const stages = await prisma.pipelineStage.findMany({ orderBy: { order: "asc" } });
   const production = stages.find((s) => normalize(s.name).includes("produccion"));
-  const deal = quote.deal;
+  const now = new Date();
+  let deal = quote.deal;
+  if (!deal) {
+    const contact = quote.contactId ? await prisma.contact.findUnique({ where: { id: quote.contactId } }) : null;
+    deal = await prisma.deal.create({
+      data: {
+        name: snap.dealName,
+        stageId: (production ?? stages[0]!).id,
+        businessLineId: quote.businessLineId,
+        contactId: contact?.id ?? null,
+        companyId: contact?.companyId ?? null,
+        ownerId: contact?.ownerId ?? quote.createdById ?? user.id,
+        closeDate: now,
+        lastActivityAt: now,
+      },
+      include: { stage: true },
+    });
+    await prisma.$transaction([
+      prisma.quote.update({ where: { id: quoteId }, data: { dealId: deal.id } }),
+      prisma.emailMessage.updateMany({ where: { quoteId, dealId: null }, data: { dealId: deal.id } }),
+      prisma.activity.create({
+        data: { type: "NOTA", subject: `Negocio creado al aceptar la cotización ${quoteCode(quote.year, quote.number)}`, dealId: deal.id, authorId: user.id, completed: true },
+      }),
+      ...(contact ? [prisma.contact.update({ where: { id: contact.id }, data: { leadStatus: "CALIFICADO", lastActivityAt: now } })] : []),
+    ]);
+    if (contact) revalidatePath(`/contactos/${contact.id}`);
+  }
   const moved = production && !deal.stage.isWon && !deal.stage.isLost && deal.stage.order < production.order;
   const validProducts = new Set(
     (await prisma.product.findMany({ where: { id: { in: (snap.items ?? []).flatMap((i) => (i.productId ? [i.productId] : [])) } }, select: { id: true } })).map((p) => p.id),
   );
   const code = quoteCode(quote.year, quote.number);
-  const now = new Date();
   await prisma.$transaction([
     prisma.quote.update({ where: { id: quoteId }, data: { status: "APROBADA", statusChangedAt: now } }),
     prisma.dealItem.deleteMany({ where: { dealId: deal.id } }),
@@ -237,7 +342,7 @@ export async function deleteQuotes(ids: string[]) {
     const deals = await prisma.quote.findMany({ where: { id: { in: valid } }, select: { dealId: true } });
     const { count } = await prisma.quote.deleteMany({ where: { id: { in: valid } } });
     revalidatePath("/cotizaciones");
-    for (const d of new Set(deals.map((x) => x.dealId))) revalidatePath(`/negocios/${d}`);
+    for (const d of new Set(deals.flatMap((x) => (x.dealId ? [x.dealId] : [])))) revalidatePath(`/negocios/${d}`);
     return { deleted: count };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "No se pudieron eliminar." };
@@ -261,7 +366,7 @@ export async function sendQuoteEmail(quoteId: string, _: ActionState, form: Form
   return runAction(async () => {
     const current = await requirePermission("deals:write");
     if (!emailConfigured()) throw new Error("El correo aún no está configurado (RESEND_API_KEY y EMAIL_FROM).");
-    const quote = await prisma.quote.findUniqueOrThrow({ where: { id: quoteId }, include: { deal: true } });
+    const quote = await prisma.quote.findUniqueOrThrow({ where: { id: quoteId }, include: { deal: true, contact: { select: { companyId: true } } } });
     const user = await prisma.user.findUniqueOrThrow({ where: { id: current.id } });
     const to = splitEmails(reqStr(form, "to", "Para"));
     const code = quoteCode(quote.year, quote.number);
@@ -270,18 +375,19 @@ export async function sendQuoteEmail(quoteId: string, _: ActionState, form: Form
     const brand = (quote.snapshot as unknown as QuoteSnapshot).brand ?? null;
     // El contacto: el del negocio o, si no, quien tenga el correo del destinatario
     const contactId =
-      quote.deal.contactId ??
+      quote.deal?.contactId ??
+      quote.contactId ??
       (await prisma.contact.findFirst({ where: { email: { equals: to[0], mode: "insensitive" } }, select: { id: true } }))?.id ??
       null;
     await sendClientEmail({
       user,
       to,
-      subject: `${brand ? `${brand.name} · ` : ""}Cotización ${code} – ${quote.deal.name}`,
+      subject: `${brand ? `${brand.name} · ` : ""}Cotización ${code} – ${quote.deal?.name ?? (quote.snapshot as unknown as QuoteSnapshot).dealName}`,
       body: message,
       contactId,
       dealId: quote.dealId,
-      companyId: quote.deal.companyId,
-      brand: brand ? { name: brand.name, primary: brand.primary, accent: brand.accent, logoUrl: await brandLogoUrl(quote.deal.businessLineId, brand.name) } : "egrow",
+      companyId: quote.deal?.companyId ?? quote.contact?.companyId ?? null,
+      brand: brand ? { name: brand.name, primary: brand.primary, accent: brand.accent, logoUrl: await brandLogoUrl(quote.deal?.businessLineId ?? quote.businessLineId, brand.name) } : "egrow",
       quote: { id: quote.id, code, total: toNumber(quote.total).toFixed(2) },
       attachments: [{ filename: `${code}.pdf`, content: Buffer.from(pdf), contentType: "application/pdf" }],
       activitySubject: `Cotización ${code} enviada a ${to.join(", ")}`,
@@ -292,6 +398,7 @@ export async function sendQuoteEmail(quoteId: string, _: ActionState, form: Form
     });
     revalidatePath("/cotizaciones");
     revalidatePath(`/cotizaciones/${quoteId}`);
-    revalidatePath(`/negocios/${quote.dealId}`);
+    if (quote.dealId) revalidatePath(`/negocios/${quote.dealId}`);
+    if (contactId) revalidatePath(`/contactos/${contactId}`);
   });
 }
