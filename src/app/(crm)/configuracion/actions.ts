@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { num, reqStr, str, type ActionState } from "@/lib/forms";
@@ -75,7 +76,7 @@ export async function saveCompany(_: ActionState, form: FormData) {
       legalName: str(form, "legalName") ?? "",
       taxId: str(form, "taxId") ?? "",
       address: str(form, "address") ?? "",
-      phone: str(form, "phone") ?? "",
+      phone: normalizePhone(str(form, "phone")) ?? "",
       email: str(form, "email") ?? "",
       website: str(form, "website") ?? "",
       ivaPercent: Math.min(100, Math.max(0, num(form, "ivaPercent") ?? 15)),

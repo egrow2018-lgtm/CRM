@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizePhone } from "./phone";
 import type { Form, Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { companyKey, corporateDomain, websiteDomain } from "./csv";
@@ -61,7 +62,7 @@ export async function captureLead(form: Form, answers: Record<string, string>, c
       // No se sobrescriben datos existentes; solo se completan los vacíos
       const patch: Prisma.ContactUncheckedUpdateInput = {};
       if (!existing.lastName && mapped("lastName")) patch.lastName = mapped("lastName");
-      if (!existing.phone && mapped("phone")) patch.phone = mapped("phone");
+      if (!existing.phone && mapped("phone")) patch.phone = normalizePhone(mapped("phone"));
       if (!existing.jobTitle && mapped("jobTitle")) patch.jobTitle = mapped("jobTitle");
       if (!existing.companyId && companyId) patch.companyId = companyId;
       if (!existing.ownerId && form.assigneeId) patch.ownerId = form.assigneeId;
@@ -78,7 +79,7 @@ export async function captureLead(form: Form, answers: Record<string, string>, c
           firstName,
           lastName: mapped("lastName"),
           email,
-          phone: mapped("phone"),
+          phone: normalizePhone(mapped("phone")),
           jobTitle: mapped("jobTitle"),
           source: `Formulario: ${form.name}`,
           companyId,

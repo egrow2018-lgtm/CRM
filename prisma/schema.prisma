@@ -54,6 +54,10 @@ model User {
   senderEmail       String?
   /// Firma que se agrega al final de sus correos
   signature         String?
+  /// Imagen de firma (como la de Outlook) y su ancho en px (null = automático)
+  signatureImageId    String?
+  signatureImage      EmailImage? @relation("SignatureImage", fields: [signatureImageId], references: [id], onDelete: SetNull)
+  signatureImageWidth Int?
   /// Avisarle por correo cuando abran sus correos o documentos
   trackingAlerts    Boolean  @default(true)
   createdAt    DateTime @default(now())
@@ -550,4 +554,6 @@ model EmailImage {
   createdById String?
   createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
+
+  signatureOf User[]   @relation("SignatureImage")
 }

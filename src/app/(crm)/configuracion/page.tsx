@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { PhoneInput } from "@/components/phone-input";
 import { requirePagePermission } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
@@ -26,7 +27,7 @@ export default async function SettingsPage() {
             <Field label="Nombre comercial"><input name="name" required defaultValue={company.name} className="input" /></Field>
             <Field label="Razón social"><input name="legalName" defaultValue={company.legalName} className="input" /></Field>
             <Field label="RUC"><input name="taxId" defaultValue={company.taxId} className="input" /></Field>
-            <Field label="Teléfono"><input name="phone" defaultValue={company.phone} className="input" /></Field>
+            <Field label="Teléfono"><PhoneInput defaultValue={company.phone} placeholder="2 451 3888" /></Field>
             <Field label="Email"><input name="email" type="email" defaultValue={company.email} className="input" /></Field>
             <Field label="Sitio web"><input name="website" defaultValue={company.website} className="input" /></Field>
             <Field label="Dirección" className="sm:col-span-2"><input name="address" defaultValue={company.address} className="input" /></Field>

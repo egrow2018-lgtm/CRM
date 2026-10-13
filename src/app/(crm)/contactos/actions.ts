@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normalizePhone } from "@/lib/phone";
 import type { LeadStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -13,7 +14,7 @@ function contactData(form: FormData) {
     firstName: reqStr(form, "firstName", "Nombre"),
     lastName: str(form, "lastName"),
     email: str(form, "email")?.toLowerCase() ?? null,
-    phone: str(form, "phone"),
+    phone: normalizePhone(str(form, "phone")),
     jobTitle: str(form, "jobTitle"),
     source: str(form, "source"),
     notes: str(form, "notes"),

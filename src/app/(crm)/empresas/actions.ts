@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normalizePhone } from "@/lib/phone";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
@@ -14,7 +15,7 @@ function companyData(form: FormData) {
     taxId: str(form, "taxId"),
     industry: str(form, "industry"),
     website: str(form, "website"),
-    phone: str(form, "phone"),
+    phone: normalizePhone(str(form, "phone")),
     address: str(form, "address"),
     city: str(form, "city"),
     country: str(form, "country"),

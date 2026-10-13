@@ -4,12 +4,16 @@ import { ROLE_LABELS } from "@/lib/permissions";
 import { PageHeader, Field } from "@/components/ui";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { updateProfile } from "./actions";
+import { SignatureImageInput } from "./signature-image";
 
 export default async function ProfilePage() {
   const user = await requireUser();
   const dbUser = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+  const sigImage = dbUser.signatureImageId
+    ? await prisma.emailImage.findUnique({ where: { id: dbUser.signatureImageId }, select: { id: true, width: true } })
+    : null;
   return (
-    <div className="max-w-xl">
+    <div className="max-w-2xl">
       <PageHeader title="Mi perfil" subtitle={`${user.email} · ${ROLE_LABELS[user.role]}`} />
       <div className="card p-5">
         <ActionForm action={updateProfile} successMessage="Cambios guardados." resetOnSuccess className="grid gap-4">
@@ -27,15 +31,25 @@ export default async function ProfilePage() {
             <input type="checkbox" name="trackingAlerts" defaultChecked={dbUser.trackingAlerts} className="mt-1" />
             <span>Avisarme por correo cuando un cliente <b>abra mis correos o documentos</b> (como máximo un aviso por hora por cada correo o enlace).</span>
           </label>
-          <Field label="Firma de mis correos a clientes (va al final de cada correo)">
-            <textarea
-              name="signature"
-              rows={4}
-              defaultValue={dbUser.signature ?? ""}
-              className="input"
-              placeholder={`${user.name}\nGerente Comercial · e-grow\n+593 99 999 9999 · www.e-growonline.com`}
-            />
-          </Field>
+          <fieldset className="grid gap-3 rounded-lg border border-slate-200 p-4">
+            <legend className="px-1 text-sm font-semibold text-slate-700">Firma de mis correos a clientes</legend>
+            <Field label="Imagen de firma (opcional: la misma imagen de tu firma de Outlook)">
+              <SignatureImageInput
+                initial={
+                  sigImage ? { id: sigImage.id, naturalWidth: sigImage.width, width: dbUser.signatureImageWidth } : null
+                }
+              />
+            </Field>
+            <Field label="Texto de la firma (con imagen va debajo en letra pequeña, ideal para el aviso de confidencialidad; sin imagen es tu firma)">
+              <textarea
+                name="signature"
+                rows={4}
+                defaultValue={dbUser.signature ?? ""}
+                className="input"
+                placeholder={`${user.name}\nGerente Comercial · e-grow\n+593 99 999 9999 · www.e-growonline.com`}
+              />
+            </Field>
+          </fieldset>
           <fieldset className="grid gap-3 rounded-lg border border-slate-200 p-4">
             <legend className="px-1 text-sm font-semibold text-slate-700">Cambiar contraseña</legend>
             <Field label="Contraseña actual">
