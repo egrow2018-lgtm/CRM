@@ -75,7 +75,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
           )
         }
       />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-[minmax(26rem,2fr)_3fr]">
         <div className="space-y-4">
           <div className="card p-4">
             {editing ? (
@@ -106,7 +106,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
             )}
           </div>
         </div>
-        <div className="space-y-4 lg:col-span-2">
+        <div className="min-w-0 space-y-4">
           <div className="card p-4">
             <h2 className="mb-2 text-base">Negocios ({contact.deals.length})</h2>
             {contact.deals.length === 0 ? (

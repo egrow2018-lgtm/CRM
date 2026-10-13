@@ -44,18 +44,17 @@ export function PhoneInput({
   const list = COUNTRIES.filter((c) => !key || normalize(`${c.name} ${c.dial} ${c.iso}`).includes(key.replace(/^\+/, "")));
 
   return (
-    <div ref={box} className={`relative flex w-full min-w-[14rem] ${className}`}>
+    <div ref={box} className={`relative flex w-full ${className}`}>
       <input type="hidden" name={name} value={value} />
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex shrink-0 items-center gap-1.5 rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 px-2.5 text-sm text-slate-700 hover:bg-slate-100"
+        className="flex shrink-0 items-center gap-1 rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 px-2 text-sm text-slate-700 hover:bg-slate-100"
         aria-label={`País: ${country.name}`}
         title={country.name}
       >
         <Flag iso={iso} />
         <span className="tabular-nums">+{country.dial}</span>
-        <span className="text-slate-400">▾</span>
       </button>
       <input
         type="tel"
@@ -76,7 +75,7 @@ export function PhoneInput({
           const d = raw.replace(/\D/g, "").replace(/^0+/, "").slice(0, 13);
           setNational(groupNational(d, iso));
         }}
-        className="input min-w-0 flex-1 rounded-l-none"
+        className="input min-w-0 flex-1 rounded-l-none px-2"
       />
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 w-72 rounded-lg border border-slate-200 bg-white shadow-lg">
