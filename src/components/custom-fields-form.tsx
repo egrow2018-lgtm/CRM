@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/format";
 import { ActionForm, SubmitButton } from "./action-form";
 import { deliveryAlert } from "@/lib/alerts";
 import { Semaforo } from "./semaforo";
+import { TeamPicker } from "./team-picker";
 
 /** Ficha de los campos adicionales de la línea (ej. "Datos del proyecto · E-learning"). */
 export function CustomFieldsCard({
@@ -35,6 +36,7 @@ export function CustomFieldsCard({
       const { ids, legacy } = parseTeamValue(v, teamIds);
       return legacy ?? (ids.map((id) => teamMemberLabel(team.find((m) => m.id === id)!)).join(", ") || "—");
     }
+    if (f.units?.length) return `${v} ${values[`${f.key}Unidad`] ?? f.units[f.units.length - 1]}`;
     return f.suffix ? `${v} ${f.suffix}` : v;
   };
   const avance = Number(values.avance);
@@ -56,21 +58,41 @@ export function CustomFieldsCard({
         </div>
       )}
       {canEdit ? (
-        <ActionForm action={action} successMessage="Datos del proyecto guardados." className="grid gap-3">
+        <ActionForm action={action} successMessage="Datos del proyecto guardados." className="grid grid-cols-2 gap-3">
           {fields.map((f) => {
             const name = `cf_${f.key}`;
             const v = values[f.key] ?? "";
-            // Las casillas del equipo no pueden ir dentro de un <label>
+            // Las fechas van de dos en dos en la misma línea (ej. Inicio de desarrollo · Fecha de entrega)
+            const span = f.type === "date" ? "col-span-2 sm:col-span-1" : "col-span-2";
+            // El equipo es una lista desplegable con casillas (no puede ir dentro de un <label>)
             if (f.type === "team") {
+              const { ids, legacy } = parseTeamValue(v, teamIds);
               return (
-                <div key={f.key}>
+                <div key={f.key} className={span}>
                   <span className="label">{f.label}</span>
-                  <TeamPicker name={name} value={v} team={team} teamIds={teamIds} />
+                  <TeamPicker name={name} initial={ids} legacy={legacy} team={team} />
+                </div>
+              );
+            }
+            // Número con unidad a elegir (ej. Tiempo de desarrollo: 6 ○ días ● semanas)
+            if (f.type === "number" && f.units?.length) {
+              const unit = values[`${f.key}Unidad`] ?? f.units[f.units.length - 1];
+              return (
+                <div key={f.key} className={span}>
+                  <label htmlFor={name} className="label">{f.label}</label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input id={name} name={name} type="number" step="any" min="0" defaultValue={v} className="input w-28" />
+                    {f.units.map((u) => (
+                      <label key={u} className="flex items-center gap-1.5 text-sm text-slate-700">
+                        <input type="radio" name={`${name}_unidad`} value={u} defaultChecked={u === unit} /> {u[0]!.toUpperCase() + u.slice(1)}
+                      </label>
+                    ))}
+                  </div>
                 </div>
               );
             }
             return (
-              <label key={f.key} className="block">
+              <label key={f.key} className={`block ${span}`}>
                 <span className="label">
                   {f.label}
                   {f.suffix && <span className="text-slate-400"> ({f.suffix})</span>}
@@ -104,7 +126,7 @@ export function CustomFieldsCard({
               </label>
             );
           })}
-          <div><SubmitButton className="btn btn-primary btn-sm">Guardar datos del proyecto</SubmitButton></div>
+          <div className="col-span-2"><SubmitButton className="btn btn-primary btn-sm">Guardar datos del proyecto</SubmitButton></div>
         </ActionForm>
       ) : (
         <dl className="grid gap-2">
@@ -117,48 +139,5 @@ export function CustomFieldsCard({
         </dl>
       )}
     </div>
-  );
-}
-
-/** Casillas con los integrantes del equipo (los inactivos solo aparecen si ya estaban elegidos). */
-function TeamPicker({
-  name,
-  value,
-  team,
-  teamIds,
-}: {
-  name: string;
-  value: string;
-  team: { id: string; name: string; specialty: string | null; active: boolean }[];
-  teamIds: Set<string>;
-}) {
-  const { ids, legacy } = parseTeamValue(value, teamIds);
-  const chosen = new Set(ids);
-  const shown = team.filter((m) => m.active || chosen.has(m.id));
-  return (
-    <span className="mt-1 block rounded-lg border border-slate-200 p-2">
-      {legacy && (
-        <span className="mb-2 block rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-          Registro anterior: <span className="whitespace-pre-line">{legacy}</span>
-          <input type="hidden" name={`${name}_legacy`} value={legacy} />
-          <span className="block text-amber-700">Marca los integrantes de la lista para reemplazarlo.</span>
-        </span>
-      )}
-      {shown.length === 0 ? (
-        <span className="block text-xs text-slate-500">Aún no hay integrantes. El administrador los agrega en Configuración → Equipo de desarrollo.</span>
-      ) : (
-        <span className="grid gap-1 sm:grid-cols-2">
-          {shown.map((m) => (
-            <span key={m.id} className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" name={name} value={m.id} defaultChecked={chosen.has(m.id)} id={`${name}-${m.id}`} />
-              <label htmlFor={`${name}-${m.id}`}>
-                {m.name}
-                {m.specialty && <span className="text-xs text-slate-500"> · {m.specialty}</span>}
-              </label>
-            </span>
-          ))}
-        </span>
-      )}
-    </span>
   );
 }

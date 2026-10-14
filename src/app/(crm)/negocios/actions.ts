@@ -175,6 +175,11 @@ export async function updateDealCustomData(dealId: string, _: ActionState, form:
       }
       if (v) data[f.key] = f.type === "number" ? String(Number(v.replace(",", "."))) : v;
       else delete data[f.key];
+      if (f.type === "number" && f.units?.length) {
+        const unit = str(form, `cf_${f.key}_unidad`);
+        if (v && unit && f.units.includes(unit)) data[`${f.key}Unidad`] = unit;
+        else if (!v) delete data[`${f.key}Unidad`];
+      }
     }
     await prisma.deal.update({ where: { id: dealId }, data: { customData: data } });
     revalidatePath(`/negocios/${dealId}`);
@@ -193,14 +198,21 @@ export async function createRenewalNow(dealId: string) {
   redirect(`/negocios/${renewal.id}`);
 }
 
-/** Costo del desarrollo (confidencial): solo con el permiso «deals:cost». */
+/** Costo del desarrollo y gasto adicional (confidenciales): solo con el permiso «deals:cost». */
 export async function updateDealCost(dealId: string, _: ActionState, form: FormData) {
   return runAction(async () => {
     await requirePermission("deals:cost");
-    const raw = str(form, "developmentCost");
-    const cost = raw ? Number(raw.replace(/\s/g, "").replace(",", ".")) : null;
-    if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("El costo debe ser un número mayor o igual a 0.");
-    await prisma.deal.update({ where: { id: dealId }, data: { developmentCost: cost === null ? null : Math.round(cost * 100) / 100 } });
+    const money = (field: string, label: string) => {
+      const raw = str(form, field);
+      if (!raw) return null;
+      const n = Number(raw.replace(/\s/g, "").replace(",", "."));
+      if (!Number.isFinite(n) || n < 0) throw new Error(`${label} debe ser un número mayor o igual a 0.`);
+      return Math.round(n * 100) / 100;
+    };
+    await prisma.deal.update({
+      where: { id: dealId },
+      data: { developmentCost: money("developmentCost", "El costo del desarrollo"), extraExpense: money("extraExpense", "El gasto adicional") },
+    });
     revalidatePath(`/negocios/${dealId}`);
   });
 }

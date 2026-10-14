@@ -7,6 +7,8 @@ export type CustomField = {
   type: CustomFieldType;
   options?: string[]; // para "select"
   suffix?: string; // para "number", ej. "semanas"
+  /** Para "number": unidades a elegir con botones redondos (ej. días o semanas). Se guarda en `${key}Unidad`. */
+  units?: string[];
   placeholder?: string;
 };
 
@@ -27,7 +29,7 @@ export const ELEARNING_FIELDS: CustomField[] = [
     type: "select",
     options: ["Curso virtual", "Plataforma LMS", "Video learning", "Producción audiovisual", "Microlearning", "Otro"],
   },
-  { key: "tiempoDesarrollo", label: "Tiempo de desarrollo", type: "number", suffix: "semanas" },
+  { key: "tiempoDesarrollo", label: "Tiempo de desarrollo", type: "number", units: ["días", "semanas"] },
   { key: "fechaInicio", label: "Inicio de desarrollo", type: "date" },
   { key: "fechaEntrega", label: "Fecha de entrega", type: "date" },
   { key: "responsable", label: "Responsable del proyecto", type: "user" },

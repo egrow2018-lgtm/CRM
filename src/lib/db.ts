@@ -2,9 +2,9 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: ReturnType<typeof createClient> };
 
-// El costo del desarrollo es confidencial: no viaja en ninguna consulta de negocios salvo que se pida
+// El costo del desarrollo y el gasto adicional son confidenciales: no viaja en ninguna consulta de negocios salvo que se pida
 // explícitamente (select: { developmentCost: true }) donde el usuario tiene el permiso deals:cost.
-const createClient = () => new PrismaClient({ omit: { deal: { developmentCost: true } } });
+const createClient = () => new PrismaClient({ omit: { deal: { developmentCost: true, extraExpense: true } } });
 
 export const prisma = globalForPrisma.prisma ?? createClient();
 

@@ -33,7 +33,7 @@ export async function GET() {
     prisma.company.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.contact.findMany({ orderBy: { createdAt: "asc" } }),
     // El costo del desarrollo solo va en el respaldo de quien tiene permiso para verlo
-    prisma.deal.findMany({ orderBy: { createdAt: "asc" }, omit: { developmentCost: !can(user, "deals:cost") } }),
+    prisma.deal.findMany({ orderBy: { createdAt: "asc" }, omit: { developmentCost: !can(user, "deals:cost"), extraExpense: !can(user, "deals:cost") } }),
     prisma.dealItem.findMany(),
     prisma.activity.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.quote.findMany({ orderBy: [{ year: "asc" }, { number: "asc" }] }),

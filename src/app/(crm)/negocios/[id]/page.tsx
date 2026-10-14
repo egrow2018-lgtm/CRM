@@ -50,7 +50,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const [options, cost, team] = await Promise.all([
     getFormOptions(),
     // El costo es confidencial: solo se consulta si el usuario tiene el permiso
-    canCost ? prisma.deal.findUnique({ where: { id }, select: { developmentCost: true } }) : null,
+    canCost ? prisma.deal.findUnique({ where: { id }, select: { developmentCost: true, extraExpense: true } }) : null,
     prisma.teamMember.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
   ]);
   const canWrite = can(user, "deals:write");
@@ -152,9 +152,6 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               </dl>
             )}
           </div>
-          {canCost && (
-            <DealCostCard amount={toNumber(deal.amount)} cost={cost?.developmentCost == null ? null : toNumber(cost.developmentCost)} action={updateDealCost.bind(null, id)} />
-          )}
           {deal.company && normalize(deal.businessLine?.name ?? "") === "rutalink" && (
             <GpsboxCard company={deal.company} contact={deal.contact} canEdit={canWrite} />
           )}
@@ -167,6 +164,15 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               team={team}
               action={updateDealCustomData.bind(null, id)}
               canEdit={can(user, "deals:write") || can(user, "deals:production")}
+            />
+          )}
+          {/* Debajo de los datos del proyecto (después de «Avance») */}
+          {canCost && (
+            <DealCostCard
+              amount={toNumber(deal.amount)}
+              cost={cost?.developmentCost == null ? null : toNumber(cost.developmentCost)}
+              extra={cost?.extraExpense == null ? null : toNumber(cost.extraExpense)}
+              action={updateDealCost.bind(null, id)}
             />
           )}
         </div>
