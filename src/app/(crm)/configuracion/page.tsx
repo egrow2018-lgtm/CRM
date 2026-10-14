@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PhoneInput } from "@/components/phone-input";
 import { COUNTRIES } from "@/lib/phone";
@@ -12,9 +13,21 @@ import { Field } from "@/components/ui";
 import { ZoomTest } from "./zoom-test";
 import { zoomConfigured } from "@/lib/zoom";
 
-export default async function SettingsPage() {
+const TABS = [
+  { key: "empresa", label: "Empresa" },
+  { key: "equipo", label: "Equipo de desarrollo", adminOnly: true },
+  { key: "correo", label: "Correo" },
+  { key: "reportes", label: "Reportes automáticos" },
+  { key: "zoom", label: "Zoom" },
+  { key: "pipeline", label: "Etapas del pipeline" },
+] as const;
+
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const user = await requirePagePermission("pipeline:configure");
   const isAdmin = user.role === "ADMIN";
+  const tabs = TABS.filter((t) => !("adminOnly" in t) || isAdmin);
+  const requested = (await searchParams).tab;
+  const tab = tabs.find((t) => t.key === requested)?.key ?? "empresa";
   const company = await getCompanySettings();
   const team = isAdmin ? await prisma.teamMember.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }) : [];
   const [productionFrequency, productionRecipients] = await Promise.all([
@@ -24,9 +37,24 @@ export default async function SettingsPage() {
   const stages = await prisma.pipelineStage.findMany({ orderBy: { order: "asc" }, include: { _count: { select: { deals: true } } } });
 
   return (
-    <div className="max-w-5xl space-y-8">
+    <div className="max-w-5xl space-y-6">
       <PageHeader title="Configuración" />
+      <nav className="-mt-2 flex gap-1 overflow-x-auto border-b border-slate-200" aria-label="Secciones de configuración">
+        {tabs.map((t) => (
+          <Link
+            key={t.key}
+            href={`/configuracion?tab=${t.key}`}
+            aria-current={tab === t.key ? "page" : undefined}
+            className={`-mb-px whitespace-nowrap rounded-t-lg border px-4 py-2 text-sm ${
+              tab === t.key ? "border-slate-200 border-b-white bg-white font-semibold text-brand-700" : "border-transparent text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
 
+      {tab === "empresa" && (
       <section>
         <h2 className="mb-1">Datos de la empresa (cotizaciones)</h2>
         <p className="mb-3 text-xs text-slate-500">Aparecen en el encabezado y las condiciones de cada cotización en PDF.</p>
@@ -48,8 +76,9 @@ export default async function SettingsPage() {
           </ActionForm>
         </div>
       </section>
+      )}
 
-      {isAdmin && (
+      {isAdmin && tab === "equipo" && (
         <section>
           <h2 className="mb-1">Equipo de desarrollo</h2>
           <p className="mb-3 text-xs text-slate-500">
@@ -79,6 +108,7 @@ export default async function SettingsPage() {
         </section>
       )}
 
+      {tab === "correo" && (
       <section>
         <h2 className="mb-1">Correo</h2>
         <div className="card p-4 text-sm">
@@ -100,7 +130,9 @@ export default async function SettingsPage() {
           </ActionForm>
         </div>
       </section>
+      )}
 
+      {tab === "reportes" && (
       <section>
         <h2 className="mb-1">Reporte de negocios en producción</h2>
         <div className="card space-y-3 p-4 text-sm">
@@ -125,7 +157,9 @@ export default async function SettingsPage() {
           </div>
         </div>
       </section>
+      )}
 
+      {tab === "zoom" && (
       <section>
         <h2 className="mb-1">Zoom</h2>
         <div className="card p-4 text-sm">
@@ -145,7 +179,9 @@ export default async function SettingsPage() {
           <ZoomTest />
         </div>
       </section>
+      )}
 
+      {tab === "pipeline" && (
       <section>
         <h2 className="mb-1">Etapas del pipeline</h2>
         <p className="mb-3 text-xs text-slate-500">
@@ -191,6 +227,7 @@ export default async function SettingsPage() {
           </ActionForm>
         </div>
       </section>
+      )}
     </div>
   );
 }
