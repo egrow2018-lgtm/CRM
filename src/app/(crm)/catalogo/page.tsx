@@ -56,8 +56,40 @@ export default async function CatalogPage() {
                   {line.description && <p className="text-xs text-slate-500">{line.description}</p>}
                 </div>
               </div>
-              <span className="text-xs text-slate-500">{line.products.length} productos · {line._count.deals} negocios</span>
+              <span className="flex items-center gap-3 text-xs text-slate-500">
+                {line.products.length} productos · {line._count.deals} negocios
+                {canManage && <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-brand-700">✎ Editar</span>}
+              </span>
             </summary>
+            {canManage && (
+              // Datos de la línea arriba, a la vista apenas se despliega
+              <div className="border-b border-slate-100 bg-slate-50/60 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Datos de la línea</p>
+                <ActionForm action={saveBusinessLine.bind(null, line.id)} successMessage="Línea guardada." className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-12">
+                  <label className="block sm:col-span-4">
+                    <span className="label">Nombre</span>
+                    <input name="name" required defaultValue={line.name} className="input" />
+                  </label>
+                  <label className="block sm:col-span-6">
+                    <span className="label">Descripción</span>
+                    <input name="description" defaultValue={line.description ?? ""} placeholder="Ej. Cursos virtuales y plataformas LMS" className="input" />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="label">Color</span>
+                    <input name="color" type="color" defaultValue={line.color} className="input h-9 p-1" />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm sm:col-span-12">
+                    <input type="checkbox" name="active" defaultChecked={line.active} /> Activa
+                  </label>
+                  <label className="flex items-center gap-2 text-sm sm:col-span-12">
+                    <input type="checkbox" name="quoteWithoutDeal" defaultChecked={line.quoteWithoutDeal} /> Permite cotizar a un contacto sin crear el negocio (personas naturales)
+                  </label>
+                  <div className="sm:col-span-12"><SubmitButton className="btn btn-sm btn-primary">Guardar línea</SubmitButton></div>
+                  </div>
+                </ActionForm>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="table">
                 <thead>
@@ -163,19 +195,6 @@ export default async function CatalogPage() {
                       <input name="brandHeaderBg" type="color" defaultValue={line.brandHeaderBg ?? "#111827"} className="input h-9 w-14 p-1" />
                     </label>
                     <div className="sm:col-span-2"><SubmitButton className="btn btn-sm btn-primary">Guardar marca</SubmitButton></div>
-                  </ActionForm>
-                </details>
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-slate-500">Editar línea</summary>
-                  <ActionForm action={saveBusinessLine.bind(null, line.id)} className="mt-2 grid gap-2 sm:grid-cols-6">
-                    <input name="name" required defaultValue={line.name} className="input sm:col-span-2" />
-                    <input name="description" defaultValue={line.description ?? ""} className="input sm:col-span-2" />
-                    <input name="color" type="color" defaultValue={line.color} className="input h-9 p-1" />
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={line.active} /> Activa</label>
-                    <label className="flex items-center gap-2 text-sm sm:col-span-6">
-                      <input type="checkbox" name="quoteWithoutDeal" defaultChecked={line.quoteWithoutDeal} /> Permite cotizar a un contacto sin crear el negocio (personas naturales)
-                    </label>
-                    <div className="sm:col-span-6"><SubmitButton className="btn btn-sm btn-primary">Guardar línea</SubmitButton></div>
                   </ActionForm>
                 </details>
               </div>
