@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { buildProductionReport, getProductionFrequency, saveProductionFrequency } from "@/lib/production-report";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
-import { num, reqStr, str, type ActionState } from "@/lib/forms";
+import { requirePermission, requireUser } from "@/lib/auth";
+import { bool, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { checkZoomUser, zoomConfigured } from "@/lib/zoom";
 import { saveCompanySettings } from "@/lib/settings";
@@ -118,5 +118,27 @@ export async function sendProductionReportNow() {
     const recipients = await prisma.user.findMany({ where: { active: true, productionReport: true }, select: { email: true } });
     const report = await buildProductionReport(await getProductionFrequency());
     await sendEmail({ to: recipients.length ? recipients.map((r) => r.email) : me.email, subject: report.subject, html: report.html });
+  });
+}
+
+/** Equipo de desarrollo: solo el administrador agrega, edita o desactiva integrantes. */
+async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") throw new Error("Solo el administrador puede editar el equipo de desarrollo.");
+  return user;
+}
+
+export async function saveTeamMember(id: string | null, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    await requireAdmin();
+    const data = {
+      name: reqStr(form, "name", "Nombre").slice(0, 120),
+      specialty: str(form, "specialty")?.slice(0, 120) ?? null,
+      ...(id ? { active: bool(form, "active") } : {}),
+    };
+    if (id) await prisma.teamMember.update({ where: { id }, data });
+    else await prisma.teamMember.create({ data });
+    revalidatePath("/configuracion");
+    revalidatePath("/negocios", "layout");
   });
 }

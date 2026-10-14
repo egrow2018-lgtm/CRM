@@ -20,3 +20,10 @@ test("Proyectos solo mueve negocios en ejecución", () => {
   assert.equal(canMoveDeal("PROYECTOS", cotizacion, firma), false);
   assert.equal(canMoveDeal("COMERCIAL", cotizacion, firma), true);
 });
+
+test("el costo del desarrollo solo lo ven Administración, Gerencia y Proyectos", () => {
+  assert.equal(can("ADMIN", "deals:cost"), true);
+  assert.equal(can("GERENTE", "deals:cost"), true);
+  assert.equal(can("PROYECTOS", "deals:cost"), true);
+  assert.equal(can("COMERCIAL", "deals:cost"), false);
+});

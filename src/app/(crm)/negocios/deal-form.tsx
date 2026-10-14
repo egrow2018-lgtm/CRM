@@ -17,7 +17,7 @@ export function DealForm({
 }: {
   action: (s: ActionState, f: FormData) => Promise<ActionState>;
   options: Options;
-  deal?: Deal;
+  deal?: Omit<Deal, "developmentCost">;
   defaults?: Partial<Pick<Deal, "companyId" | "contactId" | "ownerId" | "businessLineId">>;
   hasItems?: boolean;
   submitLabel?: string;

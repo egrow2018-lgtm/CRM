@@ -3,7 +3,7 @@ import { PhoneInput } from "@/components/phone-input";
 import { requirePagePermission } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
-import { deleteStage, saveCompany, saveProductionReport, saveStage, sendProductionReportNow, sendTestEmail } from "./actions";
+import { deleteStage, saveCompany, saveProductionReport, saveStage, saveTeamMember, sendProductionReportNow, sendTestEmail } from "./actions";
 import { getProductionFrequency } from "@/lib/production-report";
 import { getCompanySettings } from "@/lib/settings";
 import { emailConfigured } from "@/lib/email";
@@ -12,8 +12,10 @@ import { ZoomTest } from "./zoom-test";
 import { zoomConfigured } from "@/lib/zoom";
 
 export default async function SettingsPage() {
-  await requirePagePermission("pipeline:configure");
+  const user = await requirePagePermission("pipeline:configure");
+  const isAdmin = user.role === "ADMIN";
   const company = await getCompanySettings();
+  const team = isAdmin ? await prisma.teamMember.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }) : [];
   const [productionFrequency, productionRecipients] = await Promise.all([
     getProductionFrequency(),
     prisma.user.findMany({ where: { active: true, productionReport: true }, select: { name: true }, orderBy: { name: "asc" } }),
@@ -45,6 +47,37 @@ export default async function SettingsPage() {
           </ActionForm>
         </div>
       </section>
+
+      {isAdmin && (
+        <section>
+          <h2 className="mb-1">Equipo de desarrollo</h2>
+          <p className="mb-3 text-xs text-slate-500">
+            Es la lista que aparece en el campo «Equipo de desarrollo» de los negocios. Solo el administrador la edita. Si alguien deja de
+            colaborar, desactívalo: sigue apareciendo en los negocios donde ya estaba, pero no en los nuevos.
+          </p>
+          <div className="card divide-y divide-slate-100">
+            {team.map((m) => (
+              <ActionForm key={m.id} action={saveTeamMember.bind(null, m.id)} successMessage="Guardado." className="space-y-2 p-3">
+                <div className="grid items-center gap-2 sm:grid-cols-12">
+                <input name="name" required defaultValue={m.name} className="input sm:col-span-4" aria-label="Nombre" />
+                <input name="specialty" defaultValue={m.specialty ?? ""} placeholder="Especialidad" className="input sm:col-span-4" aria-label="Especialidad" />
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input type="checkbox" name="active" defaultChecked={m.active} /> Activo
+                </label>
+                <SubmitButton className="btn btn-sm sm:col-span-2">Guardar</SubmitButton>
+                </div>
+              </ActionForm>
+            ))}
+            <ActionForm action={saveTeamMember.bind(null, null)} resetOnSuccess successMessage="Integrante agregado." className="space-y-2 bg-slate-50/60 p-3">
+              <div className="grid items-center gap-2 sm:grid-cols-12">
+              <input name="name" required placeholder="Nombre del integrante" className="input sm:col-span-4" />
+              <input name="specialty" placeholder="Especialidad (ej. Diseño instruccional)" className="input sm:col-span-6" />
+              <SubmitButton className="btn btn-primary btn-sm sm:col-span-2">Agregar</SubmitButton>
+              </div>
+            </ActionForm>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-1">Correo</h2>
