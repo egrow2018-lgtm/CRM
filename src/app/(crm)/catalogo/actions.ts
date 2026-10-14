@@ -43,7 +43,6 @@ export async function saveProduct(id: string | null, _: ActionState, form: FormD
       })(),
       businessLineId: reqStr(form, "businessLineId", "Línea de negocio"),
       active: id ? bool(form, "active") : true,
-      quoteWithoutDeal: bool(form, "quoteWithoutDeal"),
     };
     if (id) await prisma.product.update({ where: { id }, data });
     else await prisma.product.create({ data });
