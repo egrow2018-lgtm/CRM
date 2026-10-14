@@ -41,8 +41,18 @@ export function LineFieldsEditor({
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
-          {f.type === "number" && (
+          {f.type === "number" && !f.units?.length && (
             <input value={f.suffix ?? ""} onChange={(e) => set(i, { suffix: e.target.value || undefined })} placeholder="Unidad (ej. semanas)" className="input w-36" />
+          )}
+          {f.type === "number" && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={!!f.units?.length}
+                onChange={(e) => set(i, e.target.checked ? { units: ["días", "semanas"], suffix: undefined } : { units: undefined })}
+              />
+              Elegir días o semanas
+            </label>
           )}
           {f.type === "select" && (
             <input
