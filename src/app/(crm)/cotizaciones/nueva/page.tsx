@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
 import { contactName, toNumber } from "@/lib/format";
 import { getCompanySettings } from "@/lib/settings";
-import { quoteCode, type QuoteSnapshot } from "@/lib/quotes";
+import { DEFAULT_TERM_MONTHS, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { PageHeader } from "@/components/ui";
 import { QuoteForm } from "./quote-form";
 
@@ -21,7 +21,7 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
     }),
     prisma.product.findMany({
       where: { active: true },
-      select: { id: true, name: true, unitPrice: true, businessLineId: true, businessLine: { select: { name: true } } },
+      select: { id: true, name: true, unitPrice: true, billing: true, renewalMonths: true, businessLineId: true, businessLine: { select: { name: true } } },
       orderBy: [{ businessLine: { name: "asc" } }, { name: "asc" }],
     }),
     prisma.businessLine.findMany({ where: { brandLogo: { not: null } }, select: { id: true, name: true, brandName: true } }),
@@ -52,6 +52,8 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
         quantity: String(i.quantity),
         unitPrice: String(i.unitPrice),
         discount: String(i.discount),
+        billing: i.billing ?? ("UNICO" as const),
+        termMonths: String(i.termMonths ?? DEFAULT_TERM_MONTHS),
       }))
     : dealItems.map((i) => ({
         productId: i.productId ?? "",
@@ -59,6 +61,8 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
         quantity: String(toNumber(i.quantity)),
         unitPrice: String(toNumber(i.unitPrice)),
         discount: String(toNumber(i.discount)),
+        billing: i.billing,
+        termMonths: String(i.termMonths ?? DEFAULT_TERM_MONTHS),
       }));
 
   return (
@@ -83,7 +87,7 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
           label: [d.name, d.company?.name ?? (d.contact ? contactName(d.contact) : null)].filter(Boolean).join(" · "),
           lineId: d.businessLineId,
         }))}
-        products={products.map((p) => ({ id: p.id, name: p.name, price: toNumber(p.unitPrice), lineId: p.businessLineId, lineName: p.businessLine.name }))}
+        products={products.map((p) => ({ id: p.id, name: p.name, price: toNumber(p.unitPrice), lineId: p.businessLineId, lineName: p.businessLine.name, billing: p.billing, term: p.renewalMonths }))}
         brandByLine={Object.fromEntries(brandLines.map((l) => [l.id, l.brandName || l.name]))}
         quoteLines={quoteLines}
         contacts={contacts.map((c) => ({ id: c.id, label: [contactName(c), c.email, c.company?.name].filter(Boolean).join(" · ") }))}

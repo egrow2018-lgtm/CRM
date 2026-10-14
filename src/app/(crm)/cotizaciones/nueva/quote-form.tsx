@@ -4,21 +4,21 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { computeTotals } from "@/lib/quotes";
+import { BILLING, DEFAULT_TERM_MONTHS, computeTotals, isBilling, type Billing } from "@/lib/quotes";
 import { PhoneInput } from "@/components/phone-input";
 import { createQuote } from "../actions";
 
 type Deal = { id: string; label: string; lineId: string | null };
 type Option = { id: string; label: string };
-type Product = { id: string; name: string; price: number; lineId: string; lineName: string };
-type Line = { productId: string; description: string; quantity: string; unitPrice: string; discount: string };
+type Product = { id: string; name: string; price: number; lineId: string; lineName: string; billing: Billing; term: number | null };
+type Line = { productId: string; description: string; quantity: string; unitPrice: string; discount: string; billing: Billing; termMonths: string };
 
 const money = (n: number) => n.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num = (v: string) => {
   const n = Number(v.replace(",", "."));
   return Number.isFinite(n) ? n : 0;
 };
-const emptyLine = (): Line => ({ productId: "", description: "", quantity: "1", unitPrice: "", discount: "0" });
+const emptyLine = (): Line => ({ productId: "", description: "", quantity: "1", unitPrice: "", discount: "0", billing: "UNICO", termMonths: String(DEFAULT_TERM_MONTHS) });
 
 export function QuoteForm({
   deals,
@@ -71,14 +71,33 @@ export function QuoteForm({
 
   const valid = lines.filter((l) => l.description.trim() && num(l.quantity) > 0);
   const totals = computeTotals(
-    valid.map((l) => ({ quantity: num(l.quantity), unitPrice: num(l.unitPrice), discount: Math.min(100, num(l.discount)) })),
+    valid.map((l) => ({
+      quantity: num(l.quantity),
+      unitPrice: num(l.unitPrice),
+      discount: Math.min(100, num(l.discount)),
+      billing: l.billing,
+      termMonths: num(l.termMonths) || DEFAULT_TERM_MONTHS,
+    })),
     num(iva),
   );
+  const recurring = totals.monthly > 0 || totals.annual > 0;
 
   const update = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const pickProduct = (i: number, id: string) => {
     const p = products.find((x) => x.id === id);
-    update(i, p ? { productId: id, description: p.name, unitPrice: p.price ? String(p.price) : lines[i].unitPrice } : { productId: "" });
+    update(
+      i,
+      p
+        ? {
+            productId: id,
+            description: p.name,
+            unitPrice: p.price ? String(p.price) : lines[i]!.unitPrice,
+            // Cómo se cobra y el plazo salen del catálogo (se pueden cambiar en la línea)
+            billing: p.billing,
+            termMonths: String(p.term ?? DEFAULT_TERM_MONTHS),
+          }
+        : { productId: "" },
+    );
   };
 
   // Productos agrupados por línea, primero la del negocio
@@ -93,7 +112,17 @@ export function QuoteForm({
       <input
         type="hidden"
         name="lines"
-        value={JSON.stringify(valid.map((l) => ({ productId: l.productId || null, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice || "0", discount: l.discount || "0" })))}
+        value={JSON.stringify(
+          valid.map((l) => ({
+            productId: l.productId || null,
+            description: l.description,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice || "0",
+            discount: l.discount || "0",
+            billing: l.billing,
+            termMonths: l.billing === "UNICO" ? null : l.termMonths,
+          })),
+        )}
       />
 
       <input type="hidden" name="mode" value={mode} />
@@ -230,11 +259,40 @@ export function QuoteForm({
                         ))}
                       </select>
                       <input value={l.description} onChange={(e) => update(i, { description: e.target.value })} className="input" placeholder="Descripción que verá el cliente" />
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                        <select
+                          data-native
+                          value={l.billing}
+                          onChange={(e) => update(i, { billing: isBilling(e.target.value) ? e.target.value : "UNICO" })}
+                          className="input w-auto py-1 text-xs"
+                          aria-label="Cómo se cobra"
+                        >
+                          {(Object.keys(BILLING) as Billing[]).map((b) => (
+                            <option key={b} value={b}>{BILLING[b].label}</option>
+                          ))}
+                        </select>
+                        {l.billing !== "UNICO" && (
+                          <label className="flex items-center gap-1">
+                            Contrato
+                            <input
+                              value={l.termMonths}
+                              onChange={(e) => update(i, { termMonths: e.target.value.replace(/\D/g, "") })}
+                              inputMode="numeric"
+                              className="input w-14 py-1 text-right text-xs"
+                              aria-label="Plazo del contrato en meses"
+                            />
+                            meses
+                          </label>
+                        )}
+                      </div>
                     </td>
                     <td><input value={l.quantity} onChange={(e) => update(i, { quantity: e.target.value })} inputMode="decimal" className="input text-right" /></td>
                     <td><input value={l.unitPrice} onChange={(e) => update(i, { unitPrice: e.target.value })} inputMode="decimal" className="input text-right" placeholder="0,00" /></td>
                     <td><input value={l.discount} onChange={(e) => update(i, { discount: e.target.value })} inputMode="decimal" className="input text-right" /></td>
-                    <td className="pt-3.5 text-right font-medium tabular-nums">${money(Math.round(sub * 100) / 100)}</td>
+                    <td className="pt-3.5 text-right font-medium tabular-nums">
+                      ${money(Math.round(sub * 100) / 100)}
+                      {BILLING[l.billing].per && <span className="block text-xs font-normal text-slate-500">{BILLING[l.billing].per}</span>}
+                    </td>
                     <td className="pt-3">
                       {lines.length > 1 && (
                         <button type="button" title="Quitar" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-600">✕</button>
@@ -248,19 +306,35 @@ export function QuoteForm({
         </div>
         <button type="button" className="btn btn-sm mt-2" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ Agregar línea</button>
 
-        <div className="mt-4 ml-auto w-full max-w-xs space-y-1 text-sm">
-          <div className="flex justify-between"><span className="text-slate-500">Subtotal</span><span className="tabular-nums">${money(totals.subtotal)}</span></div>
-          {totals.discountTotal > 0 && (
-            <div className="flex justify-between text-xs text-slate-500"><span>Descuentos incluidos</span><span className="tabular-nums">−${money(totals.discountTotal)}</span></div>
+        <div className="mt-4 flex flex-wrap items-start justify-end gap-4">
+          {recurring && (
+            // Resumen de lo que paga el cliente: al inicio, cada mes y cada año (sin IVA)
+            <div className="w-full max-w-xs space-y-1 rounded-lg border border-accent-200 bg-accent-50/60 p-3 text-sm">
+              <div className="flex justify-between"><span className="text-slate-600">Pago inicial</span><span className="tabular-nums">${money(totals.oneTime)}</span></div>
+              {totals.monthly > 0 && (
+                <div className="flex justify-between font-semibold text-brand-700"><span>Mensualidad</span><span className="tabular-nums">${money(totals.monthly)} /mes</span></div>
+              )}
+              {totals.annual > 0 && (
+                <div className="flex justify-between font-semibold text-brand-700"><span>Anualidad</span><span className="tabular-nums">${money(totals.annual)} /año</span></div>
+              )}
+              <div className="flex justify-between border-t border-accent-200 pt-1"><span className="text-slate-600">Valor del primer año</span><span className="font-semibold tabular-nums">${money(totals.subtotal)}</span></div>
+              <p className="text-xs text-slate-500">Valores sin IVA. El valor del negocio será el del primer año.</p>
+            </div>
           )}
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500">
-              IVA <input name="ivaPercent" value={iva} onChange={(e) => setIva(e.target.value)} inputMode="decimal" className="input inline-block w-16 py-0.5 text-right" /> %
-            </span>
-            <span className="tabular-nums">${money(totals.iva)}</span>
-          </div>
-          <div className="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-brand-700">
-            <span>Total</span><span className="tabular-nums">${money(totals.total)}</span>
+          <div className="w-full max-w-xs space-y-1 text-sm">
+            <div className="flex justify-between"><span className="text-slate-500">{recurring ? "Subtotal primer año" : "Subtotal"}</span><span className="tabular-nums">${money(totals.subtotal)}</span></div>
+            {totals.discountTotal > 0 && (
+              <div className="flex justify-between text-xs text-slate-500"><span>Descuentos incluidos</span><span className="tabular-nums">−${money(totals.discountTotal)}</span></div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">
+                IVA <input name="ivaPercent" value={iva} onChange={(e) => setIva(e.target.value)} inputMode="decimal" className="input inline-block w-16 py-0.5 text-right" /> %
+              </span>
+              <span className="tabular-nums">${money(totals.iva)}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-brand-700">
+              <span>{recurring ? "Total primer año" : "Total"}</span><span className="tabular-nums">${money(totals.total)}</span>
+            </div>
           </div>
         </div>
       </div>

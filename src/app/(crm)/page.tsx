@@ -9,6 +9,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { SEMAFORO, Semaforo, SemaforoDot, SemaforoPunto } from "@/components/semaforo";
 import { dealAlerts, lastActivityAlert, renewalAlert } from "@/lib/alerts";
 import { parseCustomData } from "@/lib/custom-fields";
+import { itemFirstYear } from "@/lib/quotes";
 import { emailConfigured } from "@/lib/email";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -89,7 +90,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     prisma.dealItem.findMany({
       where: { deal: { AND: [where, { stage: { isWon: true } }] }, ...(sp.product ? { productId: sp.product } : {}) },
       select: {
-        description: true, quantity: true, unitPrice: true, discount: true,
+        description: true, quantity: true, unitPrice: true, discount: true, billing: true, termMonths: true,
         product: { select: { id: true, name: true, businessLine: { select: { color: true } } } },
       },
     }),
@@ -148,7 +149,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const byProduct = new Map<string, { label: string; value: number; qty: number; color?: string }>();
   for (const it of wonItems) {
     const key = it.product?.id ?? `d:${it.description}`;
-    const subtotal = toNumber(it.quantity) * toNumber(it.unitPrice) * (1 - toNumber(it.discount) / 100);
+    // Valor del primer año (las mensualidades cuentan por los meses del contrato, hasta 12)
+    const subtotal = itemFirstYear({ quantity: toNumber(it.quantity), unitPrice: toNumber(it.unitPrice), discount: toNumber(it.discount), billing: it.billing, termMonths: it.termMonths });
     const row = byProduct.get(key) ?? { label: it.product?.name ?? it.description, value: 0, qty: 0, color: it.product?.businessLine.color };
     row.value += subtotal;
     row.qty += toNumber(it.quantity);

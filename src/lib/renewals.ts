@@ -17,7 +17,14 @@ export function addMonths(date: Date, months: number) {
 export async function setRenewalOnWin(tx: Prisma.TransactionClient, dealId: string) {
   const deal = await tx.deal.findUniqueOrThrow({ where: { id: dealId }, include: { items: { include: { product: true } } } });
   if (deal.renewalDate) return;
-  const months = deal.items.map((i) => i.product?.renewalMonths).filter((m): m is number => !!m && m > 0);
+  // Recurrentes (mensual o anual): el plazo de la línea o, si no tiene, el del catálogo (12 meses por defecto)
+  const months = deal.items
+    .map((i) =>
+      i.billing !== "UNICO" || (i.product && i.product.billing !== "UNICO")
+        ? (i.termMonths ?? i.product?.renewalMonths ?? 12)
+        : i.product?.renewalMonths,
+    )
+    .filter((m): m is number => !!m && m > 0);
   if (months.length === 0) return;
   // Se cuenta desde el día en que se gana (la fecha de cierre planificada puede estar desactualizada)
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
@@ -36,6 +43,8 @@ export async function createRenewalDeal(tx: Prisma.TransactionClient, dealId: st
     data: {
       name: `Renovación ${deal.renewalDate.getUTCFullYear()} – ${baseName}`,
       amount: deal.amount,
+      recurringMonthly: deal.recurringMonthly,
+      recurringAnnual: deal.recurringAnnual,
       currency: deal.currency,
       stageId: stage.id,
       businessLineId: deal.businessLineId,
@@ -52,6 +61,8 @@ export async function createRenewalDeal(tx: Prisma.TransactionClient, dealId: st
           quantity: i.quantity,
           unitPrice: i.unitPrice,
           discount: i.discount,
+          billing: i.billing,
+          termMonths: i.termMonths,
         })),
       },
     },

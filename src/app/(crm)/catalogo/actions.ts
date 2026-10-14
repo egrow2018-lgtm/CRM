@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { bool, num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
+import { DEFAULT_TERM_MONTHS, isBilling, type Billing } from "@/lib/quotes";
 import { parseCustomFields, toKey } from "@/lib/custom-fields";
 import { validLogo } from "@/lib/forms-builder";
 import { EGROW_ACCENT, EGROW_PRIMARY, validHex } from "@/lib/brand";
@@ -30,17 +31,16 @@ export async function saveProduct(id: string | null, _: ActionState, form: FormD
   return runAction(async () => {
     await requirePermission("catalog:manage");
     const type = str(form, "type") === "PRODUCTO" ? "PRODUCTO" : ("SERVICIO" as ProductType);
+    const billing = isBilling(str(form, "billing")) ? (str(form, "billing") as Billing) : "UNICO";
     const data = {
       name: reqStr(form, "name", "Nombre"),
       description: str(form, "description"),
       sku: str(form, "sku"),
       type,
       unitPrice: num(form, "unitPrice") ?? 0,
-      // Servicio recurrente: se renueva cada N meses (vacío = no recurrente)
-      renewalMonths: (() => {
-        const m = Math.round(num(form, "renewalMonths") ?? 0);
-        return m > 0 ? Math.min(m, 120) : null;
-      })(),
+      billing,
+      // Recurrentes: plazo del contrato en meses (12 por defecto); al ganar el negocio se agenda la renovación
+      renewalMonths: billing === "UNICO" ? null : Math.min(120, Math.max(1, Math.round(num(form, "renewalMonths") ?? DEFAULT_TERM_MONTHS))),
       businessLineId: reqStr(form, "businessLineId", "Línea de negocio"),
       active: id ? bool(form, "active") : true,
     };

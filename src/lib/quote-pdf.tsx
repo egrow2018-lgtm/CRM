@@ -1,7 +1,7 @@
 import "server-only";
 import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { LOGO_DATA_URI } from "./logo-data";
-import type { QuoteSnapshot } from "./quotes";
+import { BILLING, DEFAULT_TERM_MONTHS, type QuoteSnapshot } from "./quotes";
 import { EGROW_ACCENT, EGROW_PRIMARY, textOn } from "./brand";
 
 const MUTED = "#64748b";
@@ -111,11 +111,16 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
             <View style={s.cDesc}>
               <Text>{it.description}</Text>
               {it.detail ? <Text style={{ color: MUTED, fontSize: 8 }}>{it.detail}</Text> : null}
+              {it.billing && it.billing !== "UNICO" ? (
+                <Text style={{ color: MUTED, fontSize: 8 }}>
+                  {BILLING[it.billing].label} · contrato de {it.termMonths ?? DEFAULT_TERM_MONTHS} meses
+                </Text>
+              ) : null}
             </View>
             <Text style={s.cQty}>{it.quantity}</Text>
-            <Text style={s.cPrice}>{money.format(it.unitPrice)}</Text>
+            <Text style={s.cPrice}>{money.format(it.unitPrice)}{it.billing ? BILLING[it.billing].per : ""}</Text>
             <Text style={s.cDisc}>{it.discount ? `${it.discount}%` : "—"}</Text>
-            <Text style={s.cTotal}>{money.format(it.subtotal)}</Text>
+            <Text style={s.cTotal}>{money.format(it.subtotal)}{it.billing ? BILLING[it.billing].per : ""}</Text>
           </View>
         ))}
 
@@ -126,8 +131,28 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
               <Text>-{money.format(q.discountTotal)}</Text>
             </View>
           ) : null}
+          {q.monthly !== undefined ? (
+            <>
+              <View style={s.totalRow}>
+                <Text style={{ color: MUTED }}>Inversión inicial</Text>
+                <Text>{money.format(q.oneTime ?? 0)}</Text>
+              </View>
+              {(q.monthly ?? 0) > 0 ? (
+                <View style={s.totalRow}>
+                  <Text style={{ color: primary }}>Mensualidad (más IVA)</Text>
+                  <Text style={{ color: primary }}>{money.format(q.monthly ?? 0)}/mes</Text>
+                </View>
+              ) : null}
+              {(q.annual ?? 0) > 0 ? (
+                <View style={s.totalRow}>
+                  <Text style={{ color: primary }}>Anualidad (más IVA)</Text>
+                  <Text style={{ color: primary }}>{money.format(q.annual ?? 0)}/año</Text>
+                </View>
+              ) : null}
+            </>
+          ) : null}
           <View style={s.totalRow}>
-            <Text style={{ color: MUTED }}>Subtotal</Text>
+            <Text style={{ color: MUTED }}>{q.monthly !== undefined ? "Subtotal primer año" : "Subtotal"}</Text>
             <Text>{money.format(q.subtotal)}</Text>
           </View>
           <View style={s.totalRow}>
@@ -135,7 +160,7 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
             <Text>{money.format(q.iva)}</Text>
           </View>
           <View style={[s.grand, { backgroundColor: accent, color: onAccent }]}>
-            <Text>TOTAL</Text>
+            <Text>{q.monthly !== undefined ? "TOTAL PRIMER AÑO" : "TOTAL"}</Text>
             <Text>{money.format(q.total)}</Text>
           </View>
         </View>

@@ -15,6 +15,13 @@ enum Role {
   PROYECTOS
 }
 
+/// Cómo se cobra un producto o servicio
+enum Billing {
+  UNICO
+  MENSUAL
+  ANUAL
+}
+
 enum ProductType {
   PRODUCTO
   SERVICIO
@@ -113,7 +120,9 @@ model Product {
   sku            String?
   type           ProductType @default(SERVICIO)
   unitPrice      Decimal     @default(0) @db.Decimal(14, 2)
-  /// Servicio recurrente (licencias, monitoreo…): se renueva cada N meses
+  /// Cómo se cobra: pago único, mensual (monitoreo) o anual (licencias)
+  billing        Billing     @default(UNICO)
+  /// Recurrentes: plazo del contrato en meses (por defecto 12); al ganar el negocio se agenda la renovación
   renewalMonths  Int?
   active         Boolean     @default(true)
   businessLineId String
@@ -217,6 +226,9 @@ model Deal {
   customData     Json          @default("{}")
   /// Costo del desarrollo (confidencial: solo con el permiso deals:cost; se omite por defecto en las consultas)
   developmentCost Decimal?     @db.Decimal(14, 2)
+  /// Servicios recurrentes del negocio (sin IVA): mensualidad y anualidad. El valor del negocio es el del primer año.
+  recurringMonthly Decimal?    @db.Decimal(14, 2)
+  recurringAnnual  Decimal?    @db.Decimal(14, 2)
   /// Gasto adicional del proyecto (confidencial, igual que el costo): también se resta para el margen
   extraExpense   Decimal?      @db.Decimal(14, 2)
   /// Renovación (ingresos recurrentes): fecha y negocio del que proviene
@@ -251,6 +263,10 @@ model DealItem {
   quantity    Decimal  @default(1) @db.Decimal(12, 2)
   unitPrice   Decimal  @default(0) @db.Decimal(14, 2)
   discount    Decimal  @default(0) @db.Decimal(5, 2) // porcentaje
+  /// Cómo se cobra; el precio es por período (pago único, mes o año)
+  billing     Billing  @default(UNICO)
+  /// Plazo del contrato en meses (solo recurrentes)
+  termMonths  Int?
 
   @@index([dealId])
 }

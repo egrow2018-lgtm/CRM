@@ -49,3 +49,12 @@ export function initials(name: string) {
     .map((p) => p[0]!.toUpperCase())
     .join("");
 }
+
+/** Etiqueta de los servicios recurrentes de un negocio: «↻ $250/mes», «↻ $1.200/año» o ambos. Vacía si no hay. */
+export function recurringLabel(monthly: Numeric | null | undefined, annual: Numeric | null | undefined) {
+  const parts = [
+    toNumber(monthly ?? 0) > 0 ? `${formatMoney(monthly!)}/mes` : null,
+    toNumber(annual ?? 0) > 0 ? `${formatMoney(annual!)}/año` : null,
+  ].filter(Boolean);
+  return parts.length ? `↻ ${parts.join(" + ")}` : "";
+}
