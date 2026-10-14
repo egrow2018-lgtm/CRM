@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
 import { PhoneInput } from "@/components/phone-input";
+import { COUNTRIES } from "@/lib/phone";
 import { requirePagePermission } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
-import { deleteStage, saveCompany, saveProductionReport, saveStage, sendProductionReportNow, sendTestEmail } from "./actions";
+import { deleteStage, saveCompany, saveProductionReport, saveStage, saveTeamMember, sendProductionReportNow, sendTestEmail } from "./actions";
 import { getProductionFrequency } from "@/lib/production-report";
 import { getCompanySettings } from "@/lib/settings";
 import { emailConfigured } from "@/lib/email";
@@ -12,8 +13,10 @@ import { ZoomTest } from "./zoom-test";
 import { zoomConfigured } from "@/lib/zoom";
 
 export default async function SettingsPage() {
-  await requirePagePermission("pipeline:configure");
+  const user = await requirePagePermission("pipeline:configure");
+  const isAdmin = user.role === "ADMIN";
   const company = await getCompanySettings();
+  const team = isAdmin ? await prisma.teamMember.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }) : [];
   const [productionFrequency, productionRecipients] = await Promise.all([
     getProductionFrequency(),
     prisma.user.findMany({ where: { active: true, productionReport: true }, select: { name: true }, orderBy: { name: "asc" } }),
@@ -45,6 +48,36 @@ export default async function SettingsPage() {
           </ActionForm>
         </div>
       </section>
+
+      {isAdmin && (
+        <section>
+          <h2 className="mb-1">Equipo de desarrollo</h2>
+          <p className="mb-3 text-xs text-slate-500">
+            Es la lista que aparece en el campo «Equipo de desarrollo» de los negocios. Solo el administrador la edita. Si alguien deja de
+            colaborar, desactívalo: sigue apareciendo en los negocios donde ya estaba, pero no en los nuevos.
+          </p>
+          <div className="card divide-y divide-slate-100">
+            {team.map((m) => (
+              <ActionForm key={m.id} action={saveTeamMember.bind(null, m.id)} successMessage="Guardado." className="space-y-2 p-3">
+                <TeamMemberFields member={m} />
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="active" defaultChecked={m.active} /> Activo
+                  </label>
+                  <SubmitButton className="btn btn-sm">Guardar</SubmitButton>
+                </div>
+              </ActionForm>
+            ))}
+            <ActionForm action={saveTeamMember.bind(null, null)} resetOnSuccess successMessage="Integrante agregado." className="space-y-2 bg-slate-50/60 p-3">
+              <p className="text-sm font-medium text-slate-700">Agregar integrante</p>
+              <TeamMemberFields />
+              <div className="flex justify-end">
+                <SubmitButton className="btn btn-primary btn-sm">Agregar</SubmitButton>
+              </div>
+            </ActionForm>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-1">Correo</h2>
@@ -158,6 +191,38 @@ export default async function SettingsPage() {
           </ActionForm>
         </div>
       </section>
+    </div>
+  );
+}
+
+/** Nombre, especialidad, país, correo y teléfono (con bandera y código, igual que en Contactos). */
+function TeamMemberFields({
+  member,
+}: {
+  member?: { name: string; specialty: string | null; email: string | null; phone: string | null; country: string | null };
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-3">
+      <Field label="Nombre">
+        <input name="name" required defaultValue={member?.name} placeholder={member ? undefined : "Nombre del integrante"} className="input" />
+      </Field>
+      <Field label="Especialidad">
+        <input name="specialty" defaultValue={member?.specialty ?? ""} placeholder="Ej. Diseño instruccional" className="input" />
+      </Field>
+      <Field label="País">
+        <select name="country" defaultValue={member?.country ?? ""} className="input">
+          <option value="">— El del teléfono —</option>
+          {COUNTRIES.map((c) => (
+            <option key={c.iso} value={c.iso}>{c.name}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Correo">
+        <input name="email" type="email" defaultValue={member?.email ?? ""} placeholder="correo@ejemplo.com" className="input" />
+      </Field>
+      <Field label="Teléfono / WhatsApp" className="sm:col-span-2">
+        <PhoneInput defaultValue={member?.phone} />
+      </Field>
     </div>
   );
 }

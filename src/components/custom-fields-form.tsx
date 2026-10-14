@@ -1,4 +1,4 @@
-import type { CustomField } from "@/lib/custom-fields";
+import { parseTeamValue, teamMemberLabel, type CustomField } from "@/lib/custom-fields";
 import type { ActionState } from "@/lib/forms";
 import { formatDate } from "@/lib/format";
 import { ActionForm, SubmitButton } from "./action-form";
@@ -11,6 +11,7 @@ export function CustomFieldsCard({
   fields,
   values,
   users,
+  team = [],
   action,
   canEdit,
 }: {
@@ -18,15 +19,22 @@ export function CustomFieldsCard({
   fields: CustomField[];
   values: Record<string, string>;
   users: { id: string; name: string }[];
+  /** Integrantes del equipo de desarrollo (Configuración) para los campos «team» */
+  team?: { id: string; name: string; specialty: string | null; active: boolean }[];
   action: (s: ActionState, f: FormData) => Promise<ActionState>;
   canEdit: boolean;
 }) {
   if (fields.length === 0) return null;
+  const teamIds = new Set(team.map((m) => m.id));
   const display = (f: CustomField) => {
     const v = values[f.key];
     if (!v) return "—";
     if (f.type === "date") return formatDate(new Date(`${v}T00:00:00Z`));
     if (f.type === "user") return users.find((u) => u.id === v)?.name ?? "—";
+    if (f.type === "team") {
+      const { ids, legacy } = parseTeamValue(v, teamIds);
+      return legacy ?? (ids.map((id) => teamMemberLabel(team.find((m) => m.id === id)!)).join(", ") || "—");
+    }
     return f.suffix ? `${v} ${f.suffix}` : v;
   };
   const avance = Number(values.avance);
@@ -52,6 +60,15 @@ export function CustomFieldsCard({
           {fields.map((f) => {
             const name = `cf_${f.key}`;
             const v = values[f.key] ?? "";
+            // Las casillas del equipo no pueden ir dentro de un <label>
+            if (f.type === "team") {
+              return (
+                <div key={f.key}>
+                  <span className="label">{f.label}</span>
+                  <TeamPicker name={name} value={v} team={team} teamIds={teamIds} />
+                </div>
+              );
+            }
             return (
               <label key={f.key} className="block">
                 <span className="label">
@@ -100,5 +117,48 @@ export function CustomFieldsCard({
         </dl>
       )}
     </div>
+  );
+}
+
+/** Casillas con los integrantes del equipo (los inactivos solo aparecen si ya estaban elegidos). */
+function TeamPicker({
+  name,
+  value,
+  team,
+  teamIds,
+}: {
+  name: string;
+  value: string;
+  team: { id: string; name: string; specialty: string | null; active: boolean }[];
+  teamIds: Set<string>;
+}) {
+  const { ids, legacy } = parseTeamValue(value, teamIds);
+  const chosen = new Set(ids);
+  const shown = team.filter((m) => m.active || chosen.has(m.id));
+  return (
+    <span className="mt-1 block rounded-lg border border-slate-200 p-2">
+      {legacy && (
+        <span className="mb-2 block rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+          Registro anterior: <span className="whitespace-pre-line">{legacy}</span>
+          <input type="hidden" name={`${name}_legacy`} value={legacy} />
+          <span className="block text-amber-700">Marca los integrantes de la lista para reemplazarlo.</span>
+        </span>
+      )}
+      {shown.length === 0 ? (
+        <span className="block text-xs text-slate-500">Aún no hay integrantes. El administrador los agrega en Configuración → Equipo de desarrollo.</span>
+      ) : (
+        <span className="grid gap-1 sm:grid-cols-2">
+          {shown.map((m) => (
+            <span key={m.id} className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" name={name} value={m.id} defaultChecked={chosen.has(m.id)} id={`${name}-${m.id}`} />
+              <label htmlFor={`${name}-${m.id}`}>
+                {m.name}
+                {m.specialty && <span className="text-xs text-slate-500"> · {m.specialty}</span>}
+              </label>
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
   );
 }

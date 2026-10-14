@@ -215,6 +215,8 @@ model Deal {
   owner          User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   /// Valores de los campos adicionales de la línea de negocio
   customData     Json          @default("{}")
+  /// Costo del desarrollo (confidencial: solo con el permiso deals:cost; se omite por defecto en las consultas)
+  developmentCost Decimal?     @db.Decimal(14, 2)
   /// Renovación (ingresos recurrentes): fecha y negocio del que proviene
   renewalDate    DateTime?
   renewalOfId    String?
@@ -568,4 +570,19 @@ model EmailImage {
   createdAt   DateTime @default(now())
 
   signatureOf User[]   @relation("SignatureImage")
+}
+
+/// Integrante del equipo de desarrollo (lista que se elige en «Equipo de desarrollo» de los negocios)
+model TeamMember {
+  id        String   @id @default(cuid())
+  name      String
+  /// Especialidad, ej. "Diseño instruccional", "Edición de video"
+  specialty String?
+  email     String?
+  /// Formato internacional, ej. +593 99 543 9203
+  phone     String?
+  /// País donde trabaja (código ISO, ej. EC)
+  country   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }

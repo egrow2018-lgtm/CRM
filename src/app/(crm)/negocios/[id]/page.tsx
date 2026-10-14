@@ -11,7 +11,8 @@ import { zoomConfigured } from "@/lib/zoom";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { DealForm } from "../deal-form";
 import { StageBar } from "../stage-bar";
-import { createRenewalNow, deleteDeal, updateDeal, updateDealCustomData } from "../actions";
+import { createRenewalNow, deleteDeal, updateDeal, updateDealCost, updateDealCustomData } from "../actions";
+import { DealCostCard } from "../cost-card";
 import { renewalAlert } from "@/lib/alerts";
 import { Semaforo } from "@/components/semaforo";
 import { CustomFieldsCard } from "@/components/custom-fields-form";
@@ -45,7 +46,13 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   });
   if (!deal) notFound();
 
-  const options = await getFormOptions();
+  const canCost = can(user, "deals:cost");
+  const [options, cost, team] = await Promise.all([
+    getFormOptions(),
+    // El costo es confidencial: solo se consulta si el usuario tiene el permiso
+    canCost ? prisma.deal.findUnique({ where: { id }, select: { developmentCost: true } }) : null,
+    prisma.teamMember.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
+  ]);
   const canWrite = can(user, "deals:write");
   const canEmail = can(user, "emails:send") && emailConfigured();
   const editing = edit === "1" && canWrite;
@@ -145,6 +152,9 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               </dl>
             )}
           </div>
+          {canCost && (
+            <DealCostCard amount={toNumber(deal.amount)} cost={cost?.developmentCost == null ? null : toNumber(cost.developmentCost)} action={updateDealCost.bind(null, id)} />
+          )}
           {deal.company && normalize(deal.businessLine?.name ?? "") === "rutalink" && (
             <GpsboxCard company={deal.company} contact={deal.contact} canEdit={canWrite} />
           )}
@@ -154,6 +164,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               fields={parseCustomFields(deal.businessLine.customFields)}
               values={parseCustomData(deal.customData)}
               users={options.users}
+              team={team}
               action={updateDealCustomData.bind(null, id)}
               canEdit={can(user, "deals:write") || can(user, "deals:production")}
             />

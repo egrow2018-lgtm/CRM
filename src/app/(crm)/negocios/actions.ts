@@ -160,6 +160,15 @@ export async function updateDealCustomData(dealId: string, _: ActionState, form:
     const fields = parseCustomFields(deal.businessLine?.customFields);
     const data: Record<string, string> = { ...parseCustomData(deal.customData) };
     for (const f of fields) {
+      if (f.type === "team") {
+        // Integrantes elegidos de la lista; si no se marca ninguno se conserva el texto antiguo (si lo había)
+        const ids = form.getAll(`cf_${f.key}`).map(String).filter(Boolean);
+        const legacy = str(form, `cf_${f.key}_legacy`);
+        if (ids.length) data[f.key] = ids.join(",");
+        else if (legacy) data[f.key] = legacy;
+        else delete data[f.key];
+        continue;
+      }
       const v = str(form, `cf_${f.key}`);
       if (v && f.type === "number" && !Number.isFinite(Number(v.replace(",", ".")))) {
         throw new Error(`"${f.label}" debe ser un número.`);
@@ -182,4 +191,16 @@ export async function createRenewalNow(dealId: string) {
   revalidatePath("/negocios");
   revalidatePath("/");
   redirect(`/negocios/${renewal.id}`);
+}
+
+/** Costo del desarrollo (confidencial): solo con el permiso «deals:cost». */
+export async function updateDealCost(dealId: string, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    await requirePermission("deals:cost");
+    const raw = str(form, "developmentCost");
+    const cost = raw ? Number(raw.replace(/\s/g, "").replace(",", ".")) : null;
+    if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("El costo debe ser un número mayor o igual a 0.");
+    await prisma.deal.update({ where: { id: dealId }, data: { developmentCost: cost === null ? null : Math.round(cost * 100) / 100 } });
+    revalidatePath(`/negocios/${dealId}`);
+  });
 }

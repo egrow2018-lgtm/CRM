@@ -29,10 +29,11 @@ function toSheet(name: string, rows: Record<string, unknown>[]): Sheet {
 export async function GET() {
   const user = await getCurrentUser();
   if (!user || !can(user, "data:export")) return new Response("No autorizado", { status: 403 });
-  const [companies, contacts, deals, dealItems, activities, quotes, lines, products, stages, users, forms, submissions, settings, templates, emails, folders, documents, docLinks, docViews] = await Promise.all([
+  const [companies, contacts, deals, dealItems, activities, quotes, lines, products, stages, users, forms, submissions, settings, templates, emails, folders, documents, docLinks, docViews, team] = await Promise.all([
     prisma.company.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.contact.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.deal.findMany({ orderBy: { createdAt: "asc" } }),
+    // El costo del desarrollo solo va en el respaldo de quien tiene permiso para verlo
+    prisma.deal.findMany({ orderBy: { createdAt: "asc" }, omit: { developmentCost: !can(user, "deals:cost") } }),
     prisma.dealItem.findMany(),
     prisma.activity.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.quote.findMany({ orderBy: [{ year: "asc" }, { number: "asc" }] }),
@@ -49,6 +50,7 @@ export async function GET() {
     prisma.document.findMany({ omit: { thumbnail: true } }),
     prisma.documentLink.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.documentView.findMany({ orderBy: { startedAt: "asc" } }),
+    prisma.teamMember.findMany({ orderBy: { name: "asc" } }),
   ]);
   const sheets = [
     toSheet("Empresas", companies),
@@ -70,6 +72,7 @@ export async function GET() {
     toSheet("Documentos", documents),
     toSheet("Enlaces de documentos", docLinks),
     toSheet("Vistas de documentos", docViews),
+    toSheet("Equipo de desarrollo", team),
   ];
   // Se anota cuándo y quién descargó el último respaldo, para recordarlo en la pantalla
   await prisma.appSetting.upsert({

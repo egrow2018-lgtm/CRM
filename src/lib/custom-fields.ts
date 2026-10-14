@@ -1,5 +1,5 @@
 /** Campos adicionales que una línea de negocio activa en sus negocios (ej. E-learning). */
-export type CustomFieldType = "text" | "textarea" | "number" | "date" | "select" | "user";
+export type CustomFieldType = "text" | "textarea" | "number" | "date" | "select" | "user" | "team";
 
 export type CustomField = {
   key: string;
@@ -17,6 +17,7 @@ export const CUSTOM_FIELD_TYPES: Record<CustomFieldType, string> = {
   date: "Fecha",
   select: "Lista de opciones",
   user: "Usuario del CRM",
+  team: "Equipo de desarrollo (lista de Configuración)",
 };
 
 export const ELEARNING_FIELDS: CustomField[] = [
@@ -30,12 +31,7 @@ export const ELEARNING_FIELDS: CustomField[] = [
   { key: "fechaInicio", label: "Inicio de desarrollo", type: "date" },
   { key: "fechaEntrega", label: "Fecha de entrega", type: "date" },
   { key: "responsable", label: "Responsable del proyecto", type: "user" },
-  {
-    key: "equipo",
-    label: "Equipo de desarrollo",
-    type: "textarea",
-    placeholder: "Ej. Diseño instruccional: Ana · Diseño gráfico: Luis · Programación: Pedro · Edición de video: …",
-  },
+  { key: "equipo", label: "Equipo de desarrollo", type: "team" },
   { key: "avance", label: "Avance", type: "number", suffix: "%" },
 ];
 
@@ -61,4 +57,17 @@ export function toKey(label: string) {
     .split(/\s+/)
     .filter(Boolean);
   return words.map((w, i) => (i === 0 ? w.toLowerCase() : w[0]!.toUpperCase() + w.slice(1).toLowerCase())).join("") || "campo";
+}
+
+/** Campo «team»: se guardan los ids de los integrantes separados por coma (los textos antiguos se conservan tal cual). */
+export function parseTeamValue(value: string | undefined, memberIds: Set<string>) {
+  const parts = (value ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const ids = parts.filter((x) => memberIds.has(x));
+  // Si nada coincide con la lista, es el texto libre de antes («Diseño: Ana · …»)
+  const legacy = value && ids.length === 0 ? value : null;
+  return { ids, legacy };
+}
+
+export function teamMemberLabel(m: { name: string; specialty: string | null }) {
+  return m.specialty ? `${m.name} (${m.specialty})` : m.name;
 }

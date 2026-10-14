@@ -78,7 +78,7 @@ export async function toggleTask(id: string) {
   const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
   const completed = !a.completed;
   await prisma.activity.update({ where: { id }, data: { completed, completedAt: completed ? new Date() : null } });
-  if (completed) await touch(prisma, { dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined });
+  if (completed) await prisma.$transaction((tx) => touch(tx, { dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined }));
   pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined }).forEach((p) =>
     revalidatePath(p),
   );

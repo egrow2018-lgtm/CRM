@@ -29,6 +29,7 @@ export const PERMISSION_GROUPS = [
       { key: "deals:write", label: "Crear y editar (incluye cotizaciones)" },
       { key: "deals:delete", label: "Eliminar" },
       { key: "deals:production", label: "Mover entre Firma de contrato, Producción y Ganado" },
+      { key: "deals:cost", label: "Ver y editar el costo del desarrollo (confidencial)" },
     ],
   },
   {
@@ -74,7 +75,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   GERENTE: [
     "contacts:write", "contacts:delete", "companies:write", "companies:delete", "deals:write", "deals:delete", "deals:production",
     "activities:write", "meetings:schedule", "leads:take", "forms:manage", "catalog:manage", "import:run", "reports:view",
-    "data:export", "emails:send", "docs:manage",
+    "data:export", "emails:send", "docs:manage", "deals:cost",
   ],
   // Gestión de negocios: crea clientes y productos y da seguimiento a cada negocio
   COMERCIAL: [
@@ -82,7 +83,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "catalog:manage", "reports:view", "emails:send",
   ],
   // Gestión de proyectos: seguimiento de la producción con el equipo de desarrollo
-  PROYECTOS: ["deals:production", "activities:write", "meetings:schedule"],
+  PROYECTOS: ["deals:production", "deals:cost", "activities:write", "meetings:schedule"],
 };
 
 /** Quién pide el permiso: un perfil, o un usuario con permisos personalizados. */
