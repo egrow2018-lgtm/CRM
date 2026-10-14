@@ -1,4 +1,28 @@
 /** Cálculos y formato de las cotizaciones (sin dependencias de servidor, para poder probarlos). */
+
+/** Cómo se cobra un producto o una línea de cotización. */
+export type Billing = "UNICO" | "MENSUAL" | "ANUAL";
+
+export const BILLING: Record<Billing, { label: string; short: string; per: string }> = {
+  UNICO: { label: "Pago único", short: "Único", per: "" },
+  MENSUAL: { label: "Mensual", short: "Mensual", per: "/mes" },
+  ANUAL: { label: "Anual", short: "Anual", per: "/año" },
+};
+
+/** Plazo del contrato por defecto de los servicios recurrentes (meses). */
+export const DEFAULT_TERM_MONTHS = 12;
+
+export const isBilling = (v: unknown): v is Billing => v === "UNICO" || v === "MENSUAL" || v === "ANUAL";
+
+/**
+ * Cuántas veces se cobra una línea en el primer año:
+ * pago único 1 · mensual tantos meses como dure el contrato (máximo 12) · anual 1.
+ */
+export function firstYearFactor(billing: Billing | null | undefined, termMonths?: number | null) {
+  if (billing === "MENSUAL") return Math.min(12, Math.max(1, termMonths || DEFAULT_TERM_MONTHS));
+  return 1;
+}
+
 export type QuoteItem = {
   /** Producto del catálogo (para pasarlo a los productos del negocio al aceptarla) */
   productId?: string | null;
@@ -7,7 +31,12 @@ export type QuoteItem = {
   quantity: number;
   unitPrice: number;
   discount: number; // porcentaje
+  /** Subtotal de un período: el pago único, un mes o un año */
   subtotal: number;
+  /** Cómo se cobra (las cotizaciones antiguas no lo tienen: pago único) */
+  billing?: Billing;
+  /** Plazo del contrato en meses (solo recurrentes) */
+  termMonths?: number | null;
 };
 
 import type { QuoteBrand } from "./brand";
@@ -34,21 +63,46 @@ export type QuoteSnapshot = {
   conditions: string;
   notes: string | null;
   validityDays: number;
+  /** Desglose por tipo de cobro, sin IVA (solo si hay servicios recurrentes) */
+  oneTime?: number;
+  monthly?: number;
+  annual?: number;
   /** Marca de la línea (ej. Rutalink); sin ella se usa la de e-grow. Las cotizaciones antiguas no la tienen. */
   brand?: QuoteBrand | null;
 };
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * Totales de una cotización. `lines` es el subtotal de cada línea por período (pago único, un mes o un año).
+ * `subtotal`, `iva` y `total` corresponden al primer año: los pagos únicos + las mensualidades del primer año
+ * (según el plazo) + las anualidades. Así un negocio recurrente se compara en la misma medida que uno de pago único.
+ */
 export function computeTotals(
-  items: { quantity: number; unitPrice: number; discount: number }[],
+  items: { quantity: number; unitPrice: number; discount: number; billing?: Billing | null; termMonths?: number | null }[],
   ivaPercent: number,
 ) {
-  const gross = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const lines = items.map((i) => round(i.quantity * i.unitPrice * (1 - i.discount / 100)));
-  const subtotal = round(lines.reduce((s, l) => s + l, 0));
+  const factor = items.map((i) => firstYearFactor(i.billing, i.termMonths));
+  const gross = items.reduce((s, i, k) => s + i.quantity * i.unitPrice * factor[k]!, 0);
+  const subtotal = round(lines.reduce((s, l, k) => s + l * factor[k]!, 0));
+  const sumOf = (b: Billing) => round(lines.reduce((s, l, k) => s + ((items[k]!.billing ?? "UNICO") === b ? l : 0), 0));
   const iva = round((subtotal * ivaPercent) / 100);
-  return { lines, subtotal, discountTotal: round(gross - subtotal), iva, total: round(subtotal + iva) };
+  return {
+    lines,
+    subtotal,
+    discountTotal: round(gross - subtotal),
+    iva,
+    total: round(subtotal + iva),
+    oneTime: sumOf("UNICO"),
+    monthly: sumOf("MENSUAL"),
+    annual: sumOf("ANUAL"),
+  };
+}
+
+/** Valor de un producto del negocio en el primer año (para reportes de productos vendidos). */
+export function itemFirstYear(i: { quantity: number; unitPrice: number; discount: number; billing?: Billing | null; termMonths?: number | null }) {
+  return round(i.quantity * i.unitPrice * (1 - i.discount / 100) * firstYearFactor(i.billing, i.termMonths));
 }
 
 export function quoteCode(year: number, number: number) {
@@ -71,15 +125,20 @@ export function parseQuoteLines(raw: unknown) {
     .map((r) => {
       const o = (r ?? {}) as Record<string, unknown>;
       const n = (v: unknown, def = 0) => {
-        const x = typeof v === "number" ? v : Number(String(v ?? "").replace(",", "."));
+        if (v === undefined || v === null || v === "") return def;
+        const x = typeof v === "number" ? v : Number(String(v).replace(",", "."));
         return Number.isFinite(x) ? x : def;
       };
+      const billing: Billing = isBilling(o.billing) ? o.billing : "UNICO";
       return {
         productId: typeof o.productId === "string" && o.productId ? o.productId : null,
         description: String(o.description ?? "").trim().slice(0, 300),
         quantity: Math.max(0, n(o.quantity, 1)),
         unitPrice: Math.max(0, n(o.unitPrice)),
         discount: Math.min(100, Math.max(0, n(o.discount))),
+        billing,
+        // Plazo del contrato (meses) de los recurrentes; 12 si no se indica
+        termMonths: billing === "UNICO" ? null : Math.min(120, Math.max(1, Math.round(n(o.termMonths, DEFAULT_TERM_MONTHS)))),
       };
     })
     .filter((l) => l.description && l.quantity > 0)

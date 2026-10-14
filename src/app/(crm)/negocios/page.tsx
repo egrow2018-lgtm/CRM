@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { dealCardInclude, dealWhere, getFilterOptions, type DealFilters } from "@/lib/queries";
 import type { Prisma } from "@prisma/client";
-import { contactName, formatDate, formatMoney, timeAgo, toNumber } from "@/lib/format";
+import { contactName, formatDate, formatMoney, recurringLabel, timeAgo, toNumber } from "@/lib/format";
 import { Pager, SortHeader, hrefWith, pageParams } from "@/components/pager";
 import { BulkCheckCell, BulkCheckHeader, BulkSelection } from "@/components/bulk-selection";
 import { deleteDeals } from "./actions";
@@ -138,7 +138,12 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                       </td>
                       <td><LineBadge line={d.businessLine} /></td>
                       <td className="max-w-48 truncate">{d.company ? <Link className="hover:underline" href={`/empresas/${d.company.id}`}>{d.company.name}</Link> : "—"}</td>
-                      <td className="text-right tabular-nums">{toNumber(d.amount) > 0 ? formatMoney(d.amount) : "—"}</td>
+                      <td className="text-right tabular-nums">
+                        {toNumber(d.amount) > 0 ? formatMoney(d.amount) : "—"}
+                        {recurringLabel(d.recurringMonthly, d.recurringAnnual) && (
+                          <span className="block text-xs text-accent-700">{recurringLabel(d.recurringMonthly, d.recurringAnnual)}</span>
+                        )}
+                      </td>
                       <td className={`whitespace-nowrap ${al.close?.level === "rojo" ? "font-medium text-red-700" : ""}`}>{formatDate(d.closeDate)}</td>
                       <td className="whitespace-nowrap">{d.owner?.name ?? "—"}</td>
                       <td className="max-w-56 truncate text-xs">
@@ -161,6 +166,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             id: d.id,
             name: d.name,
             amount: toNumber(d.amount),
+            recurring: recurringLabel(d.recurringMonthly, d.recurringAnnual),
             stageId: d.stageId,
             closeDate: d.closeDate?.toISOString() ?? null,
             createdAt: d.createdAt.toISOString(),

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { contactName, formatDate, formatDateTime, formatMoneyExact } from "@/lib/format";
-import { quoteCode, type QuoteSnapshot } from "@/lib/quotes";
+import { BILLING, DEFAULT_TERM_MONTHS, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { appUrl, emailConfigured } from "@/lib/email";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
 import { ConfirmButton } from "@/components/action-form";
@@ -144,16 +144,33 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               <tbody>
                 {(snap.items ?? []).map((it, i) => (
                   <tr key={i}>
-                    <td>{it.description}{it.detail && <div className="text-xs text-slate-400">{it.detail}</div>}</td>
+                    <td>
+                      {it.description}
+                      {it.detail && <div className="text-xs text-slate-400">{it.detail}</div>}
+                      {it.billing && it.billing !== "UNICO" && (
+                        <div className="text-xs text-accent-700">↻ {BILLING[it.billing].label} · contrato de {it.termMonths ?? DEFAULT_TERM_MONTHS} meses</div>
+                      )}
+                    </td>
                     <td className="text-right tabular-nums">{it.quantity}</td>
-                    <td className="text-right tabular-nums">{formatMoneyExact(it.unitPrice)}</td>
+                    <td className="text-right tabular-nums">{formatMoneyExact(it.unitPrice)}{it.billing ? BILLING[it.billing].per : ""}</td>
                     <td className="text-right tabular-nums">{it.discount}</td>
-                    <td className="text-right tabular-nums">{formatMoneyExact(it.subtotal)}</td>
+                    <td className="text-right tabular-nums">{formatMoneyExact(it.subtotal)}{it.billing ? BILLING[it.billing].per : ""}</td>
                   </tr>
                 ))}
-                <tr><td colSpan={4} className="text-right text-slate-500">Subtotal</td><td className="text-right tabular-nums">{formatMoneyExact(snap.subtotal)}</td></tr>
+                {snap.monthly !== undefined && (
+                  <>
+                    <tr><td colSpan={4} className="text-right text-slate-500">Pago inicial</td><td className="text-right tabular-nums">{formatMoneyExact(snap.oneTime ?? 0)}</td></tr>
+                    {(snap.monthly ?? 0) > 0 && (
+                      <tr><td colSpan={4} className="text-right font-medium text-brand-700">Mensualidad (sin IVA)</td><td className="text-right font-medium tabular-nums text-brand-700">{formatMoneyExact(snap.monthly ?? 0)}/mes</td></tr>
+                    )}
+                    {(snap.annual ?? 0) > 0 && (
+                      <tr><td colSpan={4} className="text-right font-medium text-brand-700">Anualidad (sin IVA)</td><td className="text-right font-medium tabular-nums text-brand-700">{formatMoneyExact(snap.annual ?? 0)}/año</td></tr>
+                    )}
+                  </>
+                )}
+                <tr><td colSpan={4} className="text-right text-slate-500">{snap.monthly !== undefined ? "Subtotal primer año" : "Subtotal"}</td><td className="text-right tabular-nums">{formatMoneyExact(snap.subtotal)}</td></tr>
                 <tr><td colSpan={4} className="text-right text-slate-500">IVA {snap.ivaPercent}%</td><td className="text-right tabular-nums">{formatMoneyExact(snap.iva)}</td></tr>
-                <tr><td colSpan={4} className="text-right font-semibold">Total</td><td className="text-right font-semibold tabular-nums">{formatMoneyExact(snap.total)}</td></tr>
+                <tr><td colSpan={4} className="text-right font-semibold">{snap.monthly !== undefined ? "Total primer año" : "Total"}</td><td className="text-right font-semibold tabular-nums">{formatMoneyExact(snap.total)}</td></tr>
               </tbody>
             </table>
           </div>

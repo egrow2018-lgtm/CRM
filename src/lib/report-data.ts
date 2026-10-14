@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { toNumber } from "./format";
+import { itemFirstYear } from "./quotes";
 import type { RDeal, RLead, RQuote } from "./reports";
 
 /** Carga los negocios, cotizaciones y leads para los reportes (opcionalmente de una sola línea). */
@@ -26,7 +27,7 @@ export async function loadReportData(lineId?: string) {
         owner: { select: { name: true } },
         company: { select: { name: true } },
         stage: { select: { name: true, order: true, probability: true, isWon: true, isLost: true } },
-        items: { select: { description: true, quantity: true, unitPrice: true, discount: true, product: { select: { name: true } } } },
+        items: { select: { description: true, quantity: true, unitPrice: true, discount: true, billing: true, termMonths: true, product: { select: { name: true } } } },
       },
     }),
     prisma.quote.findMany({
@@ -61,7 +62,8 @@ export async function loadReportData(lineId?: string) {
       return {
         product: i.product?.name ?? i.description,
         quantity,
-        subtotal: Math.round(quantity * toNumber(i.unitPrice) * (1 - toNumber(i.discount) / 100) * 100) / 100,
+        // Valor del primer año (las mensualidades cuentan por los meses del contrato, hasta 12)
+        subtotal: itemFirstYear({ quantity, unitPrice: toNumber(i.unitPrice), discount: toNumber(i.discount), billing: i.billing, termMonths: i.termMonths }),
       };
     }),
   }));

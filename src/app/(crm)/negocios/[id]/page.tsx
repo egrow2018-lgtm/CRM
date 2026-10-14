@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { EMAIL_TRACKING, getFormOptions } from "@/lib/queries";
-import { contactName, formatDate, formatMoney, formatMoneyExact, toNumber } from "@/lib/format";
+import { contactName, formatDate, formatMoney, formatMoneyExact, recurringLabel, toNumber } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
@@ -70,6 +70,11 @@ export default async function DealPage({ params, searchParams }: { params: Promi
           <span className="flex flex-wrap items-center gap-2">
             <LineBadge line={deal.businessLine} />
             <span>{formatMoney(deal.amount)} · Ponderado {formatMoney(weighted)} ({deal.stage.probability}%)</span>
+            {recurringLabel(deal.recurringMonthly, deal.recurringAnnual) && (
+              <span className="badge bg-accent-100 text-brand-800" title="Servicio recurrente (sin IVA). El valor del negocio es el del primer año.">
+                {recurringLabel(deal.recurringMonthly, deal.recurringAnnual)}
+              </span>
+            )}
           </span>
         }
         actions={

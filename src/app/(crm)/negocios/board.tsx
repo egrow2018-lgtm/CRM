@@ -14,6 +14,8 @@ export type BoardDeal = {
   id: string;
   name: string;
   amount: number;
+  /** «↻ $250/mes» si tiene servicios recurrentes */
+  recurring: string;
   stageId: string;
   closeDate: string | null;
   createdAt: string;
@@ -121,7 +123,10 @@ export function DealBoard({
                     </span>
                   )}
                   <dl className="mt-2 space-y-0.5 text-slate-600">
-                    <div>Valor: <span className="font-medium text-slate-800">{formatMoney(d.amount)}</span></div>
+                    <div>
+                      Valor: <span className="font-medium text-slate-800">{formatMoney(d.amount)}</span>
+                      {d.recurring && <span className="ml-1 font-medium text-accent-700">{d.recurring}</span>}
+                    </div>
                     {d.company && <div className="truncate">Empresa: {d.company}</div>}
                     <div className="flex items-center gap-1">
                       Fecha de cierre: {formatDate(d.closeDate ? new Date(d.closeDate) : null)}

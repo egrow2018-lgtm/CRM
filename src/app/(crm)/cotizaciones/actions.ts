@@ -161,6 +161,8 @@ export async function createQuote(_: ActionState, form: FormData) {
       conditions: str(form, "conditions") ?? company.conditions,
       notes: str(form, "notes"),
       validityDays,
+      // Desglose por tipo de cobro (solo si hay servicios recurrentes)
+      ...(totals.monthly > 0 || totals.annual > 0 ? { oneTime: totals.oneTime, monthly: totals.monthly, annual: totals.annual } : {}),
       brand,
     };
 
@@ -230,11 +232,27 @@ export async function createQuote(_: ActionState, form: FormData) {
     await prisma.$transaction([
       prisma.dealItem.deleteMany({ where: { dealId: deal.id } }),
       prisma.dealItem.createMany({
-        data: lines.map((l) => ({ dealId: deal.id, productId: productOf(l.productId)?.id ?? null, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })),
+        data: lines.map((l) => ({
+          dealId: deal.id,
+          productId: productOf(l.productId)?.id ?? null,
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          discount: l.discount,
+          billing: l.billing,
+          termMonths: l.termMonths,
+        })),
       }),
       prisma.deal.update({
         where: { id: deal.id },
-        data: { amount: totals.subtotal, lastActivityAt: now, ...(moved ? { stageId: quoteStage.id, stageChangedAt: now } : {}) },
+        // Valor del negocio = primer año; la mensualidad y la anualidad quedan aparte
+        data: {
+          amount: totals.subtotal,
+          recurringMonthly: totals.monthly || null,
+          recurringAnnual: totals.annual || null,
+          lastActivityAt: now,
+          ...(moved ? { stageId: quoteStage.id, stageChangedAt: now } : {}),
+        },
       }),
       ...(moved
         ? [prisma.activity.create({ data: { type: "CAMBIO_ETAPA", subject: `Etapa: ${deal.stage.name} → ${quoteStage.name}`, dealId: deal.id, authorId: user.id, completed: true } })]
@@ -315,11 +333,19 @@ export async function acceptQuote(quoteId: string) {
         quantity: i.quantity,
         unitPrice: i.unitPrice,
         discount: i.discount,
+        billing: i.billing ?? "UNICO",
+        termMonths: i.termMonths ?? null,
       })),
     }),
     prisma.deal.update({
       where: { id: deal.id },
-      data: { amount: snap.subtotal, lastActivityAt: now, ...(moved ? { stageId: production.id, stageChangedAt: now } : {}) },
+      data: {
+        amount: snap.subtotal,
+        recurringMonthly: snap.monthly || null,
+        recurringAnnual: snap.annual || null,
+        lastActivityAt: now,
+        ...(moved ? { stageId: production.id, stageChangedAt: now } : {}),
+      },
     }),
     ...(moved
       ? [prisma.activity.create({ data: { type: "CAMBIO_ETAPA", subject: `Etapa: ${deal.stage.name} → ${production.name}`, dealId: deal.id, authorId: user.id, completed: true } })]
