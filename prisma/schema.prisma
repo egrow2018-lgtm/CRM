@@ -578,6 +578,11 @@ model TeamMember {
   name      String
   /// Especialidad, ej. "Diseño instruccional", "Edición de video"
   specialty String?
+  email     String?
+  /// Formato internacional, ej. +593 99 543 9203
+  phone     String?
+  /// País donde trabaja (código ISO, ej. EC)
+  country   String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }

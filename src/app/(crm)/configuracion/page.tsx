@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { PhoneInput } from "@/components/phone-input";
+import { COUNTRIES } from "@/lib/phone";
 import { requirePagePermission } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
@@ -58,21 +59,20 @@ export default async function SettingsPage() {
           <div className="card divide-y divide-slate-100">
             {team.map((m) => (
               <ActionForm key={m.id} action={saveTeamMember.bind(null, m.id)} successMessage="Guardado." className="space-y-2 p-3">
-                <div className="grid items-center gap-2 sm:grid-cols-12">
-                <input name="name" required defaultValue={m.name} className="input sm:col-span-4" aria-label="Nombre" />
-                <input name="specialty" defaultValue={m.specialty ?? ""} placeholder="Especialidad" className="input sm:col-span-4" aria-label="Especialidad" />
-                <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                  <input type="checkbox" name="active" defaultChecked={m.active} /> Activo
-                </label>
-                <SubmitButton className="btn btn-sm sm:col-span-2">Guardar</SubmitButton>
+                <TeamMemberFields member={m} />
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="active" defaultChecked={m.active} /> Activo
+                  </label>
+                  <SubmitButton className="btn btn-sm">Guardar</SubmitButton>
                 </div>
               </ActionForm>
             ))}
             <ActionForm action={saveTeamMember.bind(null, null)} resetOnSuccess successMessage="Integrante agregado." className="space-y-2 bg-slate-50/60 p-3">
-              <div className="grid items-center gap-2 sm:grid-cols-12">
-              <input name="name" required placeholder="Nombre del integrante" className="input sm:col-span-4" />
-              <input name="specialty" placeholder="Especialidad (ej. Diseño instruccional)" className="input sm:col-span-6" />
-              <SubmitButton className="btn btn-primary btn-sm sm:col-span-2">Agregar</SubmitButton>
+              <p className="text-sm font-medium text-slate-700">Agregar integrante</p>
+              <TeamMemberFields />
+              <div className="flex justify-end">
+                <SubmitButton className="btn btn-primary btn-sm">Agregar</SubmitButton>
               </div>
             </ActionForm>
           </div>
@@ -191,6 +191,38 @@ export default async function SettingsPage() {
           </ActionForm>
         </div>
       </section>
+    </div>
+  );
+}
+
+/** Nombre, especialidad, país, correo y teléfono (con bandera y código, igual que en Contactos). */
+function TeamMemberFields({
+  member,
+}: {
+  member?: { name: string; specialty: string | null; email: string | null; phone: string | null; country: string | null };
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-3">
+      <Field label="Nombre">
+        <input name="name" required defaultValue={member?.name} placeholder={member ? undefined : "Nombre del integrante"} className="input" />
+      </Field>
+      <Field label="Especialidad">
+        <input name="specialty" defaultValue={member?.specialty ?? ""} placeholder="Ej. Diseño instruccional" className="input" />
+      </Field>
+      <Field label="País">
+        <select name="country" defaultValue={member?.country ?? ""} className="input">
+          <option value="">— El del teléfono —</option>
+          {COUNTRIES.map((c) => (
+            <option key={c.iso} value={c.iso}>{c.name}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Correo">
+        <input name="email" type="email" defaultValue={member?.email ?? ""} placeholder="correo@ejemplo.com" className="input" />
+      </Field>
+      <Field label="Teléfono / WhatsApp" className="sm:col-span-2">
+        <PhoneInput defaultValue={member?.phone} />
+      </Field>
     </div>
   );
 }

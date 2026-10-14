@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { buildProductionReport, getProductionFrequency, saveProductionFrequency } from "@/lib/production-report";
-import { normalizePhone } from "@/lib/phone";
+import { COUNTRIES, normalizePhone, parsePhone } from "@/lib/phone";
 import { prisma } from "@/lib/db";
 import { requirePermission, requireUser } from "@/lib/auth";
 import { bool, num, reqStr, str, type ActionState } from "@/lib/forms";
@@ -134,6 +134,18 @@ export async function saveTeamMember(id: string | null, _: ActionState, form: Fo
     const data = {
       name: reqStr(form, "name", "Nombre").slice(0, 120),
       specialty: str(form, "specialty")?.slice(0, 120) ?? null,
+      email: (() => {
+        const e = str(form, "email")?.toLowerCase() ?? null;
+        if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error(`El correo «${e}» no es válido.`);
+        return e;
+      })(),
+      phone: normalizePhone(str(form, "phone")),
+      // País elegido o, si no se elige, el del código del teléfono (+57 → Colombia)
+      country: COUNTRIES.some((c) => c.iso === str(form, "country"))
+        ? str(form, "country")
+        : str(form, "phone")
+          ? parsePhone(str(form, "phone")).iso
+          : null,
       ...(id ? { active: bool(form, "active") } : {}),
     };
     if (id) await prisma.teamMember.update({ where: { id }, data });
