@@ -164,21 +164,12 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
                   </View>
                   <ItemsTable items={items} bill={bill} primary={primary} />
                   <View style={s.totals}>
-                    {bill === "MENSUAL" ? (
-                      <View style={[s.totalRow, s.bold]}>
-                        <Text>Mensualidad</Text>
-                        <Text>{money.format(sub)} /mes + IVA</Text>
-                      </View>
-                    ) : (
-                      <>
-                        <View style={s.totalRow}><Text style={{ color: MUTED }}>Subtotal</Text><Text>{money.format(sub)}</Text></View>
-                        <View style={s.totalRow}><Text style={{ color: MUTED }}>IVA {q.ivaPercent}%</Text><Text>{money.format(iva)}</Text></View>
-                        <View style={[s.totalRow, s.bold]}>
-                          <Text>{bill === "UNICO" ? "Total pago único" : "Total anual"}</Text>
-                          <Text>{money.format(sub + iva)}{bill === "ANUAL" ? " /año" : ""}</Text>
-                        </View>
-                      </>
-                    )}
+                    <View style={s.totalRow}><Text style={{ color: MUTED }}>Subtotal</Text><Text>{money.format(sub)}</Text></View>
+                    <View style={s.totalRow}><Text style={{ color: MUTED }}>IVA {q.ivaPercent}%</Text><Text>{money.format(iva)}</Text></View>
+                    <View style={[s.totalRow, s.bold]}>
+                      <Text>{bill === "UNICO" ? "Total pago único" : bill === "MENSUAL" ? "Total mensual" : "Total anual"}</Text>
+                      <Text>{money.format(sub + iva)}{BILLING[bill].per ? ` ${BILLING[bill].per}` : ""}</Text>
+                    </View>
                   </View>
                 </View>
               );
@@ -188,7 +179,12 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
                 <SummaryBox bg={accent} label="Inversión inicial" value={money.format(round((q.oneTime ?? 0) * (1 + q.ivaPercent / 100)))} note="IVA incluido · se paga una sola vez" />
               ) : null}
               {(q.monthly ?? 0) > 0 ? (
-                <SummaryBox bg={primary} label="Mensualidad" value={`${money.format(q.monthly ?? 0)} /mes`} note={`Más IVA · contrato de ${termOf("MENSUAL")} meses`} />
+                <SummaryBox
+                  bg={primary}
+                  label="Mensualidad"
+                  value={`${money.format(round((q.monthly ?? 0) * (1 + q.ivaPercent / 100)))} /mes`}
+                  note={`IVA incluido · contrato de ${termOf("MENSUAL")} meses`}
+                />
               ) : null}
               {(q.annual ?? 0) > 0 ? (
                 <SummaryBox bg={primary} label="Anualidad" value={`${money.format(round((q.annual ?? 0) * (1 + q.ivaPercent / 100)))} /año`} note="IVA incluido" />
@@ -201,10 +197,20 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
             <ItemsTable items={q.items} bill={kinds[0] ?? "UNICO"} primary={primary} />
             <View style={s.totals} wrap={false}>
               {kinds[0] === "MENSUAL" ? (
-                <View style={[s.grand, { backgroundColor: accent, color: onAccent }]}>
-                  <Text>MENSUALIDAD</Text>
-                  <Text>{money.format(q.monthly ?? q.subtotal)} /mes + IVA</Text>
-                </View>
+                <>
+                  <View style={s.totalRow}>
+                    <Text style={{ color: MUTED }}>Subtotal mensual</Text>
+                    <Text>{money.format(q.monthly ?? 0)}</Text>
+                  </View>
+                  <View style={s.totalRow}>
+                    <Text style={{ color: MUTED }}>IVA {q.ivaPercent}%</Text>
+                    <Text>{money.format(round(((q.monthly ?? 0) * q.ivaPercent) / 100))}</Text>
+                  </View>
+                  <View style={[s.grand, { backgroundColor: accent, color: onAccent }]}>
+                    <Text>TOTAL MENSUAL</Text>
+                    <Text>{money.format(round((q.monthly ?? 0) * (1 + q.ivaPercent / 100)))} /mes</Text>
+                  </View>
+                </>
               ) : (
                 <>
                   {q.discountTotal > 0 ? (
