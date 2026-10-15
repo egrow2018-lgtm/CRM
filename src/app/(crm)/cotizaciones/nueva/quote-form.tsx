@@ -7,6 +7,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { BILLING, DEFAULT_TERM_MONTHS, computeTotals, isBilling, type Billing } from "@/lib/quotes";
 import { PhoneInput } from "@/components/phone-input";
 import { createQuote } from "../actions";
+import { QuotePreview } from "./quote-preview";
 
 type Deal = { id: string; label: string; lineId: string | null };
 type Option = { id: string; label: string };
@@ -26,6 +27,7 @@ export function QuoteForm({
   brandByLine,
   quoteLines,
   contacts,
+  editId = null,
   initial,
 }: {
   deals: Deal[];
@@ -35,6 +37,8 @@ export function QuoteForm({
   /** Líneas que permiten cotizar a un contacto sin negocio (ej. Rutalink) */
   quoteLines: { id: string; name: string }[];
   contacts: Option[];
+  /** Corrección de una cotización aún no enviada (mantiene su número) */
+  editId?: string | null;
   initial: {
     mode: "negocio" | "contacto";
     contactId: string;
@@ -58,6 +62,8 @@ export function QuoteForm({
   const direct = mode === "contacto";
   const [lines, setLines] = useState<Line[]>(initial.lines.length ? initial.lines : [emptyLine()]);
   const [iva, setIva] = useState(String(initial.ivaPercent));
+  // Cuenta los cambios en los campos del formulario para actualizar la vista previa
+  const [changed, setChanged] = useState(0);
   // Clave única de este formulario: si se pulsa «Generar» dos veces, el servidor no duplica la cotización
   const [requestKey, setRequestKey] = useState("");
   useEffect(() => setRequestKey(crypto.randomUUID()), []);
@@ -107,7 +113,10 @@ export function QuoteForm({
   const groupEntries = [...groups.entries()].sort(([a], [b]) => (a === lineName ? -1 : b === lineName ? 1 : a.localeCompare(b)));
 
   return (
-    <ActionForm action={createQuote} className="space-y-4">
+    <ActionForm action={createQuote} id="quote-form" onInput={() => setChanged((n) => n + 1)} className="space-y-4">
+      {editId && <input type="hidden" name="editId" value={editId} />}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,40rem)]">
+      <div className="min-w-0 space-y-4">
       <input type="hidden" name="requestKey" value={requestKey} />
       <input
         type="hidden"
@@ -159,7 +168,7 @@ export function QuoteForm({
                 onChange={(e) => {
                   setDealId(e.target.value);
                   // Si aún no hay productos escritos, se cargan los del negocio elegido
-                  if (e.target.value && !lines.some((l) => l.description.trim())) router.replace(`/cotizaciones/nueva?dealId=${e.target.value}`);
+                  if (!editId && e.target.value && !lines.some((l) => l.description.trim())) router.replace(`/cotizaciones/nueva?dealId=${e.target.value}`);
                 }}
                 className="input mt-1"
               >
@@ -360,12 +369,15 @@ export function QuoteForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <SubmitButton pendingText="Generando cotización…" disabled={!requestKey || !ready || valid.length === 0}>
-          Generar cotización
+        <SubmitButton pendingText={editId ? "Guardando…" : "Generando cotización…"} disabled={!requestKey || !ready || valid.length === 0}>
+          {editId ? "Guardar corrección" : "Generar cotización"}
         </SubmitButton>
         {(!ready || valid.length === 0) && (
           <span className="text-xs text-slate-500">{direct ? "Elige o crea el contacto" : "Elige el negocio"} y agrega al menos un producto o servicio.</span>
         )}
+      </div>
+      </div>
+      <QuotePreview formId="quote-form" ready={ready && valid.length > 0} changed={`${changed}|${mode}|${dealId}|${lineId}|${contactId}|${JSON.stringify(lines)}|${iva}`} />
       </div>
     </ActionForm>
   );

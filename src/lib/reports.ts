@@ -20,6 +20,12 @@ export type RDeal = {
   companyName: string | null;
   lostReason: string | null;
   items: { product: string; quantity: number; subtotal: number }[];
+  /** Servicios recurrentes (sin IVA): mensualidad y anualidad */
+  monthly?: number;
+  annual?: number;
+  renewalDate?: Date | null;
+  /** Ya tiene una renovación ganada (la renovación pasa a sumar en su lugar) */
+  renewedByWon?: boolean;
 };
 export type RQuote = { createdAt: Date; total: number; lineId: string | null; ownerId: string | null; dealWon: boolean };
 export type RLead = { createdAt: Date; source: string | null };
@@ -183,4 +189,44 @@ export function quoteConversion(quotes: RQuote[], year: number) {
 
 export function sumCells(cells: Cell[]): Cell {
   return cells.reduce((t, c) => ({ count: t.count + c.count, amount: round2(t.amount + c.amount) }), empty());
+}
+
+/** Ingreso recurrente de un negocio llevado a mensual: mensualidad + anualidad ÷ 12. */
+export const dealMrr = (d: Pick<RDeal, "monthly" | "annual">) => round2((d.monthly ?? 0) + (d.annual ?? 0) / 12);
+
+/**
+ * Ingreso recurrente mensual activo: negocios ganados con mensualidad o anualidad (lo anual ÷ 12),
+ * sin contar los que ya fueron reemplazados por su renovación ganada.
+ */
+export function recurringSummary(deals: RDeal[], now = new Date()) {
+  const active = deals.filter((d) => d.stage.isWon && !d.renewedByWon && dealMrr(d) > 0);
+  const { year, month } = ym(now);
+  const in90 = now.getTime() + 90 * 86400000;
+  const group = (key: (d: RDeal) => string) => {
+    const m = new Map<string, { mrr: number; count: number }>();
+    for (const d of active) {
+      const k = key(d);
+      const c = m.get(k) ?? { mrr: 0, count: 0 };
+      c.mrr = round2(c.mrr + dealMrr(d));
+      c.count++;
+      m.set(k, c);
+    }
+    return [...m.entries()].map(([id, c]) => ({ id, ...c })).sort((a, b) => b.mrr - a.mrr);
+  };
+  const isNew = (d: RDeal) => {
+    const c = ym(closedAt(d));
+    return c.year === year && c.month === month;
+  };
+  const renewals = active
+    .filter((d) => d.renewalDate && d.renewalDate.getTime() <= in90)
+    .sort((a, b) => a.renewalDate!.getTime() - b.renewalDate!.getTime());
+  return {
+    mrr: round2(active.reduce((t, d) => t + dealMrr(d), 0)),
+    clients: active.length,
+    newThisMonth: round2(active.filter(isNew).reduce((t, d) => t + dealMrr(d), 0)),
+    byLine: group((d) => d.lineId ?? "none"),
+    byOwner: group((d) => d.ownerName ?? "Sin responsable"),
+    renewals: renewals.map((d) => ({ id: d.id, name: d.name, company: d.companyName, date: d.renewalDate!, mrr: dealMrr(d), owner: d.ownerName })),
+    renewalsMrr: round2(renewals.reduce((t, d) => t + dealMrr(d), 0)),
+  };
 }

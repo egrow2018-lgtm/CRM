@@ -13,6 +13,7 @@ import {
   openPipelineByStage,
   quoteConversion,
   quotesByMonthAndLine,
+  recurringSummary,
   sumCells,
   topClients,
   topProducts,
@@ -67,6 +68,7 @@ function Bars({ data, color = "bg-accent-500" }: { data: { label: string; value:
 
 const NAV = [
   ["resumen", "Resumen"],
+  ["recurrente", "Ingreso recurrente"],
   ["ventas", "Ventas por año y línea"],
   ["cotizaciones", "Cotizaciones por mes"],
   ["ganados", "Ganados vs perdidos"],
@@ -102,6 +104,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const conv = quoteConversion(quotes, year);
   const quoteTotal = sumCells(quoteMonths.map((m) => m.total));
   const openTotal = pipeline.reduce((t, p) => ({ amount: t.amount + p.amount, weighted: t.weighted + p.weighted }), { amount: 0, weighted: 0 });
+  const rec = recurringSummary(deals);
+  const lineOf = (id: string) => allLines.find((l) => l.id === id);
   const qs = new URLSearchParams({ year: String(year), ...(sp.line ? { line: sp.line } : {}) });
 
   const kpis: [string, string, string?][] = [
@@ -143,6 +147,76 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           </div>
         ))}
       </section>
+
+      <Section
+        id="recurrente"
+        title="Ingreso recurrente mensual"
+        hint="Mensualidades + anualidades ÷ 12 de los negocios ganados y vigentes (sin IVA). Es lo que factura la empresa cada mes sin vender nada nuevo."
+      >
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {(
+            [
+              ["Ingreso recurrente", `${formatMoney(rec.mrr)}/mes`, `≈ ${formatMoney(rec.mrr * 12)} al año`],
+              ["Clientes recurrentes", fmtN.format(rec.clients), "negocios ganados con mensualidad o anualidad"],
+              ["Nuevo este mes", `+${formatMoney(rec.newThisMonth)}/mes`, "de los negocios ganados este mes"],
+              ["Renovaciones en 90 días", fmtN.format(rec.renewals.length), `${formatMoney(rec.renewalsMrr)}/mes en juego`],
+            ] as const
+          ).map(([label, value, hint]) => (
+            <div key={label} className="rounded-lg border border-slate-200 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+              <div className="mt-1 text-xl font-semibold tabular-nums text-brand-700">{value}</div>
+              <div className="text-xs text-slate-500">{hint}</div>
+            </div>
+          ))}
+        </div>
+        {rec.clients === 0 ? (
+          <p className="text-sm text-slate-500">
+            Aún no hay negocios ganados con mensualidad o anualidad. Se cuentan desde que se cotiza con productos «Mensual» o «Anual».
+          </p>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-3">
+            <table className="table">
+              <thead><tr><th>Línea</th><th className="text-right">Clientes</th><th className="text-right">Ingreso/mes</th></tr></thead>
+              <tbody>
+                {rec.byLine.map((l) => (
+                  <tr key={l.id}>
+                    <td>{lineOf(l.id) ? <LineBadge line={lineOf(l.id)!} /> : "Sin línea"}</td>
+                    <td className="text-right tabular-nums">{l.count}</td>
+                    <td className="text-right tabular-nums">{formatMoney(l.mrr)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <table className="table">
+              <thead><tr><th>Responsable</th><th className="text-right">Clientes</th><th className="text-right">Ingreso/mes</th></tr></thead>
+              <tbody>
+                {rec.byOwner.map((o) => (
+                  <tr key={o.id}>
+                    <td>{o.id}</td>
+                    <td className="text-right tabular-nums">{o.count}</td>
+                    <td className="text-right tabular-nums">{formatMoney(o.mrr)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <table className="table">
+              <thead><tr><th>Renueva</th><th>Negocio</th><th className="text-right">Ingreso/mes</th></tr></thead>
+              <tbody>
+                {rec.renewals.length === 0 && (
+                  <tr><td colSpan={3} className="text-slate-500">Sin renovaciones en los próximos 90 días.</td></tr>
+                )}
+                {rec.renewals.map((r) => (
+                  <tr key={r.id}>
+                    <td className="whitespace-nowrap text-xs">{r.date.toISOString().slice(0, 10).split("-").reverse().join("/")}</td>
+                    <td className="max-w-48 truncate"><Link className="hover:underline" href={`/negocios/${r.id}`}>{r.company ?? r.name}</Link></td>
+                    <td className="text-right tabular-nums">{formatMoney(r.mrr)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
 
       <Section id="ventas" title="Ventas ganadas por año y línea de negocio" hint="Monto ganado y (número de negocios), por año de cierre.">
         <table className="table">

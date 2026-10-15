@@ -208,3 +208,45 @@ export async function resendInvite(id: string, _: ActionState, form: FormData) {
     [...pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined })].forEach((p) => revalidatePath(p));
   });
 }
+
+/**
+ * Edita una tarea o llamada pendiente (asunto, detalle, fecha, responsable).
+ * Si cambia la fecha hay que indicar el motivo: queda en el detalle de la tarea y en el historial.
+ */
+export async function updateTask(id: string, _: ActionState, form: FormData) {
+  return runAction(async () => {
+    const user = await requirePermission("activities:write");
+    const a = await prisma.activity.findUniqueOrThrow({ where: { id } });
+    if (a.type !== "TAREA" && a.type !== "LLAMADA") throw new Error("Solo se pueden editar tareas y llamadas.");
+    const subject = reqStr(form, "subject", "Asunto");
+    const dueDate = date(form, "dueDate");
+    const reason = str(form, "reason");
+    const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+    const moved = day(a.dueDate) !== day(dueDate);
+    if (moved && !reason) throw new Error("Indica el motivo del cambio de fecha (ej. «El cliente pidió reunirse el viernes»).");
+    const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 10).split("-").reverse().join("/") : "sin fecha");
+    const change = moved ? `↻ Reprogramada del ${fmt(a.dueDate)} al ${fmt(dueDate)}: ${reason}` : reason ? `✎ ${reason}` : null;
+    const body = [str(form, "body"), change].filter(Boolean).join("\n") || null;
+    const assigneeId = form.has("assigneeId") ? (str(form, "assigneeId") ?? user.id) : a.assigneeId;
+    await prisma.$transaction(async (tx) => {
+      await tx.activity.update({ where: { id }, data: { subject, body, dueDate, assigneeId } });
+      // El cambio de fecha también queda en el historial del negocio, contacto o empresa
+      if (moved && (a.dealId || a.contactId || a.companyId)) {
+        await tx.activity.create({
+          data: {
+            type: "NOTA",
+            subject: `Tarea «${subject}» reprogramada del ${fmt(a.dueDate)} al ${fmt(dueDate)}`,
+            body: `Motivo: ${reason}`,
+            completed: true,
+            completedAt: new Date(),
+            authorId: user.id,
+            dealId: a.dealId,
+            contactId: a.contactId,
+            companyId: a.companyId,
+          },
+        });
+      }
+    });
+    pathsFor({ dealId: a.dealId ?? undefined, contactId: a.contactId ?? undefined, companyId: a.companyId ?? undefined }).forEach((p) => revalidatePath(p));
+  });
+}

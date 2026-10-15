@@ -4,14 +4,19 @@ import { requirePagePermission } from "@/lib/auth";
 import { contactName, toNumber } from "@/lib/format";
 import { getCompanySettings } from "@/lib/settings";
 import { DEFAULT_TERM_MONTHS, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
+import { quoteEditable } from "@/lib/quote-edit";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui";
 import { QuoteForm } from "./quote-form";
 
-type SP = { dealId?: string; desde?: string; contactId?: string };
+type SP = { dealId?: string; desde?: string; contactId?: string; editar?: string };
 
 export default async function NewQuotePage({ searchParams }: { searchParams: Promise<SP> }) {
   await requirePagePermission("deals:write");
   const sp = await searchParams;
+  // Corregir una cotización que el cliente aún no recibió (mantiene su número)
+  if (sp.editar && !(await quoteEditable(sp.editar))) redirect(`/cotizaciones/${sp.editar}`);
+  const sourceId = sp.editar ?? sp.desde;
   const [deals, products, brandLines, company, source, quoteLines, contacts] = await Promise.all([
     prisma.deal.findMany({
       where: { OR: [{ stage: { isLost: false } }, ...(sp.dealId ? [{ id: sp.dealId }] : [])] },
@@ -27,8 +32,8 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
     prisma.businessLine.findMany({ where: { brandLogo: { not: null } }, select: { id: true, name: true, brandName: true } }),
     getCompanySettings(),
     // Nueva versión de una cotización, o la última del negocio para no volver a escribir los productos
-    sp.desde
-      ? prisma.quote.findUnique({ where: { id: sp.desde } })
+    sourceId
+      ? prisma.quote.findUnique({ where: { id: sourceId } })
       : sp.dealId
         ? prisma.quote.findFirst({ where: { dealId: sp.dealId }, orderBy: { createdAt: "desc" } })
         : null,
@@ -66,16 +71,18 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
       }));
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-[96rem]">
       <div className="mb-2 text-sm">
         <Link href={dealId ? `/negocios/${dealId}` : "/cotizaciones"} className="text-slate-500 hover:underline">
           ← {dealId ? "Volver al negocio" : "Cotizaciones"}
         </Link>
       </div>
       <PageHeader
-        title="Nueva cotización"
+        title={sp.editar && source ? `Corregir ${quoteCode(source.year, source.number)}` : "Nueva cotización"}
         subtitle={
-          sp.desde && source
+          sp.editar && source
+            ? `Corrige lo que haga falta y revisa la vista previa: se mantiene el número ${quoteCode(source.year, source.number)}.`
+            : sp.desde && source
             ? `Basada en ${quoteCode(source.year, source.number)}: ajusta lo que cambió y genera la nueva versión.`
             : "Se genera el PDF con número correlativo y queda atada al negocio (o al contacto, en las líneas que cotizan sin negocio)."
         }
@@ -91,6 +98,7 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
         brandByLine={Object.fromEntries(brandLines.map((l) => [l.id, l.brandName || l.name]))}
         quoteLines={quoteLines}
         contacts={contacts.map((c) => ({ id: c.id, label: [contactName(c), c.email, c.company?.name].filter(Boolean).join(" · ") }))}
+        editId={sp.editar && source ? source.id : null}
         initial={{
           mode: contactMode ? "contacto" : "negocio",
           contactId: sp.contactId ?? source?.contactId ?? "",

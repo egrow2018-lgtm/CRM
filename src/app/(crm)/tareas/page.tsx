@@ -115,7 +115,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="card p-4">
           <ul className="divide-y divide-slate-100">
-            {tasks.map((t) => <TaskRow key={t.id} task={t} canWrite={canWrite} showDeal emailEnabled={emailConfigured()} />)}
+            {tasks.map((t) => <TaskRow key={t.id} task={t} canWrite={canWrite} showDeal emailEnabled={emailConfigured()} users={users} />)}
           </ul>
         </div>
       )}

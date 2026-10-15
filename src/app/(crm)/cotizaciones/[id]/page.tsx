@@ -12,6 +12,7 @@ import { QuoteRow } from "@/components/quotes-card";
 import { EmailStatus } from "@/components/email-status";
 import { QuoteStatusSelect } from "../status-select";
 import { deleteQuote } from "../actions";
+import { quoteEditable } from "@/lib/quote-edit";
 
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -41,6 +42,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const snap = quote.snapshot as unknown as QuoteSnapshot;
   const code = quoteCode(quote.year, quote.number);
   const canWrite = can(user, "deals:write");
+  // Se puede corregir mientras el cliente no la haya recibido (sin enviar ni abrir)
+  const editable = canWrite && (await quoteEditable(quote.id));
   // Sin negocio (cotización directa a un contacto): los datos salen del contacto
   const contact = quote.deal?.contact ?? quote.contact;
   const company = quote.deal ? quote.deal.company : (quote.contact?.company ?? null);
@@ -75,6 +78,11 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         actions={
           canWrite && (
             <>
+              {editable && (
+                <Link href={`/cotizaciones/nueva?editar=${quote.id}`} className="btn btn-primary" title="Aún no la recibe el cliente: se corrige manteniendo el número">
+                  ✎ Corregir
+                </Link>
+              )}
               <Link href={`/cotizaciones/nueva?desde=${quote.id}`} className="btn">Nueva versión</Link>
               <form action={deleteQuote.bind(null, quote.id)}>
                 <ConfirmButton message={`¿Eliminar la cotización ${code}? No se puede deshacer.`}>Eliminar</ConfirmButton>
