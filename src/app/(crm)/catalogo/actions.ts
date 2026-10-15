@@ -91,3 +91,27 @@ export async function saveLineBrand(id: string, _: ActionState, form: FormData) 
     revalidatePath("/catalogo");
   });
 }
+
+/**
+ * Elimina un producto del catálogo. Los negocios que ya lo tenían conservan la línea (con su descripción y precio)
+ * y las cotizaciones emitidas no cambian: guardan su propia copia.
+ */
+export async function deleteProduct(id: string) {
+  await requirePermission("catalog:manage");
+  await prisma.product.delete({ where: { id } });
+  revalidatePath("/catalogo");
+}
+
+/**
+ * Elimina una línea de negocio junto con sus productos. Solo si no tiene negocios ni cotizaciones
+ * (si los tiene, conviene desactivarla para no perder el historial).
+ */
+export async function deleteBusinessLine(id: string) {
+  await requirePermission("catalog:manage");
+  const line = await prisma.businessLine.findUniqueOrThrow({ where: { id }, include: { _count: { select: { deals: true, quotes: true } } } });
+  if (line._count.deals > 0 || line._count.quotes > 0) {
+    throw new Error(`La línea ${line.name} tiene negocios o cotizaciones: desactívala en lugar de eliminarla.`);
+  }
+  await prisma.$transaction([prisma.product.deleteMany({ where: { businessLineId: id } }), prisma.businessLine.delete({ where: { id } })]);
+  revalidatePath("/catalogo");
+}

@@ -1,7 +1,7 @@
 import "server-only";
 import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { LOGO_DATA_URI } from "./logo-data";
-import { BILLING, DEFAULT_TERM_MONTHS, type QuoteSnapshot } from "./quotes";
+import { BILLING, DEFAULT_TERM_MONTHS, type Billing, type QuoteSnapshot } from "./quotes";
 import { EGROW_ACCENT, EGROW_PRIMARY, textOn } from "./brand";
 
 const MUTED = "#64748b";
@@ -38,6 +38,52 @@ const s = StyleSheet.create({
   footer: { position: "absolute", bottom: 24, left: 40, right: 40, fontSize: 7.5, color: MUTED, textAlign: "center", borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 6 },
 });
 
+const round = (n: number) => Math.round(n * 100) / 100;
+
+const BLOCK: Record<Billing, { title: string; hint: string }> = {
+  UNICO: { title: "Pago único", hint: "Equipos, desarrollo, implementación y servicios que se pagan una sola vez" },
+  MENSUAL: { title: "Servicio mensual", hint: "Se factura cada mes" },
+  ANUAL: { title: "Servicio anual", hint: "Se factura cada año" },
+};
+
+/** Tabla de productos; en los recurrentes, el precio y el subtotal son por mes o por año. */
+function ItemsTable({ items, bill, primary }: { items: QuoteSnapshot["items"]; bill: Billing; primary: string }) {
+  const per = BILLING[bill].per;
+  return (
+    <>
+      <View style={[s.th, { backgroundColor: primary, color: textOn(primary) }]}>
+        <Text style={s.cDesc}>Descripción</Text>
+        <Text style={s.cQty}>Cant.</Text>
+        <Text style={s.cPrice}>{bill === "UNICO" ? "Precio unit." : `Precio${per}`}</Text>
+        <Text style={s.cDisc}>Desc.</Text>
+        <Text style={s.cTotal}>{bill === "UNICO" ? "Subtotal" : bill === "MENSUAL" ? "Valor mensual" : "Valor anual"}</Text>
+      </View>
+      {items.map((it, i) => (
+        <View key={i} style={s.tr} wrap={false}>
+          <View style={s.cDesc}>
+            <Text>{it.description}</Text>
+            {it.detail ? <Text style={{ color: MUTED, fontSize: 8 }}>{it.detail}</Text> : null}
+          </View>
+          <Text style={s.cQty}>{it.quantity}</Text>
+          <Text style={s.cPrice}>{money.format(it.unitPrice)}</Text>
+          <Text style={s.cDisc}>{it.discount ? `${it.discount}%` : "—"}</Text>
+          <Text style={s.cTotal}>{money.format(it.subtotal)}</Text>
+        </View>
+      ))}
+    </>
+  );
+}
+
+function SummaryBox({ bg, label, value, note }: { bg: string; label: string; value: string; note: string }) {
+  return (
+    <View style={{ flex: 1, padding: 10, borderRadius: 4, backgroundColor: bg, color: textOn(bg) }}>
+      <Text style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</Text>
+      <Text style={[s.bold, { fontSize: 15, marginTop: 2 }]}>{value}</Text>
+      <Text style={{ fontSize: 8 }}>{note}</Text>
+    </View>
+  );
+}
+
 export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string; createdAt: Date; validUntil: Date; q: QuoteSnapshot }) {
   const c = q.company;
   // Marca: la de la línea (ej. Rutalink) o la de e-grow
@@ -50,6 +96,9 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
   // Logos claros: el encabezado va sobre un fondo de color
   const headerBg = b?.headerBg ?? null;
   const headerText = headerBg ? textOn(headerBg) : null;
+  // Tipos de cobro presentes (las cotizaciones antiguas no lo tienen: pago único)
+  const kinds = (["UNICO", "MENSUAL", "ANUAL"] as const).filter((b) => q.items.some((it) => (it.billing ?? "UNICO") === b));
+  const termOf = (b: Billing) => q.items.find((it) => it.billing === b && it.termMonths)?.termMonths ?? DEFAULT_TERM_MONTHS;
   return (
     <Document title={`${code} – ${q.dealName}`} author={brandName}>
       <Page size="A4" style={s.page}>
@@ -99,71 +148,91 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
           </View>
         </View>
 
-        <View style={[s.th, { backgroundColor: primary, color: textOn(primary) }]}>
-          <Text style={s.cDesc}>Descripción</Text>
-          <Text style={s.cQty}>Cant.</Text>
-          <Text style={s.cPrice}>Precio unit.</Text>
-          <Text style={s.cDisc}>Desc.</Text>
-          <Text style={s.cTotal}>Subtotal</Text>
-        </View>
-        {q.items.map((it, i) => (
-          <View key={i} style={s.tr} wrap={false}>
-            <View style={s.cDesc}>
-              <Text>{it.description}</Text>
-              {it.detail ? <Text style={{ color: MUTED, fontSize: 8 }}>{it.detail}</Text> : null}
-              {it.billing && it.billing !== "UNICO" ? (
-                <Text style={{ color: MUTED, fontSize: 8 }}>
-                  {BILLING[it.billing].label} · contrato de {it.termMonths ?? DEFAULT_TERM_MONTHS} meses
-                </Text>
-              ) : null}
-            </View>
-            <Text style={s.cQty}>{it.quantity}</Text>
-            <Text style={s.cPrice}>{money.format(it.unitPrice)}{it.billing ? BILLING[it.billing].per : ""}</Text>
-            <Text style={s.cDisc}>{it.discount ? `${it.discount}%` : "—"}</Text>
-            <Text style={s.cTotal}>{money.format(it.subtotal)}{it.billing ? BILLING[it.billing].per : ""}</Text>
-          </View>
-        ))}
-
-        <View style={s.totals} wrap={false}>
-          {q.discountTotal > 0 ? (
-            <View style={s.totalRow}>
-              <Text style={{ color: MUTED }}>Descuentos</Text>
-              <Text>-{money.format(q.discountTotal)}</Text>
-            </View>
-          ) : null}
-          {q.monthly !== undefined ? (
-            <>
-              <View style={s.totalRow}>
-                <Text style={{ color: MUTED }}>Inversión inicial</Text>
-                <Text>{money.format(q.oneTime ?? 0)}</Text>
-              </View>
-              {(q.monthly ?? 0) > 0 ? (
-                <View style={s.totalRow}>
-                  <Text style={{ color: primary }}>Mensualidad (más IVA)</Text>
-                  <Text style={{ color: primary }}>{money.format(q.monthly ?? 0)}/mes</Text>
+        {kinds.length > 1 ? (
+          // Mezcla de pagos únicos y recurrentes: un bloque por tipo de cobro y un resumen al final
+          <>
+            {kinds.map((bill) => {
+              const items = q.items.filter((it) => (it.billing ?? "UNICO") === bill);
+              const sub = round(items.reduce((t, it) => t + it.subtotal, 0));
+              const iva = round((sub * q.ivaPercent) / 100);
+              const term = items.find((it) => it.termMonths)?.termMonths ?? DEFAULT_TERM_MONTHS;
+              return (
+                <View key={bill} style={{ marginBottom: 14 }} wrap={false}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 4 }}>
+                    <Text style={[s.bold, { fontSize: 11, color: primary }]}>{BLOCK[bill].title}</Text>
+                    <Text style={{ fontSize: 8, color: MUTED }}>{bill === "UNICO" ? BLOCK[bill].hint : `${BLOCK[bill].hint} · contrato de ${term} meses`}</Text>
+                  </View>
+                  <ItemsTable items={items} bill={bill} primary={primary} />
+                  <View style={s.totals}>
+                    {bill === "MENSUAL" ? (
+                      <View style={[s.totalRow, s.bold]}>
+                        <Text>Mensualidad</Text>
+                        <Text>{money.format(sub)} /mes + IVA</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={s.totalRow}><Text style={{ color: MUTED }}>Subtotal</Text><Text>{money.format(sub)}</Text></View>
+                        <View style={s.totalRow}><Text style={{ color: MUTED }}>IVA {q.ivaPercent}%</Text><Text>{money.format(iva)}</Text></View>
+                        <View style={[s.totalRow, s.bold]}>
+                          <Text>{bill === "UNICO" ? "Total pago único" : "Total anual"}</Text>
+                          <Text>{money.format(sub + iva)}{bill === "ANUAL" ? " /año" : ""}</Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
                 </View>
+              );
+            })}
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }} wrap={false}>
+              {(q.oneTime ?? 0) > 0 ? (
+                <SummaryBox bg={accent} label="Inversión inicial" value={money.format(round((q.oneTime ?? 0) * (1 + q.ivaPercent / 100)))} note="IVA incluido · se paga una sola vez" />
+              ) : null}
+              {(q.monthly ?? 0) > 0 ? (
+                <SummaryBox bg={primary} label="Mensualidad" value={`${money.format(q.monthly ?? 0)} /mes`} note={`Más IVA · contrato de ${termOf("MENSUAL")} meses`} />
               ) : null}
               {(q.annual ?? 0) > 0 ? (
-                <View style={s.totalRow}>
-                  <Text style={{ color: primary }}>Anualidad (más IVA)</Text>
-                  <Text style={{ color: primary }}>{money.format(q.annual ?? 0)}/año</Text>
-                </View>
+                <SummaryBox bg={primary} label="Anualidad" value={`${money.format(round((q.annual ?? 0) * (1 + q.ivaPercent / 100)))} /año`} note="IVA incluido" />
               ) : null}
-            </>
-          ) : null}
-          <View style={s.totalRow}>
-            <Text style={{ color: MUTED }}>{q.monthly !== undefined ? "Subtotal primer año" : "Subtotal"}</Text>
-            <Text>{money.format(q.subtotal)}</Text>
-          </View>
-          <View style={s.totalRow}>
-            <Text style={{ color: MUTED }}>IVA {q.ivaPercent}%</Text>
-            <Text>{money.format(q.iva)}</Text>
-          </View>
-          <View style={[s.grand, { backgroundColor: accent, color: onAccent }]}>
-            <Text>{q.monthly !== undefined ? "TOTAL PRIMER AÑO" : "TOTAL"}</Text>
-            <Text>{money.format(q.total)}</Text>
-          </View>
-        </View>
+            </View>
+          </>
+        ) : (
+          // Un solo tipo de cobro: una tabla, como siempre
+          <>
+            <ItemsTable items={q.items} bill={kinds[0] ?? "UNICO"} primary={primary} />
+            <View style={s.totals} wrap={false}>
+              {kinds[0] === "MENSUAL" ? (
+                <View style={[s.grand, { backgroundColor: accent, color: onAccent }]}>
+                  <Text>MENSUALIDAD</Text>
+                  <Text>{money.format(q.monthly ?? q.subtotal)} /mes + IVA</Text>
+                </View>
+              ) : (
+                <>
+                  {q.discountTotal > 0 ? (
+                    <View style={s.totalRow}>
+                      <Text style={{ color: MUTED }}>Descuentos</Text>
+                      <Text>-{money.format(q.discountTotal)}</Text>
+                    </View>
+                  ) : null}
+                  <View style={s.totalRow}>
+                    <Text style={{ color: MUTED }}>{kinds[0] === "ANUAL" ? "Subtotal anual" : "Subtotal"}</Text>
+                    <Text>{money.format(q.subtotal)}</Text>
+                  </View>
+                  <View style={s.totalRow}>
+                    <Text style={{ color: MUTED }}>IVA {q.ivaPercent}%</Text>
+                    <Text>{money.format(q.iva)}</Text>
+                  </View>
+                  <View style={[s.grand, { backgroundColor: accent, color: onAccent }]}>
+                    <Text>{kinds[0] === "ANUAL" ? "TOTAL ANUAL" : "TOTAL"}</Text>
+                    <Text>{money.format(q.total)}</Text>
+                  </View>
+                </>
+              )}
+              {kinds[0] !== "UNICO" && kinds[0] ? (
+                <Text style={{ fontSize: 8, color: MUTED, textAlign: "right", marginTop: 3 }}>Contrato de {termOf(kinds[0])} meses</Text>
+              ) : null}
+            </View>
+          </>
+        )}
 
         {q.notes ? (
           <View style={s.section} wrap={false}>

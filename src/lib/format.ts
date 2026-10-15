@@ -50,11 +50,20 @@ export function initials(name: string) {
     .join("");
 }
 
-/** Etiqueta de los servicios recurrentes de un negocio: «↻ $250/mes», «↻ $1.200/año» o ambos. Vacía si no hay. */
+/**
+ * Etiqueta de los servicios recurrentes de un negocio: «↻ $250/mes», «↻ $220/año (≈ $18/mes)» o ambos.
+ * Lo anual se lleva a mensual dividiendo para 12. Vacía si no hay.
+ */
 export function recurringLabel(monthly: Numeric | null | undefined, annual: Numeric | null | undefined) {
-  const parts = [
-    toNumber(monthly ?? 0) > 0 ? `${formatMoney(monthly!)}/mes` : null,
-    toNumber(annual ?? 0) > 0 ? `${formatMoney(annual!)}/año` : null,
-  ].filter(Boolean);
-  return parts.length ? `↻ ${parts.join(" + ")}` : "";
+  const m = toNumber(monthly ?? 0);
+  const a = toNumber(annual ?? 0);
+  if (m <= 0 && a <= 0) return "";
+  if (a <= 0) return `↻ ${formatMoney(m)}/mes`;
+  const perMonth = `≈ ${formatMoney(m + a / 12)}/mes`;
+  return m > 0 ? `↻ ${formatMoney(m)}/mes + ${formatMoney(a)}/año (${perMonth})` : `↻ ${formatMoney(a)}/año (${perMonth})`;
+}
+
+/** Ingreso recurrente de un negocio llevado a mensual: mensualidad + anualidad ÷ 12. */
+export function monthlyRecurring(monthly: Numeric | null | undefined, annual: Numeric | null | undefined) {
+  return Math.round((toNumber(monthly ?? 0) + toNumber(annual ?? 0) / 12) * 100) / 100;
 }
