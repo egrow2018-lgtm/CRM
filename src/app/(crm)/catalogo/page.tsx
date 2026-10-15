@@ -2,9 +2,9 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { formatMoneyExact, toNumber } from "@/lib/format";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
-import { saveBusinessLine, saveLineBrand, saveLineFields, saveProduct } from "./actions";
+import { deleteBusinessLine, deleteProduct, saveBusinessLine, saveLineBrand, saveLineFields, saveProduct } from "./actions";
 import { LineFieldsEditor } from "./line-fields-editor";
 import { LogoInput } from "@/components/logo-input";
 import { parseCustomFields } from "@/lib/custom-fields";
@@ -16,8 +16,8 @@ export default async function CatalogPage() {
   const canManage = can(user, "catalog:manage");
   const lines = await prisma.businessLine.findMany({
     include: {
-      products: { orderBy: { name: "asc" } },
-      _count: { select: { deals: true } },
+      products: { orderBy: { name: "asc" }, include: { _count: { select: { dealItems: true } } } },
+      _count: { select: { deals: true, quotes: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -90,6 +90,19 @@ export default async function CatalogPage() {
                   <div className="sm:col-span-12"><SubmitButton className="btn btn-sm btn-primary">Guardar línea</SubmitButton></div>
                   </div>
                 </ActionForm>
+                {line._count.deals === 0 && line._count.quotes === 0 ? (
+                  <form action={deleteBusinessLine.bind(null, line.id)} className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2">
+                    <span className="text-xs text-slate-500">No tiene negocios ni cotizaciones: se puede eliminar junto con sus {line.products.length} producto(s).</span>
+                    <ConfirmButton className="btn btn-sm btn-danger" message={`¿Eliminar la línea «${line.name}» y sus ${line.products.length} producto(s)? No se puede deshacer.`}>
+                      Eliminar línea
+                    </ConfirmButton>
+                  </form>
+                ) : (
+                  <p className="mt-3 border-t border-slate-200 pt-2 text-xs text-slate-500">
+                    Tiene {line._count.deals} negocio(s){line._count.quotes ? ` y ${line._count.quotes} cotización(es)` : ""}: para no perder el historial no se puede eliminar.
+                    Si ya no la usan, desmarca «Activa».
+                  </p>
+                )}
               </div>
             )}
             <div className="overflow-x-auto">
@@ -123,7 +136,7 @@ export default async function CatalogPage() {
                         <td className="text-right">
                           <details className="relative">
                             <summary className="cursor-pointer text-xs text-brand-700">Editar</summary>
-                            <div className="card absolute right-0 z-10 mt-1 w-96 p-3 text-left">
+                            <div className="card mt-1 w-80 p-3 text-left sm:w-96">
                               <ActionForm action={saveProduct.bind(null, p.id)} className="grid gap-2 sm:grid-cols-2">
                                 <input type="hidden" name="businessLineId" value={line.id} />
                                 <input name="name" required defaultValue={p.name} className="input sm:col-span-2" />
@@ -141,6 +154,14 @@ export default async function CatalogPage() {
                                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={p.active} /> Activo</label>
                                 <div className="sm:col-span-2"><SubmitButton className="btn btn-primary btn-sm">Guardar</SubmitButton></div>
                               </ActionForm>
+                              <form action={deleteProduct.bind(null, p.id)} className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                                <span className="text-xs text-slate-500">
+                                  {p._count.dealItems > 0 ? `Está en ${p._count.dealItems} negocio(s): lo conservan aunque lo elimines.` : "No está en ningún negocio."}
+                                </span>
+                                <ConfirmButton className="btn btn-sm btn-danger" message={`¿Eliminar «${p.name}» del catálogo? No se puede deshacer. Los negocios y cotizaciones que ya lo tienen no cambian.`}>
+                                  Eliminar
+                                </ConfirmButton>
+                              </form>
                             </div>
                           </details>
                         </td>
