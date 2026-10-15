@@ -20,9 +20,10 @@ import { randomToken } from "@/lib/doc-stats";
 import { normalize } from "@/lib/csv";
 import { dealBrand } from "@/lib/brand";
 import { normalizePhone } from "@/lib/phone";
+import { quoteEditable } from "@/lib/quote-edit";
 
 /** Datos del cliente de la cotización: los de un negocio o, sin negocio, los de un contacto (persona natural). */
-async function quoteTarget(form: FormData, userId: string) {
+async function quoteTarget(form: FormData, userId: string, dryRun = false) {
   if (str(form, "mode") !== "contacto") {
     const dealId = reqStr(form, "dealId", "Negocio");
     const deal = await prisma.deal.findUniqueOrThrow({
@@ -53,6 +54,18 @@ async function quoteTarget(form: FormData, userId: string) {
   const taxId = str(form, "taxId");
   const address = str(form, "address");
   let contactId = str(form, "contactId");
+  if (!contactId && dryRun) {
+    // Vista previa: el contacto nuevo aún no se crea; se muestran los datos escritos
+    const name = [str(form, "firstName"), str(form, "lastName")].filter(Boolean).join(" ") || "(contacto nuevo)";
+    return {
+      deal: null,
+      contact: null,
+      businessLine,
+      owner: null,
+      dealName: `${businessLine.brandName || businessLine.name} · ${name}`,
+      client: { company: null, contact: name, email: str(form, "email"), phone: normalizePhone(str(form, "phone")), taxId, address },
+    };
+  }
   if (!contactId) {
     const email = str(form, "email")?.toLowerCase() ?? null;
     // Si ya existe un contacto con ese correo, se usa ese (no se duplica)
@@ -76,7 +89,7 @@ async function quoteTarget(form: FormData, userId: string) {
   }
   const contact = await prisma.contact.findUniqueOrThrow({ where: { id: contactId }, include: { company: true, owner: true } });
   // Queda como lead en seguimiento (si aún no lo era)
-  if (!contact.leadStatus || contact.leadStatus === "NUEVO") {
+  if (!dryRun && (!contact.leadStatus || contact.leadStatus === "NUEVO")) {
     await prisma.contact.update({ where: { id: contact.id }, data: { leadStatus: "EN_SEGUIMIENTO" } });
   }
   const name = contactName(contact);
@@ -97,16 +110,8 @@ async function quoteTarget(form: FormData, userId: string) {
   };
 }
 
-/** Crea la cotización desde el módulo de Cotizaciones, atada a un negocio o directa a un contacto. */
-export async function createQuote(_: ActionState, form: FormData) {
-  return runAction(async () => {
-    const user = await requirePermission("deals:write");
-    const requestKey = str(form, "requestKey");
-    // Doble clic o reintento: si esta solicitud ya creó la cotización, se abre esa
-    if (requestKey) {
-      const done = await prisma.quote.findUnique({ where: { requestKey }, select: { id: true } });
-      if (done) return `/cotizaciones/${done.id}`;
-    }
+/** Arma la cotización a partir del formulario (sin guardarla). Con `dryRun` no crea contactos: sirve para la vista previa. */
+async function buildQuote(form: FormData, userId: string, dryRun = false) {
     let lines: ReturnType<typeof parseQuoteLines>;
     try {
       lines = parseQuoteLines(JSON.parse(String(form.get("lines") ?? "[]")));
@@ -114,10 +119,7 @@ export async function createQuote(_: ActionState, form: FormData) {
       lines = [];
     }
     if (lines.length === 0) throw new Error("Agrega al menos un producto o servicio con su descripción.");
-
-    const target = await quoteTarget(form, user.id);
-    const { deal } = target;
-    const dealId = deal?.id ?? null;
+    const target = await quoteTarget(form, userId, dryRun);
     const products = await prisma.product.findMany({
       where: { id: { in: lines.flatMap((l) => (l.productId ? [l.productId] : [])) } },
       include: { businessLine: true },
@@ -128,7 +130,7 @@ export async function createQuote(_: ActionState, form: FormData) {
     const ivaPercent = Math.min(100, Math.max(0, num(form, "ivaPercent") ?? company.ivaPercent));
     const validityDays = Math.min(365, Math.max(1, Math.round(num(form, "validityDays") ?? company.validityDays)));
     const totals = computeTotals(lines, ivaPercent);
-    const owner = target.owner ?? (await prisma.user.findUnique({ where: { id: user.id } }));
+    const owner = target.owner ?? (await prisma.user.findUnique({ where: { id: userId } }));
     // Marca: la de la línea del negocio o, si no tiene, la línea común de los productos cotizados
     const brand =
       form.get("useBrand") === "on"
@@ -166,11 +168,49 @@ export async function createQuote(_: ActionState, form: FormData) {
       brand,
     };
 
+    return { lines, target, snapshot, totals, productOf, validityDays };
+}
+
+/** Vista previa del PDF con lo que hay en el formulario (no guarda nada ni usa un número correlativo). */
+export async function previewQuote(form: FormData): Promise<{ pdf: string } | { error: string }> {
+  try {
+    const user = await requirePermission("deals:write");
+    const { snapshot, validityDays } = await buildQuote(form, user.id, true);
+    const now = new Date();
+    const pdf = await renderQuotePdf({ year: now.getFullYear(), number: 0, code: "VISTA PREVIA", createdAt: now, validUntil: new Date(now.getTime() + validityDays * 86400000), snapshot });
+    return { pdf: Buffer.from(pdf).toString("base64") };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo armar la vista previa." };
+  }
+}
+
+/** Crea la cotización desde el módulo de Cotizaciones, atada a un negocio o directa a un contacto. */
+export async function createQuote(_: ActionState, form: FormData) {
+  return runAction(async () => {
+    const user = await requirePermission("deals:write");
+    const requestKey = str(form, "requestKey");
+    // Doble clic o reintento: si esta solicitud ya creó la cotización, se abre esa
+    if (requestKey) {
+      const done = await prisma.quote.findUnique({ where: { requestKey }, select: { id: true } });
+      if (done) return `/cotizaciones/${done.id}`;
+    }
+    const { lines, target, snapshot, totals, productOf, validityDays } = await buildQuote(form, user.id);
+    const { deal } = target;
+    const dealId = deal?.id ?? null;
     const year = new Date().getFullYear();
     const validUntil = new Date(Date.now() + validityDays * 86400000);
-    // Número correlativo por año (se reintenta si dos personas generan a la vez)
+    // Corrección de una cotización que el cliente aún no ha recibido: mantiene su número
+    const editId = str(form, "editId");
     let quote;
-    for (let attempt = 0; ; attempt++) {
+    if (editId) {
+      if (!(await quoteEditable(editId))) throw new Error("Esta cotización ya se envió o el cliente ya la vio: genera una nueva versión.");
+      quote = await prisma.quote.update({
+        where: { id: editId },
+        data: { snapshot, total: totals.total, validUntil, dealId, contactId: target.contact?.id ?? null, businessLineId: target.businessLine?.id ?? null },
+      });
+    }
+    // Número correlativo por año (se reintenta si dos personas generan a la vez)
+    for (let attempt = 0; !quote; attempt++) {
       try {
         quote = await prisma.$transaction(async (tx) => {
           const last = await tx.quote.aggregate({ where: { year }, _max: { number: true } });
@@ -205,10 +245,12 @@ export async function createQuote(_: ActionState, form: FormData) {
       }
     }
     // Enlace rastreado para compartir por WhatsApp o copiarlo (cuenta las vistas de la propuesta)
-    await prisma.documentLink.create({
-      data: { token: randomToken(), quoteId: quote.id, contactId: target.contact?.id ?? null, label: "Enlace para compartir", createdById: user.id },
-    });
-    const noteSubject = `Cotización ${quoteCode(quote.year, quote.number)} generada por US$ ${totals.total.toFixed(2)}`;
+    if (!editId) {
+      await prisma.documentLink.create({
+        data: { token: randomToken(), quoteId: quote.id, contactId: target.contact?.id ?? null, label: "Enlace para compartir", createdById: user.id },
+      });
+    }
+    const noteSubject = `Cotización ${quoteCode(quote.year, quote.number)} ${editId ? "corregida antes de enviarla" : "generada"} por US$ ${totals.total.toFixed(2)}`;
 
     if (!deal) {
       // Sin negocio: la nota queda en el historial del contacto

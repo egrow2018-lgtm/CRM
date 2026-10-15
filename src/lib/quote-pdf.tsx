@@ -266,10 +266,11 @@ export function QuoteDocument({ code, createdAt, validUntil, q }: { code: string
   );
 }
 
-export async function renderQuotePdf(quote: { year: number; number: number; createdAt: Date; validUntil: Date; snapshot: unknown }) {
+export async function renderQuotePdf(quote: { year: number; number: number; createdAt: Date; validUntil: Date; snapshot: unknown; code?: string }) {
   const { quoteCode } = await import("./quotes");
-  const render = (q: QuoteSnapshot) =>
-    renderToBuffer(<QuoteDocument code={quoteCode(quote.year, quote.number)} createdAt={quote.createdAt} validUntil={quote.validUntil} q={q} />);
+  // `code` permite rotular la vista previa («VISTA PREVIA») sin número correlativo
+  const code = quote.code ?? quoteCode(quote.year, quote.number);
+  const render = (q: QuoteSnapshot) => renderToBuffer(<QuoteDocument code={code} createdAt={quote.createdAt} validUntil={quote.validUntil} q={q} />);
   const snap = quote.snapshot as QuoteSnapshot;
   try {
     return await render(snap);

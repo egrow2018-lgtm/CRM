@@ -28,6 +28,10 @@ export async function loadReportData(lineId?: string) {
         company: { select: { name: true } },
         stage: { select: { name: true, order: true, probability: true, isWon: true, isLost: true } },
         items: { select: { description: true, quantity: true, unitPrice: true, discount: true, billing: true, termMonths: true, product: { select: { name: true } } } },
+        recurringMonthly: true,
+        recurringAnnual: true,
+        renewalDate: true,
+        renewals: { select: { stage: { select: { isWon: true } } } },
       },
     }),
     prisma.quote.findMany({
@@ -57,6 +61,10 @@ export async function loadReportData(lineId?: string) {
     ownerName: d.owner?.name ?? null,
     companyName: d.company?.name ?? null,
     lostReason: d.lostReason,
+    monthly: toNumber(d.recurringMonthly ?? 0),
+    annual: toNumber(d.recurringAnnual ?? 0),
+    renewalDate: d.renewalDate,
+    renewedByWon: d.renewals.some((r) => r.stage.isWon),
     items: d.items.map((i) => {
       const quantity = toNumber(i.quantity);
       return {

@@ -10,6 +10,7 @@ import { SEMAFORO, Semaforo, SemaforoDot, SemaforoPunto } from "@/components/sem
 import { dealAlerts, lastActivityAlert, renewalAlert } from "@/lib/alerts";
 import { parseCustomData } from "@/lib/custom-fields";
 import { itemFirstYear } from "@/lib/quotes";
+import { recurringSummary } from "@/lib/reports";
 import { emailConfigured } from "@/lib/email";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -62,6 +63,28 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   // Renovaciones: negocios ganados que renuevan en los próximos 60 días (o ya vencidos) y aún sin negocio de renovación
   const renewalsWhere = dealWhere({ line: sp.line, product: sp.product, owner: sp.owner }, user.id);
+  // Ingreso recurrente: negocios ganados con mensualidad o anualidad (respetando la línea y el responsable filtrados)
+  const recurringDeals = await prisma.deal.findMany({
+    // Sin el filtro de año: el ingreso recurrente es el vigente hoy
+    where: {
+      AND: [dealWhere({ line: sp.line, owner: sp.owner, product: sp.product }, user.id), { stage: { isWon: true } }],
+      OR: [{ recurringMonthly: { gt: 0 } }, { recurringAnnual: { gt: 0 } }],
+    },
+    select: {
+      id: true, name: true, amount: true, createdAt: true, closeDate: true, stageChangedAt: true, businessLineId: true, ownerId: true,
+      recurringMonthly: true, recurringAnnual: true, renewalDate: true,
+      stage: { select: { name: true, order: true, probability: true, isWon: true, isLost: true } },
+      renewals: { select: { stage: { select: { isWon: true } } } },
+    },
+  });
+  const recurring = recurringSummary(
+    recurringDeals.map((d) => ({
+      id: d.id, name: d.name, amount: toNumber(d.amount), createdAt: d.createdAt, closeDate: d.closeDate, stageChangedAt: d.stageChangedAt,
+      stage: d.stage, lineId: d.businessLineId, ownerId: d.ownerId, ownerName: null, companyName: null, lostReason: null, items: [],
+      monthly: toNumber(d.recurringMonthly ?? 0), annual: toNumber(d.recurringAnnual ?? 0), renewalDate: d.renewalDate,
+      renewedByWon: d.renewals.some((r) => r.stage.isWon),
+    })),
+  );
   const [stages, deals, lines, myTasks, filterOptions, wonItems, renewals] = await Promise.all([
     prisma.pipelineStage.findMany({ orderBy: { order: "asc" } }),
     prisma.deal.findMany({
@@ -193,11 +216,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <PageHeader title={`Hola, ${user.name.split(" ")[0]} 👋`} subtitle="Resumen comercial de e-grow" />
       <DealFiltersBar options={filterOptions} variant="dashboard" />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Kpi label="Pipeline abierto" value={formatMoney(openTotal)} hint={`${open.length} negocios abiertos`} />
         <Kpi label="Pipeline ponderado" value={formatMoney(weighted)} hint="Según probabilidad de cada etapa" />
         <Kpi label={`Ganado · ${periodLabel}`} value={formatMoney(sum(won))} hint={`${won.length} negocios`} />
         <Kpi label="Tasa de cierre" value={winRate == null ? "—" : `${winRate}%`} hint={`${won.length} ganados · ${lost.length} perdidos`} />
+        <Kpi
+          label="Ingreso recurrente"
+          value={`${formatMoney(recurring.mrr)}/mes`}
+          hint={`${recurring.clients} clientes${recurring.newThisMonth > 0 ? ` · +${formatMoney(recurring.newThisMonth)} este mes` : ""}`}
+        />
       </div>
 
       <div className="card p-4">

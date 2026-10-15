@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EmailStatus } from "@/components/email-status";
+import { TaskEditButtons } from "@/components/task-edit";
 import type { Activity, ActivityType } from "@prisma/client";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { deleteActivity, toggleTask, type ActivityTarget } from "@/app/(crm)/actividades/actions";
@@ -76,7 +77,7 @@ export function ActivityPanel({
           <h2 className="mb-2 text-base">Próximas actividades</h2>
           <ul className="divide-y divide-slate-100">
             {tasks.map((t) => (
-              <TaskRow key={t.id} task={t} canWrite={canWrite} viewerId={viewerId} inviteEmail={contact?.email} emailEnabled={emailEnabled} />
+              <TaskRow key={t.id} task={t} canWrite={canWrite} viewerId={viewerId} inviteEmail={contact?.email} emailEnabled={emailEnabled} users={users} />
             ))}
           </ul>
         </div>
@@ -128,8 +129,11 @@ export function TaskRow({
   viewerId,
   inviteEmail,
   emailEnabled = false,
+  users,
 }: {
   task: Item;
+  /** Para cambiar el responsable al editar la tarea */
+  users?: { id: string; name: string }[];
   canWrite: boolean;
   showDeal?: boolean;
   viewerId?: string;
@@ -155,7 +159,7 @@ export function TaskRow({
           {task.type !== "TAREA" && <span className={`badge mr-1.5 ${COLORS[task.type]}`}>{ACTIVITY_LABELS[task.type]}</span>}
           {task.subject}
         </div>
-        {task.body && <div className="text-xs text-slate-500">{task.body}</div>}
+        {task.body && <div className="whitespace-pre-line text-xs text-slate-500">{task.body}</div>}
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
           <span className={`inline-flex items-center gap-1 ${alert?.level === "rojo" ? "font-semibold text-red-700" : ""}`}>
             {alert && <SemaforoPunto level={alert.level} title={alert.label} />}
@@ -187,6 +191,12 @@ export function TaskRow({
             guests={task.guests}
             invitedAt={task.invitedAt}
             emailEnabled={emailEnabled}
+          />
+        )}
+        {canWrite && !task.completed && (task.type === "TAREA" || task.type === "LLAMADA") && (
+          <TaskEditButtons
+            task={{ id: task.id, subject: task.subject, body: task.body, dueDate: task.dueDate?.toISOString().slice(0, 10) ?? "", assigneeId: task.assigneeId }}
+            users={users}
           />
         )}
       </div>
