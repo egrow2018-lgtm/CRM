@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeTotals, firstYearFactor, itemFirstYear, parseQuoteLines, quoteCode, quoteWhatsappText } from "./quotes";
+import { computeTotals, firstYearFactor, itemFirstYear, parseQuoteLines, quoteCode, quoteEmailMessage, quoteEmailSubject, quoteWhatsappText, splitQuoteVersions } from "./quotes";
 
 test("totales con descuento e IVA 15%", () => {
   const t = computeTotals(
@@ -107,4 +107,36 @@ test("la descripción conserva los saltos de línea y admite textos largos", () 
   assert.equal(l!.description, "Curso virtual\nIncluye 6 videos\n\nY 2 rondas de revisión");
   const [largo] = parseQuoteLines([{ description: "x".repeat(1500), quantity: "1" }]);
   assert.equal(largo!.description.length, 1000);
+});
+
+test("versión vigente: la más reciente; las demás quedan como anteriores", () => {
+  const q = (id: string, day: number, status = "EMITIDA") => ({ id, status, createdAt: new Date(2026, 9, day) });
+  const { current, previous } = splitQuoteVersions([q("a", 1), q("c", 3), q("b", 2)]);
+  assert.equal(current?.id, "c");
+  assert.deepEqual(previous.map((x) => x.id), ["b", "a"]);
+});
+
+test("versión vigente: si el cliente aceptó una, esa es la vigente", () => {
+  const q = (id: string, day: number, status = "EMITIDA") => ({ id, status, createdAt: new Date(2026, 9, day) });
+  const { current, previous } = splitQuoteVersions([q("a", 1, "APROBADA"), q("b", 2)]);
+  assert.equal(current?.id, "a");
+  assert.deepEqual(previous.map((x) => x.id), ["b"]);
+  assert.equal(splitQuoteVersions([]).current, null);
+});
+
+test("asunto del correo de una cotización", () => {
+  assert.equal(quoteEmailSubject({ code: "COT-2026-0004", dealName: "Escuela de liderazgo", brandName: null }), "Cotización COT-2026-0004 – Escuela de liderazgo");
+  assert.equal(quoteEmailSubject({ code: "COT-2026-0004", dealName: "Flota", brandName: "Rutalink" }), "Rutalink · Cotización COT-2026-0004 – Flota");
+  assert.equal(quoteEmailSubject({ code: "COT-2026-0004", dealName: null, brandName: null }), "Cotización COT-2026-0004");
+});
+
+test("mensaje del correo: saluda por el nombre sin suponer género", () => {
+  assert.equal(
+    quoteEmailMessage({ code: "COT-2026-0004", firstName: "Paola", dealName: "Escuela de liderazgo" }),
+    "Buen día, Paola:\n\nLe envío la cotización COT-2026-0004 para «Escuela de liderazgo». Quedo a su disposición para cualquier comentario.\n\nSaludos cordiales.",
+  );
+  assert.equal(
+    quoteEmailMessage({ code: "COT-2026-0004", firstName: null, dealName: null }),
+    "Buen día:\n\nLe envío la cotización COT-2026-0004. Quedo a su disposición para cualquier comentario.\n\nSaludos cordiales.",
+  );
 });

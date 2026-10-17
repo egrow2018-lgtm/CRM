@@ -3,7 +3,7 @@ import type { Quote } from "@prisma/client";
 import { ActionForm, ConfirmButton, SubmitButton } from "./action-form";
 import { CopyButton } from "./copy-button";
 import { formatDateTime, formatMoneyExact, formatLocalDate } from "@/lib/format";
-import { QUOTE_STATUS, quoteCode, quoteWhatsappText, type QuoteSnapshot } from "@/lib/quotes";
+import { QUOTE_STATUS, quoteCode, quoteEmailMessage, quoteEmailSubject, quoteWhatsappText, splitQuoteVersions, type QuoteSnapshot } from "@/lib/quotes";
 import { whatsappUrl } from "@/lib/phone";
 import { acceptQuote, sendQuoteEmail } from "@/app/(crm)/cotizaciones/actions";
 import { SemaforoPunto } from "./semaforo";
@@ -32,6 +32,8 @@ export function QuotesCard({
   contactFirstName?: string | null;
   emailEnabled: boolean;
 }) {
+  const { current, previous } = splitQuoteVersions(quotes);
+  const rowProps = { canWrite, canAccept, baseUrl, contactEmail, contactPhone, contactFirstName, emailEnabled };
   return (
     <div className="card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -45,22 +47,24 @@ export function QuotesCard({
       {quotes.length === 0 ? (
         <p className="text-sm text-slate-500">Aún no hay cotizaciones para este negocio.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
-          {quotes.map((q, i) => (
-            <QuoteRow
-              key={q.id}
-              q={q}
-              main={i === 0}
-              canWrite={canWrite}
-              canAccept={canAccept}
-              baseUrl={baseUrl}
-              contactEmail={contactEmail}
-              contactPhone={contactPhone}
-              contactFirstName={contactFirstName}
-              emailEnabled={emailEnabled}
-            />
-          ))}
-        </ul>
+        <>
+          <ul>
+            <QuoteRow q={current!} main badge={previous.length > 0 ? "Versión vigente" : null} {...rowProps} />
+          </ul>
+          {previous.length > 0 && (
+            // Las versiones anteriores quedan plegadas y atenuadas: así no se envía ni se acepta una por error
+            <details className="mt-1 border-t border-slate-100 pt-2">
+              <summary className="cursor-pointer text-sm text-slate-600 hover:text-slate-900">
+                Versiones anteriores ({previous.length})
+              </summary>
+              <ul className="divide-y divide-slate-100 opacity-80">
+                {previous.map((q) => (
+                  <QuoteRow key={q.id} q={q} main={false} badge="Anterior" {...rowProps} />
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
       )}
     </div>
   );
@@ -69,6 +73,7 @@ export function QuotesCard({
 export function QuoteRow({
   q,
   main,
+  badge = null,
   canWrite,
   canAccept,
   baseUrl,
@@ -79,6 +84,8 @@ export function QuoteRow({
 }: {
   q: QuoteWithLinks;
   main: boolean;
+  /** «Versión vigente» o «Anterior», cuando el negocio tiene varias cotizaciones */
+  badge?: string | null;
   canWrite: boolean;
   canAccept: boolean;
   baseUrl: string;
@@ -93,10 +100,12 @@ export function QuoteRow({
   const publicUrl = share ? `${baseUrl}/d/${share.token}` : `${baseUrl}/c/${q.publicToken}`;
   const views = (q.links ?? []).flatMap((l) => l.views).sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
   const expired = q.validUntil < new Date();
+  const snap = q.snapshot as unknown as Partial<QuoteSnapshot> | null;
+  const dealName = snap?.dealName || null;
   const wa = quoteWhatsappText({
     code,
     firstName: contactFirstName,
-    dealName: (q.snapshot as unknown as Partial<QuoteSnapshot>)?.dealName ?? null,
+    dealName,
     validUntil: formatLocalDate(q.validUntil),
     url: publicUrl,
   });
@@ -105,6 +114,9 @@ export function QuoteRow({
     <li className={main ? "pb-3" : "py-3"}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <Link href={`/cotizaciones/${q.id}`} className="link">{code}</Link>
+        {badge && (
+          <span className={`badge ${badge === "Anterior" ? "bg-slate-100 text-slate-500" : "bg-brand-700 text-white"}`}>{badge}</span>
+        )}
         <span className="font-semibold tabular-nums">{formatMoneyExact(q.total)} <span className="text-xs font-normal text-slate-500">IVA incluido</span></span>
         <span className={`badge ${status.className}`}>{status.label}</span>
         <span className="text-xs text-slate-500">Emitida {formatLocalDate(q.createdAt)}</span>
@@ -140,13 +152,18 @@ export function QuoteRow({
             <summary className="btn btn-sm cursor-pointer list-none">Enviar por correo</summary>
             {emailEnabled ? (
               <ActionForm action={sendQuoteEmail.bind(null, q.id)} successMessage="Cotización enviada." className="mt-2 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <input name="to" required defaultValue={contactEmail ?? ""} placeholder="correo@cliente.com (varios separados por coma)" className="input" />
-                <textarea
-                  name="message"
-                  rows={3}
-                  className="input"
-                  defaultValue={`Estimado/a,\n\nAdjunto la cotización ${code}. Quedo atento/a a sus comentarios.\n\nSaludos cordiales.`}
-                />
+                <label className="text-xs text-slate-500">
+                  Para
+                  <input name="to" required defaultValue={contactEmail ?? ""} placeholder="correo@cliente.com (varios separados por coma)" className="input mt-1" />
+                </label>
+                <label className="text-xs text-slate-500">
+                  Asunto
+                  <input name="subject" required defaultValue={quoteEmailSubject({ code, dealName, brandName: snap?.brand?.name ?? null })} className="input mt-1" />
+                </label>
+                <label className="text-xs text-slate-500">
+                  Mensaje
+                  <textarea name="message" rows={7} className="input mt-1 [field-sizing:content]" defaultValue={quoteEmailMessage({ code, firstName: contactFirstName, dealName })} />
+                </label>
                 <p className="text-xs text-slate-500">Se adjunta el PDF y un botón para verla en línea: te avisaremos cuando la abran. Recibes una copia.</p>
                 <div><SubmitButton pendingText="Enviando…">Enviar</SubmitButton></div>
               </ActionForm>

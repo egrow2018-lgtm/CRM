@@ -152,3 +152,22 @@ export function quoteWhatsappText(q: { code: string; firstName: string | null; d
   const what = q.dealName ? `la cotización de ${q.dealName} (${q.code})` : `la cotización ${q.code}`;
   return `${hello}, te comparto ${what}, válida hasta el ${q.validUntil}: ${q.url}`;
 }
+
+/** Cotización vigente de un negocio (la aceptada o, si no hay, la más reciente) y las anteriores, de la más nueva a la más antigua. */
+export function splitQuoteVersions<T extends { status: string; createdAt: Date }>(quotes: T[]) {
+  const sorted = [...quotes].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const current = sorted.find((q) => q.status === "APROBADA") ?? sorted[0] ?? null;
+  return { current, previous: sorted.filter((q) => q !== current) };
+}
+
+/** Asunto del correo con la cotización. */
+export function quoteEmailSubject(q: { code: string; dealName: string | null; brandName: string | null }) {
+  return `${q.brandName ? `${q.brandName} · ` : ""}Cotización ${q.code}${q.dealName ? ` – ${q.dealName}` : ""}`;
+}
+
+/** Mensaje sugerido del correo: saluda por el nombre y no supone el género de nadie. */
+export function quoteEmailMessage(q: { code: string; firstName: string | null; dealName: string | null }) {
+  const hello = q.firstName ? `Buen día, ${q.firstName}:` : "Buen día:";
+  const what = q.dealName ? `la cotización ${q.code} para «${q.dealName}»` : `la cotización ${q.code}`;
+  return `${hello}\n\nLe envío ${what}. Quedo a su disposición para cualquier comentario.\n\nSaludos cordiales.`;
+}
