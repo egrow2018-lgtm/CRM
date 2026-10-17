@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { contactName, formatDate, formatMoney, formatMoneyExact, toNumber } from "@/lib/format";
+import { contactName, formatMoney, formatMoneyExact, toNumber, formatLocalDate } from "@/lib/format";
 import { quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { EmptyState, LineBadge, PageHeader } from "@/components/ui";
 import { SemaforoPunto } from "@/components/semaforo";
@@ -173,13 +173,13 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                       </td>
                       <td><LineBadge line={q.deal?.businessLine ?? q.businessLine} /></td>
                       <td className="text-right tabular-nums">{formatMoneyExact(q.total)}</td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(q.createdAt)}</td>
+                      <td className="whitespace-nowrap text-xs text-slate-500">{formatLocalDate(q.createdAt)}</td>
                       <td className="whitespace-nowrap text-xs text-slate-500">
                         <span className="inline-flex items-center gap-1">
-                          <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} /> {formatDate(q.validUntil)}
+                          <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} /> {formatLocalDate(q.validUntil)}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{q.sentAt ? `Enviada ${formatDate(q.sentAt)}` : "—"}</td>
+                      <td className="whitespace-nowrap text-xs text-slate-500">{q.sentAt ? `Enviada ${formatLocalDate(q.sentAt)}` : "—"}</td>
                       <td className="whitespace-nowrap text-xs">
                         {q.deal ? (
                           <span className={q.deal.stage.isWon ? "font-semibold text-emerald-700" : q.deal.stage.isLost ? "text-slate-400" : "text-slate-600"}>

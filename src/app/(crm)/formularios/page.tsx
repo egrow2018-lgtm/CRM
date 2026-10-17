@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDateTime, formatLocalDate } from "@/lib/format";
 import { conversionRate } from "@/lib/form-stats";
 import { EmptyState, LineBadge, PageHeader } from "@/components/ui";
 import { IconPlus } from "@/components/icons";
@@ -73,7 +73,7 @@ export default async function FormsPage() {
                     </td>
                     <td className="text-right tabular-nums">{conversionRate(f._count.submissions, f._count.views)}</td>
                     <td className="whitespace-nowrap text-xs text-slate-500">{f.submissions[0] ? formatDateTime(f.submissions[0].createdAt) : "—"}</td>
-                    <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(f.updatedAt)}</td>
+                    <td className="whitespace-nowrap text-xs text-slate-500">{formatLocalDate(f.updatedAt)}</td>
                   </tr>
                 ))}
               </tbody>

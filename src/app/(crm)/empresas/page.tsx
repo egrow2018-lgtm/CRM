@@ -3,7 +3,7 @@ import type { LeadStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { formatDate, timeAgo } from "@/lib/format";
+import { timeAgo, formatLocalDate } from "@/lib/format";
 import { websiteDomain } from "@/lib/csv";
 import { duplicateGroups } from "@/lib/duplicates";
 import { LEAD_STATUS } from "@/lib/leads";
@@ -140,10 +140,10 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
                         <td className="whitespace-nowrap">{c.owner?.name ?? <span className="text-slate-400">Sin asignar</span>}</td>
                         <td className="whitespace-nowrap text-xs text-slate-500">
                           <span className="inline-flex items-center gap-1">
-                            <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
+                            <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatLocalDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>
+                        <td className="whitespace-nowrap text-xs text-slate-500">{formatLocalDate(c.createdAt)}</td>
                       </tr>
                     );
                   })}

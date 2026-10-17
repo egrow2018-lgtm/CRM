@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { EMAIL_TRACKING } from "@/lib/queries";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { contactName, formatDate, formatMoney } from "@/lib/format";
+import { contactName, formatMoney, formatLocalDate } from "@/lib/format";
 import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
 import { ContactPicker } from "@/components/contact-picker";
 import { ActivityPanel } from "@/components/activity-panel";
@@ -115,7 +115,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
                 <InfoRow label="Teléfono">{company.phone}</InfoRow>
                 <InfoRow label="Dirección">{company.address}</InfoRow>
                 <InfoRow label="Propietario">{company.owner?.name}</InfoRow>
-                <InfoRow label="Creada">{formatDate(company.createdAt)}</InfoRow>
+                <InfoRow label="Creada">{formatLocalDate(company.createdAt)}</InfoRow>
                 {company.notes && <InfoRow label="Notas"><span className="whitespace-pre-line">{company.notes}</span></InfoRow>}
               </dl>
             )}

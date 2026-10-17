@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { EMAIL_TRACKING, getFormOptions } from "@/lib/queries";
-import { contactName, formatDate, formatMoney, formatMoneyExact, recurringLabel, toNumber } from "@/lib/format";
+import { contactName, formatDate, formatMoney, formatMoneyExact, recurringLabel, toNumber, formatLocalDate } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
@@ -148,8 +148,8 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                     <Link className="link" href={`/negocios/${deal.renewalOf.id}`}>{deal.renewalOf.name}</Link>
                   </InfoRow>
                 )}
-                <InfoRow label="Fecha de creación">{formatDate(deal.createdAt)}</InfoRow>
-                <InfoRow label="En la etapa actual desde">{formatDate(deal.stageChangedAt)}</InfoRow>
+                <InfoRow label="Fecha de creación">{formatLocalDate(deal.createdAt)}</InfoRow>
+                <InfoRow label="En la etapa actual desde">{formatLocalDate(deal.stageChangedAt)}</InfoRow>
                 {deal.lostReason && <InfoRow label="Motivo de pérdida">{deal.lostReason}</InfoRow>}
                 {deal.description && (
                   <InfoRow label="Descripción"><span className="whitespace-pre-line">{deal.description}</span></InfoRow>
