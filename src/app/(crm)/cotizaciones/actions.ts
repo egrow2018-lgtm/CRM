@@ -10,7 +10,7 @@ import { can } from "@/lib/permissions";
 import { num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
 import { contactName, formatMoneyExact, toNumber } from "@/lib/format";
-import { QUOTE_STATUS, computeTotals, parseQuoteLines, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
+import { QUOTE_STATUS, computeTotals, parseQuoteLines, quoteCode, quoteEmailSubject, type QuoteSnapshot } from "@/lib/quotes";
 import { getCompanySettings } from "@/lib/settings";
 import { renderQuotePdf } from "@/lib/quote-pdf";
 import { appUrl, emailConfigured } from "@/lib/email";
@@ -450,7 +450,9 @@ export async function sendQuoteEmail(quoteId: string, _: ActionState, form: Form
     await sendClientEmail({
       user,
       to,
-      subject: `${brand ? `${brand.name} · ` : ""}Cotización ${code} – ${quote.deal?.name ?? (quote.snapshot as unknown as QuoteSnapshot).dealName}`,
+      subject:
+        str(form, "subject") ??
+        quoteEmailSubject({ code, dealName: quote.deal?.name ?? (quote.snapshot as unknown as QuoteSnapshot).dealName ?? null, brandName: brand?.name ?? null }),
       body: message,
       contactId,
       dealId: quote.dealId,

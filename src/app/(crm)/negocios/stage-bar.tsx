@@ -30,7 +30,7 @@ export function StageBar({ dealId, stages, currentId }: { dealId: string; stages
                 if (res?.error) alert(res.error);
               })
             }
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${color}`}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition pointer-coarse:min-h-11 ${color}`}
           >
             {s.name}
           </button>

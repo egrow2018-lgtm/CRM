@@ -213,29 +213,29 @@ export function QuoteForm({
             </label>
             {!contactId && (
               <>
-                <label className="text-xs text-slate-500">
+                <label className="text-sm font-medium text-slate-700">
                   Nombre *
                   <input name="firstName" required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="input mt-1" />
                 </label>
-                <label className="text-xs text-slate-500">
+                <label className="text-sm font-medium text-slate-700">
                   Apellido
                   <input name="lastName" className="input mt-1" />
                 </label>
-                <label className="text-xs text-slate-500">
+                <label className="text-sm font-medium text-slate-700">
                   Correo
                   <input name="email" type="email" className="input mt-1" placeholder="correo@ejemplo.com" />
                 </label>
-                <div className="text-xs text-slate-500">
+                <div className="text-sm font-medium text-slate-700">
                   Teléfono
                   <PhoneInput className="mt-1" />
                 </div>
               </>
             )}
-            <label className="text-xs text-slate-500">
+            <label className="text-sm font-medium text-slate-700">
               Cédula / RUC (opcional)
               <input name="taxId" defaultValue={initial.taxId} className="input mt-1" />
             </label>
-            <label className="text-xs text-slate-500">
+            <label className="text-sm font-medium text-slate-700">
               Dirección (opcional)
               <input name="address" defaultValue={initial.address} className="input mt-1" />
             </label>
@@ -375,17 +375,17 @@ export function QuoteForm({
       </div>
 
       <div className="card grid gap-3 p-4 sm:grid-cols-2">
-        <label className="text-xs text-slate-500">
+        <label className="text-sm font-medium text-slate-700">
           Validez (días)
           <input name="validityDays" type="number" min="1" max="365" defaultValue={initial.validityDays} className="input mt-1" />
         </label>
-        <label className="text-xs text-slate-500">
+        <label className="text-sm font-medium text-slate-700">
           Observaciones (opcional)
           <input name="notes" defaultValue={initial.notes} className="input mt-1" placeholder="Ej. Incluye 2 rondas de revisión del guion." />
         </label>
-        <label className="text-xs text-slate-500 sm:col-span-2">
+        <label className="text-sm font-medium text-slate-700 sm:col-span-2">
           Condiciones comerciales (una por línea)
-          <textarea name="conditions" rows={4} defaultValue={initial.conditions} className="input mt-1" />
+          <textarea name="conditions" rows={4} ref={fitHeight} onInput={(e) => fitHeight(e.currentTarget)} defaultValue={initial.conditions} className="input mt-1" />
         </label>
         {brandName && (
           <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">

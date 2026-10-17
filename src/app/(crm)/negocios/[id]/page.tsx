@@ -186,8 +186,8 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         <div className="order-1 min-w-0 lg:order-none lg:col-span-2">
           <QuotesCard
             dealId={id}
-            // La aceptada va primero; las demás, debajo
-            quotes={[...deal.quotes].sort((a, b) => Number(b.status === "APROBADA") - Number(a.status === "APROBADA"))}
+            // La tarjeta muestra la vigente (la aceptada o la más reciente) y pliega las anteriores
+            quotes={deal.quotes}
             canWrite={canWrite}
             canAccept={canWrite || can(user, "deals:production")}
             baseUrl={appUrl()}
