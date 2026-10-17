@@ -76,6 +76,8 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
         },
         contact: { select: { id: true, firstName: true, lastName: true, owner: { select: { name: true } } } },
         businessLine: { select: { name: true, color: true } },
+        // A quién se envió (para la etiqueta de «Enviada»)
+        emails: { select: { to: true } },
       },
       orderBy: [{ year: "desc" }, { number: "desc" }],
       skip,
@@ -138,7 +140,6 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                   <th>Negocio y cliente</th>
                   <th className="text-right">Total con IVA</th>
                   <th>Fechas</th>
-                  <th>Correo</th>
                   <th>Etapa y responsable</th>
                 </tr>
               </thead>
@@ -179,8 +180,8 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                         <span className={`inline-flex items-center gap-1 ${expired ? "text-red-700" : ""}`}>
                           <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} /> {expired ? "Venció" : "Válida hasta"} {formatLocalDate(q.validUntil)}
                         </span>
+                        <SentLabel sentAt={q.sentAt} to={[...new Set(q.emails.flatMap((e) => e.to))]} />
                       </td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{q.sentAt ? `Enviada ${formatLocalDate(q.sentAt)}` : "—"}</td>
                       <td className="whitespace-nowrap text-xs">
                         <div>
                         {q.deal ? (
@@ -202,6 +203,29 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
           </BulkSelection>
           <Pager path="/cotizaciones" sp={spRecord} total={total} page={page} per={per} />
         </>
+      )}
+    </div>
+  );
+}
+
+/** «✉ Enviada …» con una etiqueta que muestra a quién se envió al pasar el cursor (o al enfocarla con el teclado). */
+function SentLabel({ sentAt, to }: { sentAt: Date | null; to: string[] }) {
+  if (!sentAt) return <div className="text-slate-400">Sin enviar</div>;
+  return (
+    <div className="group/enviada relative w-fit">
+      <span tabIndex={to.length ? 0 : undefined} className={`text-brand-700 ${to.length ? "cursor-help underline decoration-dotted underline-offset-2" : ""}`}>
+        ✉ Enviada {formatLocalDate(sentAt)}
+      </span>
+      {to.length > 0 && (
+        <div
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs text-white shadow-lg group-focus-within/enviada:block group-hover/enviada:block"
+        >
+          <div className="mb-0.5 text-slate-300">Enviada a:</div>
+          {to.map((email) => (
+            <div key={email}>{email}</div>
+          ))}
+        </div>
       )}
     </div>
   );
