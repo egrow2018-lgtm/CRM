@@ -131,15 +131,16 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
         <>
           <BulkSelection enabled={canWrite} onDelete={deleteQuotes} noun={{ one: "cotización", many: "cotizaciones" }}>
           <div className="card overflow-x-auto">
-            <table className="table">
+            <table className="table [&_td]:px-2.5 [&_th]:px-2.5">
               <thead>
                 <tr>
                   {canWrite && <BulkCheckHeader />}
                   <th>Número y línea</th>
                   <th>Estado</th>
                   <th>Negocio y cliente</th>
-                  <th className="text-right">Total con IVA</th>
+                  <th className="text-center">Total con IVA</th>
                   <th>Fechas</th>
+                  <th>Envío</th>
                   <th>Etapa y responsable</th>
                 </tr>
               </thead>
@@ -174,12 +175,14 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                         )}
                         </div>
                       </td>
-                      <td className="text-right tabular-nums">{formatMoneyExact(q.total)}</td>
+                      <td className="text-center tabular-nums">{formatMoneyExact(q.total)}</td>
                       <td className="whitespace-nowrap text-xs text-slate-500">
                         <div>Emitida {formatLocalDate(q.createdAt)}</div>
                         <span className={`inline-flex items-center gap-1 ${expired ? "text-red-700" : ""}`}>
-                          <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} /> {expired ? "Venció" : "Válida hasta"} {formatLocalDate(q.validUntil)}
+                          <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} /> {expired ? "Venció" : "Vence"} {formatLocalDate(q.validUntil)}
                         </span>
+                      </td>
+                      <td className="whitespace-nowrap text-xs">
                         <SentLabel sentAt={q.sentAt} to={[...new Set(q.emails.flatMap((e) => e.to))]} />
                       </td>
                       <td className="whitespace-nowrap text-xs">
@@ -208,18 +211,19 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
   );
 }
 
-/** «✉ Enviada …» con una etiqueta que muestra a quién se envió al pasar el cursor (o al enfocarla con el teclado). */
+/** «✉ Enviada» y la fecha, con una etiqueta que muestra a quién se envió al pasar el cursor (o al enfocarla con el teclado). */
 function SentLabel({ sentAt, to }: { sentAt: Date | null; to: string[] }) {
   if (!sentAt) return <div className="text-slate-400">Sin enviar</div>;
   return (
     <div className="group/enviada relative w-fit">
       <span tabIndex={to.length ? 0 : undefined} className={`text-brand-700 ${to.length ? "cursor-help underline decoration-dotted underline-offset-2" : ""}`}>
-        ✉ Enviada {formatLocalDate(sentAt)}
+        ✉ Enviada
       </span>
+      <div className="text-slate-500">{formatLocalDate(sentAt)}</div>
       {to.length > 0 && (
         <div
           role="tooltip"
-          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs text-white shadow-lg group-focus-within/enviada:block group-hover/enviada:block"
+          className="pointer-events-none absolute right-full top-1/2 z-10 mr-2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs text-white shadow-lg group-focus-within/enviada:block group-hover/enviada:block"
         >
           <div className="mb-0.5 text-slate-300">Enviada a:</div>
           {to.map((email) => (
