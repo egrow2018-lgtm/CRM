@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { formatDate } from "@/lib/format";
+import { formatLocalDate } from "@/lib/format";
 import { storageConfigured } from "@/lib/storage";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { SortHeader, hrefWith } from "@/components/pager";
@@ -143,7 +143,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
                     <td className="text-right tabular-nums">{d._count.links}</td>
                     <td className="text-right tabular-nums">{views.get(d.id) ?? 0}</td>
                     <td>{d.owner?.name ?? "—"}</td>
-                    <td className="whitespace-nowrap">{formatDate(d.updatedAt)}</td>
+                    <td className="whitespace-nowrap">{formatLocalDate(d.updatedAt)}</td>
                   </tr>
                 ))}
               </tbody>

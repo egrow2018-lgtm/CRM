@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
-import { contactName, formatDate, formatDateTime } from "@/lib/format";
+import { contactName, formatDateTime, formatLocalDate } from "@/lib/format";
 import { defaultConsentText, parseFormFields } from "@/lib/forms-builder";
 import { getCompanySettings } from "@/lib/settings";
 import { conversionRate, dailyFormStats, periodFrom } from "@/lib/form-stats";
@@ -75,7 +75,7 @@ export default async function FormPage({ params, searchParams }: { params: Promi
               <span className={`inline-block h-2 w-2 rounded-full ${form.active ? "bg-alert-green" : "bg-slate-300"}`} />
               {form.active ? "Publicado" : "Pausado"}
             </span>
-            <span>Creado {formatDate(form.createdAt)}</span>
+            <span>Creado {formatLocalDate(form.createdAt)}</span>
             <span>Último envío: {form.submissions[0] ? formatDateTime(form.submissions[0].createdAt) : "—"}</span>
             <span>Leads para: {form.assignee?.name ?? "Bandeja de leads"}</span>
             <span>Autorización de datos: {form.consentEnabled ? "Sí" : "No"}</span>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Quote } from "@prisma/client";
 import { ActionForm, ConfirmButton, SubmitButton } from "./action-form";
 import { CopyButton } from "./copy-button";
-import { formatDate, formatDateTime, formatMoneyExact } from "@/lib/format";
+import { formatDateTime, formatMoneyExact, formatLocalDate } from "@/lib/format";
 import { QUOTE_STATUS, quoteCode } from "@/lib/quotes";
 import { acceptQuote, sendQuoteEmail } from "@/app/(crm)/cotizaciones/actions";
 import { SemaforoPunto } from "./semaforo";
@@ -90,12 +90,12 @@ export function QuoteRow({
         <Link href={`/cotizaciones/${q.id}`} className="link">{code}</Link>
         <span className="font-semibold tabular-nums">{formatMoneyExact(q.total)}</span>
         <span className={`badge ${status.className}`}>{status.label}</span>
-        <span className="text-xs text-slate-500">Emitida {formatDate(q.createdAt)}</span>
+        <span className="text-xs text-slate-500">Emitida {formatLocalDate(q.createdAt)}</span>
         <span className={`inline-flex items-center gap-1 text-xs ${expired ? "text-red-700" : "text-slate-500"}`}>
           <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} />
-          {expired ? "Vencida" : "Válida hasta"} {formatDate(q.validUntil)}
+          {expired ? "Vencida" : "Válida hasta"} {formatLocalDate(q.validUntil)}
         </span>
-        {q.sentAt && <span className="badge bg-brand-50 text-brand-700">Enviada {formatDate(q.sentAt)}</span>}
+        {q.sentAt && <span className="badge bg-brand-50 text-brand-700">Enviada {formatLocalDate(q.sentAt)}</span>}
         {views.length > 0 ? (
           <span className="badge bg-amber-50 text-amber-800">
             👀 Vista {views.length} {views.length === 1 ? "vez" : "veces"} · última {formatDateTime(views[0].startedAt)}

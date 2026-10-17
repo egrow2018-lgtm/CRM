@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import { appUrl, emailButton, emailLayout, escapeHtml } from "./email";
-import { contactName, formatDate, formatMoney } from "./format";
+import { contactName, formatDate, formatMoney, formatLocalDate } from "./format";
 import { normalize } from "./csv";
 import { parseCustomData } from "./custom-fields";
 import { formatTimeTz, utcToZoned } from "./timezone";
@@ -79,7 +79,7 @@ export async function buildProductionReport(frequency: ProductionFrequency, now 
             const due = a.dueDate ? a.dueDate.toISOString().slice(0, 10) : null;
             const late = !!due && due < today;
             if (late) overdue++;
-            const when = a.startAt ? `${formatDate(a.startAt)} ${formatTimeTz(a.startAt)}` : due ? formatDate(a.dueDate!) : "sin fecha";
+            const when = a.startAt ? `${formatLocalDate(a.startAt)} ${formatTimeTz(a.startAt)}` : due ? formatDate(a.dueDate!) : "sin fecha";
             return `<li style="margin-bottom:4px">${dot(late ? "#dc2626" : due === today ? "#f59e0b" : "#16a34a")}${escapeHtml(a.subject)} <span style="color:${late ? "#b91c1c" : "#64748b"}">· ${escapeHtml(when)}${a.assignee ? ` · ${escapeHtml(a.assignee.name)}` : ""}${late ? " · VENCIDA" : ""}</span></li>`;
           })
           .join("")
@@ -87,7 +87,7 @@ export async function buildProductionReport(frequency: ProductionFrequency, now 
     const doneHtml = done.length
       ? done
           .slice(0, 8)
-          .map((a) => `<li style="margin-bottom:4px;color:#334155">✓ ${escapeHtml(a.subject)} <span style="color:#94a3b8">· ${formatDate(a.completedAt ?? a.createdAt)}${a.author ? ` · ${escapeHtml(a.author.name)}` : ""}</span></li>`)
+          .map((a) => `<li style="margin-bottom:4px;color:#334155">✓ ${escapeHtml(a.subject)} <span style="color:#94a3b8">· ${formatLocalDate(a.completedAt ?? a.createdAt)}${a.author ? ` · ${escapeHtml(a.author.name)}` : ""}</span></li>`)
           .join("")
       : `<li style="color:#94a3b8">Sin seguimientos en el período.</li>`;
     return `<div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin:0 0 12px">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { formatDate } from "@/lib/format";
+import { formatLocalDate } from "@/lib/format";
 import { EmptyState, LineBadge, PageHeader } from "@/components/ui";
 import { CorreosTabs } from "../tabs";
 
@@ -42,7 +42,7 @@ export default async function TemplatesPage() {
                   <td><LineBadge line={t.businessLine} /></td>
                   <td className="max-w-sm truncate text-slate-600">{t.subject}</td>
                   <td className="text-right tabular-nums">{t._count.emails}</td>
-                  <td className="whitespace-nowrap">{formatDate(t.updatedAt)}{t.createdBy && <span className="text-xs text-slate-400"> · {t.createdBy.name}</span>}</td>
+                  <td className="whitespace-nowrap">{formatLocalDate(t.updatedAt)}{t.createdBy && <span className="text-xs text-slate-400"> · {t.createdBy.name}</span>}</td>
                 </tr>
               ))}
             </tbody>

@@ -3,7 +3,7 @@ import type { LeadStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { contactName, formatDate, timeAgo } from "@/lib/format";
+import { contactName, timeAgo, formatLocalDate } from "@/lib/format";
 import { LEAD_STATUS } from "@/lib/leads";
 import { Avatar, EmptyState, PageHeader } from "@/components/ui";
 import { IconPlus } from "@/components/icons";
@@ -218,12 +218,12 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
                             const a = lastActivityAlert(c.lastActivityAt, { warnDays: 30, dangerDays: 90 });
                             return (
                               <span className="inline-flex items-center gap-1">
-                                <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
+                                <SemaforoPunto level={a.level} title={c.lastActivityAt ? `${a.label} · ${formatLocalDate(c.lastActivityAt)}` : a.label} /> {timeAgo(c.lastActivityAt)}
                               </span>
                             );
                           })()}
                         </td>
-                        <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(c.createdAt)}</td>
+                        <td className="whitespace-nowrap text-xs text-slate-500">{formatLocalDate(c.createdAt)}</td>
                       </tr>
                     );
                   })}

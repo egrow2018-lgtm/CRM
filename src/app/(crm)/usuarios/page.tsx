@@ -2,7 +2,7 @@ import { emailDomain } from "@/lib/email-compose";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
 import { ROLE_LABELS, ROLE_PERMISSIONS, permissionsOf } from "@/lib/permissions";
-import { formatDate } from "@/lib/format";
+import { formatLocalDate } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
 import { createUser, saveUserPermissions, updateUser } from "./actions";
@@ -55,7 +55,7 @@ export default async function UsersPage() {
                 {u.customPermissions && u.role !== "ADMIN" && <span className="badge bg-accent-100 text-brand-800">Permisos personalizados</span>}
                 {!u.active && <span className="badge bg-slate-200 text-slate-600">Inactivo</span>}
                 {u.extraEmails.length > 0 && <span className="text-xs text-slate-400">+ {u.extraEmails.join(", ")}</span>}
-                <span className="ml-auto text-xs text-slate-400">{perms.length} permisos · desde {formatDate(u.createdAt)}</span>
+                <span className="ml-auto text-xs text-slate-400">{perms.length} permisos · desde {formatLocalDate(u.createdAt)}</span>
               </summary>
               <div className="mt-3 space-y-4">
                 <div>

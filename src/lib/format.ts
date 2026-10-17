@@ -2,7 +2,10 @@ import { APP_TIMEZONE } from "./timezone";
 
 const money = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const moneyExact = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+// Fechas sin hora (cierre, renovación): se guardan a medianoche UTC
 const date = new Intl.DateTimeFormat("es-EC", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+// Día en Ecuador de un momento exacto (creación, envío, vigencia de una cotización…)
+const localDate = new Intl.DateTimeFormat("es-EC", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: APP_TIMEZONE });
 // Fecha y hora siempre en hora de Ecuador (el servidor corre en UTC)
 const dateTime = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short", timeZone: APP_TIMEZONE });
 
@@ -17,6 +20,7 @@ export function toNumber(value: Numeric) {
 export const formatMoney = (value: Numeric) => money.format(toNumber(value));
 export const formatMoneyExact = (value: Numeric) => moneyExact.format(toNumber(value));
 export const formatDate = (value: Date | null | undefined) => (value ? date.format(value) : "—");
+export const formatLocalDate = (value: Date | null | undefined) => (value ? localDate.format(value) : "—");
 export const formatDateTime = (value: Date | null | undefined) => (value ? dateTime.format(value) : "—");
 
 /** yyyy-mm-dd para inputs type=date (en UTC, igual que como se guardan). */

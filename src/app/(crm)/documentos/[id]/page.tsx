@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { contactName, formatDate, formatDateTime } from "@/lib/format";
+import { contactName, formatDateTime, formatLocalDate } from "@/lib/format";
 import { formatDuration, groupVisitors, parsePageTimes, visitorKey } from "@/lib/doc-stats";
 import { websiteDomain } from "@/lib/csv";
 import { appUrl } from "@/lib/email";
@@ -83,7 +83,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
             {doc.folder && <span>📁 {doc.folder.name}</span>}
             <span>Descarga: {doc.allowDownload ? "permitida" : "no permitida"}</span>
             <span>Privacidad de datos: {doc.consentRequired ? "activada" : "desactivada"}</span>
-            <span>Actualizado {formatDate(doc.updatedAt)}</span>
+            <span>Actualizado {formatLocalDate(doc.updatedAt)}</span>
           </span>
         }
         actions={
@@ -198,7 +198,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
                       {l.contact ? <Link className="link" href={`/contactos/${l.contact.id}`}>{contactName(l.contact)}</Link> : (l.label ?? "Sin etiqueta")}
                     </span>
                     <span className="text-xs text-slate-500">
-                      {l.email ? <Link className="hover:underline" href={`/correos/${l.email.id}`}>por correo</Link> : "enlace directo"} · {l.createdBy?.name ?? "—"} · {formatDate(l.createdAt)}
+                      {l.email ? <Link className="hover:underline" href={`/correos/${l.email.id}`}>por correo</Link> : "enlace directo"} · {l.createdBy?.name ?? "—"} · {formatLocalDate(l.createdAt)}
                     </span>
                     <span className="text-xs text-slate-500">
                       {l._count.views} {l._count.views === 1 ? "vista" : "vistas"}

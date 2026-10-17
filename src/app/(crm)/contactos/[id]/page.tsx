@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { contactName, formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { contactName, formatDateTime, formatMoney, formatLocalDate } from "@/lib/format";
 import { ConfirmButton } from "@/components/action-form";
 import { ActivityPanel } from "@/components/activity-panel";
 import { zoomConfigured } from "@/lib/zoom";
@@ -103,7 +103,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
                 </InfoRow>
                 <InfoRow label="Origen">{contact.source}</InfoRow>
                 <InfoRow label="Propietario">{contact.owner?.name}</InfoRow>
-                <InfoRow label="Creado">{formatDate(contact.createdAt)}</InfoRow>
+                <InfoRow label="Creado">{formatLocalDate(contact.createdAt)}</InfoRow>
                 {contact.notes && <InfoRow label="Notas"><span className="whitespace-pre-line">{contact.notes}</span></InfoRow>}
               </dl>
             )}
@@ -147,7 +147,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
                         <td><Link className="link" href={`/cotizaciones/${q.id}`}>{quoteCode(q.year, q.number)}</Link></td>
                         <td><LineBadge line={q.businessLine} /></td>
                         <td>{QUOTE_STATUS[q.status].label}</td>
-                        <td className="text-xs text-slate-500">{formatDate(q.createdAt)}</td>
+                        <td className="text-xs text-slate-500">{formatLocalDate(q.createdAt)}</td>
                         <td className="text-right tabular-nums">{formatMoney(q.total)}</td>
                       </tr>
                     ))}
@@ -163,7 +163,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
                 {contact.documentLinks.map((l) => (
                   <li key={l.id} className="flex flex-wrap items-center gap-x-3 py-2">
                     <Link className="link" href={`/documentos/${l.document!.id}`}>📄 {l.document!.name}</Link>
-                    <span className="text-xs text-slate-500">Enviado {formatDate(l.createdAt)}</span>
+                    <span className="text-xs text-slate-500">Enviado {formatLocalDate(l.createdAt)}</span>
                     {l.views.length > 0 ? (
                       <span className="badge bg-amber-50 text-amber-800">
                         {l.views.length} {l.views.length === 1 ? "vista" : "vistas"} · {formatDuration(l.views.reduce((s, v) => s + v.durationSec, 0))} · última {formatDateTime(l.views[0].startedAt)}

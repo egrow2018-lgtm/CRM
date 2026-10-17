@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { contactName, formatDate, formatDateTime, formatMoneyExact } from "@/lib/format";
+import { contactName, formatDateTime, formatMoneyExact, formatLocalDate } from "@/lib/format";
 import { BILLING, DEFAULT_TERM_MONTHS, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { appUrl, emailConfigured } from "@/lib/email";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
@@ -102,8 +102,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 {contact ? <Link className="link" href={`/contactos/${contact.id}`}>{contactName(contact)}</Link> : snap.client.contact}
               </InfoRow>
               {snap.client.taxId && <InfoRow label="Cédula / RUC">{snap.client.taxId}</InfoRow>}
-              <InfoRow label="Emitida">{formatDate(quote.createdAt)}{quote.createdBy && ` · ${quote.createdBy.name}`}</InfoRow>
-              <InfoRow label="Válida hasta">{formatDate(quote.validUntil)}</InfoRow>
+              <InfoRow label="Emitida">{formatLocalDate(quote.createdAt)}{quote.createdBy && ` · ${quote.createdBy.name}`}</InfoRow>
+              <InfoRow label="Válida hasta">{formatLocalDate(quote.validUntil)}</InfoRow>
               {quote.statusChangedAt && <InfoRow label="Último cambio de estado">{formatDateTime(quote.statusChangedAt)}</InfoRow>}
               {snap.notes && <InfoRow label="Observaciones">{snap.notes}</InfoRow>}
             </dl>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { formatDate, formatMoney, timeAgo } from "@/lib/format";
+import { formatDate, formatMoney, timeAgo, formatLocalDate } from "@/lib/format";
 import { Avatar } from "@/components/ui";
 import { QuickActions } from "@/components/quick-actions";
 import { Semaforo, SemaforoPunto, SEMAFORO } from "@/components/semaforo";
@@ -132,7 +132,7 @@ export function DealBoard({
                       Fecha de cierre: {formatDate(d.closeDate ? new Date(d.closeDate) : null)}
                       {alerts.close && alerts.close.level !== "verde" && <SemaforoPunto level={alerts.close.level} title={alerts.close.label} />}
                     </div>
-                    <div>Creado: {formatDate(new Date(d.createdAt))}</div>
+                    <div>Creado: {formatLocalDate(new Date(d.createdAt))}</div>
                     {d.project?.entrega && (
                       <div className="flex items-center gap-1">
                         Entrega: {formatDate(new Date(`${d.project.entrega}T00:00:00Z`))}
