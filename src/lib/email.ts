@@ -56,7 +56,6 @@ export function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-/** Plantilla de correo con los colores de e-grow. `body` es HTML ya escapado. */
 /** Marca del encabezado del correo (por defecto e-grow CRM; las cotizaciones usan la de su línea). */
 export type EmailBrand = {
   name: string;
@@ -73,16 +72,19 @@ export function egrowBrand(): EmailBrand {
   return { name: "e-grow", primary: "#1c315e", accent: "#b9d43a", logoUrl: `${appUrl()}/egrow-logo.png`, footer: "e-grow · e-growonline.com" };
 }
 
+/** Plantilla de correo con los colores de e-grow. `body` es HTML ya escapado. */
 export function emailLayout(title: string, body: string, brand?: EmailBrand) {
   const primary = brand?.primary ?? "#1c315e";
   const accent = brand?.accent ?? "#b9d43a";
-  const header = brand
-    ? escapeHtml(brand.name)
-    : `e-grow <span style="background:#b9d43a;color:#1c315e;border-radius:4px;padding:1px 6px;font-size:12px">CRM</span>`;
-  // Con logo: encabezado blanco con el logo; sin logo: barra de color con el nombre
-  const headerRow = brand?.logoUrl
-    ? `<tr><td style="background:#ffffff;padding:18px 24px"><img src="${escapeHtml(brand.logoUrl)}" alt="${escapeHtml(brand.name)}" height="44" style="height:44px;width:auto;max-width:260px;border:0;display:block" /></td></tr>`
-    : `<tr><td style="background:${primary};padding:16px 24px;color:${textOn(primary)};font-size:18px;font-weight:bold">${header}</td></tr>`;
+  // Con logo: encabezado blanco con el logo; sin logo: barra de color con el nombre.
+  // Los avisos internos (sin marca) llevan el logo de e-grow con la etiqueta «CRM».
+  const logo = brand ? brand.logoUrl : egrowBrand().logoUrl;
+  const crmTag = brand
+    ? ""
+    : `<td style="padding-left:10px;vertical-align:middle"><span style="background:#b9d43a;color:#1c315e;border-radius:4px;padding:2px 7px;font-size:12px;font-weight:bold">CRM</span></td>`;
+  const headerRow = logo
+    ? `<tr><td style="background:#ffffff;padding:18px 24px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:middle"><img src="${escapeHtml(logo)}" alt="${escapeHtml(brand?.name ?? "e-grow")}" height="44" style="height:44px;width:auto;max-width:260px;border:0;display:block" /></td>${crmTag}</tr></table></td></tr>`
+    : `<tr><td style="background:${primary};padding:16px 24px;color:${textOn(primary)};font-size:18px;font-weight:bold">${escapeHtml(brand!.name)}</td></tr>`;
   return `<!doctype html><html lang="es"><body style="margin:0;background:#f4f6fa;font-family:Arial,Helvetica,sans-serif;color:#1e293b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:10px;overflow:hidden">

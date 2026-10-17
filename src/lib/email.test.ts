@@ -13,3 +13,12 @@ test("la plantilla usa los colores de marca y escapa el título", () => {
   const rutalink = emailLayout("Cotización", "<p>x</p>", { name: "Rutalink", primary: "#111111", accent: "#ff6600" });
   assert.ok(rutalink.includes("#111111") && rutalink.includes("#ff6600") && rutalink.includes("Rutalink"));
 });
+
+test("los avisos internos del CRM llevan el logo de e-grow en el encabezado", () => {
+  const html = emailLayout("Están viendo tu documento", "<p>x</p>");
+  assert.match(html, /<img src="[^"]*\/egrow-logo\.png" alt="e-grow"/);
+  assert.ok(html.includes(">CRM<"));
+  // Una marca sin logo (ej. una línea sin logo cargado) sigue con su barra de color
+  const sinLogo = emailLayout("Cotización", "<p>x</p>", { name: "Rutalink", primary: "#111111", accent: "#ff6600" });
+  assert.ok(!sinLogo.includes("<img"));
+});
