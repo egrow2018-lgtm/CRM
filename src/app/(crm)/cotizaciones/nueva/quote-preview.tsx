@@ -47,7 +47,7 @@ export function QuotePreview({ formId, ready, changed }: { formId: string; ready
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2">
           <h2 className="text-base">Vista previa</h2>
           <span className="flex items-center gap-2 text-xs text-slate-500">
-            {loading ? "Actualizando…" : url ? "Así la recibirá el cliente" : null}
+            {loading ? "Actualizando…" : url ? "Así la verá el cliente · se actualiza sola" : null}
             <button type="button" className="btn btn-sm" onClick={refresh} disabled={!ready || loading}>
               ↻ Actualizar
             </button>

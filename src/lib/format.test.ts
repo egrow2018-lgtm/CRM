@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatDate, formatLocalDate, monthlyRecurring, recurringLabel } from "./format";
+import { countLabel, formatDate, formatLocalDate, monthlyRecurring, recurringLabel } from "./format";
 
 test("etiqueta recurrente: lo anual se lleva a mensual dividiendo para 12", () => {
   assert.equal(recurringLabel(null, null), "");
@@ -20,4 +20,10 @@ test("fecha local: un momento después de las 7 p. m. en Ecuador conserva el dí
 
 test("fecha sin hora (guardada a medianoche UTC) se sigue mostrando tal cual", () => {
   assert.equal(formatDate(new Date("2026-11-16T00:00:00Z")), "16/11/2026");
+});
+
+test("cantidad con plural correcto", () => {
+  assert.equal(countLabel(1, "cotización", "cotizaciones"), "1 cotización");
+  assert.equal(countLabel(3, "cotización", "cotizaciones"), "3 cotizaciones");
+  assert.equal(countLabel(0, "cotización", "cotizaciones"), "0 cotizaciones");
 });

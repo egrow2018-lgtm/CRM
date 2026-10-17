@@ -84,7 +84,7 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
             ? `Corrige lo que haga falta y revisa la vista previa: se mantiene el número ${quoteCode(source.year, source.number)}.`
             : sp.desde && source
             ? `Basada en ${quoteCode(source.year, source.number)}: ajusta lo que cambió y genera la nueva versión.`
-            : "Se genera el PDF con número correlativo y queda atada al negocio (o al contacto, en las líneas que cotizan sin negocio)."
+            : "Elige el negocio, agrega los productos y revisa la vista previa antes de generarla."
         }
       />
       <QuoteForm

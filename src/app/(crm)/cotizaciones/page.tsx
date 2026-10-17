@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { contactName, formatMoney, formatMoneyExact, toNumber, formatLocalDate } from "@/lib/format";
+import { contactName, countLabel, formatMoney, formatMoneyExact, toNumber, formatLocalDate } from "@/lib/format";
 import { quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { EmptyState, LineBadge, PageHeader } from "@/components/ui";
 import { SemaforoPunto } from "@/components/semaforo";
@@ -98,7 +98,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
     <div>
       <PageHeader
         title="Cotizaciones"
-        subtitle={`${total} cotizaciones · ${formatMoney(sum._sum.total)} cotizado`}
+        subtitle={`${countLabel(total, "cotización", "cotizaciones")} · ${formatMoney(sum._sum.total)} cotizado con IVA`}
         actions={canWrite && <Link href="/cotizaciones/nueva" className="btn btn-primary">Nueva cotización</Link>}
       />
       <QuoteFilters lines={lines} users={users} years={yearRows.map((r) => r.year)} />
@@ -115,7 +115,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
             >
               <span>
                 <LineBadge line={l} />
-                <span className="mt-1 block text-xs text-slate-500">{l.count} cotizaciones</span>
+                <span className="mt-1 block text-xs text-slate-500">{countLabel(l.count, "cotización", "cotizaciones")}</span>
               </span>
               <span className="text-lg font-semibold tabular-nums text-brand-700">{formatMoney(l.total)}</span>
             </Link>
@@ -138,7 +138,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                   <th>Negocio</th>
                   <th>Cliente</th>
                   <th>Línea</th>
-                  <th className="text-right">Total</th>
+                  <th className="text-right">Total con IVA</th>
                   <th>Emitida</th>
                   <th>Válida hasta</th>
                   <th>Correo</th>

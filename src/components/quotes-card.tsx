@@ -3,7 +3,8 @@ import type { Quote } from "@prisma/client";
 import { ActionForm, ConfirmButton, SubmitButton } from "./action-form";
 import { CopyButton } from "./copy-button";
 import { formatDateTime, formatMoneyExact, formatLocalDate } from "@/lib/format";
-import { QUOTE_STATUS, quoteCode } from "@/lib/quotes";
+import { QUOTE_STATUS, quoteCode, quoteWhatsappText, type QuoteSnapshot } from "@/lib/quotes";
+import { whatsappUrl } from "@/lib/phone";
 import { acceptQuote, sendQuoteEmail } from "@/app/(crm)/cotizaciones/actions";
 import { SemaforoPunto } from "./semaforo";
 
@@ -17,6 +18,8 @@ export function QuotesCard({
   canAccept,
   baseUrl,
   contactEmail,
+  contactPhone = null,
+  contactFirstName = null,
   emailEnabled,
 }: {
   dealId: string;
@@ -25,6 +28,8 @@ export function QuotesCard({
   canAccept: boolean;
   baseUrl: string;
   contactEmail: string | null;
+  contactPhone?: string | null;
+  contactFirstName?: string | null;
   emailEnabled: boolean;
 }) {
   return (
@@ -50,6 +55,8 @@ export function QuotesCard({
               canAccept={canAccept}
               baseUrl={baseUrl}
               contactEmail={contactEmail}
+              contactPhone={contactPhone}
+              contactFirstName={contactFirstName}
               emailEnabled={emailEnabled}
             />
           ))}
@@ -66,6 +73,8 @@ export function QuoteRow({
   canAccept,
   baseUrl,
   contactEmail,
+  contactPhone = null,
+  contactFirstName = null,
   emailEnabled,
 }: {
   q: QuoteWithLinks;
@@ -74,6 +83,8 @@ export function QuoteRow({
   canAccept: boolean;
   baseUrl: string;
   contactEmail: string | null;
+  contactPhone?: string | null;
+  contactFirstName?: string | null;
   emailEnabled: boolean;
 }) {
   const code = quoteCode(q.year, q.number);
@@ -82,13 +93,19 @@ export function QuoteRow({
   const publicUrl = share ? `${baseUrl}/d/${share.token}` : `${baseUrl}/c/${q.publicToken}`;
   const views = (q.links ?? []).flatMap((l) => l.views).sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
   const expired = q.validUntil < new Date();
-  const wa = `Hola, te comparto la cotización ${code}: ${publicUrl}`;
+  const wa = quoteWhatsappText({
+    code,
+    firstName: contactFirstName,
+    dealName: (q.snapshot as unknown as Partial<QuoteSnapshot>)?.dealName ?? null,
+    validUntil: formatLocalDate(q.validUntil),
+    url: publicUrl,
+  });
   const status = QUOTE_STATUS[q.status];
   return (
     <li className={main ? "pb-3" : "py-3"}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <Link href={`/cotizaciones/${q.id}`} className="link">{code}</Link>
-        <span className="font-semibold tabular-nums">{formatMoneyExact(q.total)}</span>
+        <span className="font-semibold tabular-nums">{formatMoneyExact(q.total)} <span className="text-xs font-normal text-slate-500">IVA incluido</span></span>
         <span className={`badge ${status.className}`}>{status.label}</span>
         <span className="text-xs text-slate-500">Emitida {formatLocalDate(q.createdAt)}</span>
         <span className={`inline-flex items-center gap-1 text-xs ${expired ? "text-red-700" : "text-slate-500"}`}>
@@ -106,15 +123,15 @@ export function QuoteRow({
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <a href={`/cotizaciones/${q.id}/pdf`} target="_blank" rel="noreferrer" className="btn btn-sm">Ver PDF</a>
-        <a href={`https://wa.me/?text=${encodeURIComponent(wa)}`} target="_blank" rel="noreferrer" className="btn btn-sm">WhatsApp</a>
+        <a href={whatsappUrl(contactPhone, wa)} target="_blank" rel="noreferrer" className="btn btn-sm" title={contactPhone ? `Abre el chat con ${contactPhone}` : "El contacto no tiene teléfono: elige el chat en WhatsApp"}>WhatsApp</a>
         <CopyButton text={publicUrl} label="Copiar enlace" />
         {canAccept && q.status !== "APROBADA" && (
           <form action={acceptQuote.bind(null, q.id)}>
             <ConfirmButton
-              className="btn btn-sm border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+              className="btn btn-sm text-emerald-800"
               message={q.dealId ? `¿El cliente aceptó la cotización ${code}? Quedará «Aprobada», sus productos pasan al negocio y el negocio avanza a «En Producción».` : `¿El cliente aceptó la cotización ${code}? Quedará «Aprobada», se creará el negocio en «En Producción» y el contacto pasa a lead calificado.`}
             >
-              ✓ Aceptada
+              Marcar como aceptada
             </ConfirmButton>
           </form>
         )}

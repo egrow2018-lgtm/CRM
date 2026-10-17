@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { contactName, formatDateTime, formatMoneyExact, formatLocalDate } from "@/lib/format";
+import { contactName, countLabel, formatDateTime, formatMoneyExact, formatLocalDate } from "@/lib/format";
 import { BILLING, DEFAULT_TERM_MONTHS, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { appUrl, emailConfigured } from "@/lib/email";
 import { InfoRow, LineBadge, PageHeader } from "@/components/ui";
@@ -27,12 +27,12 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           name: true,
           businessLine: { select: { name: true, color: true } },
           company: { select: { id: true, name: true } },
-          contact: { select: { id: true, firstName: true, lastName: true, email: true } },
+          contact: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
           stage: { select: { name: true } },
           _count: { select: { quotes: true } },
         },
       },
-      contact: { select: { id: true, firstName: true, lastName: true, email: true, company: { select: { id: true, name: true } } } },
+      contact: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, company: { select: { id: true, name: true } } } },
       businessLine: { select: { name: true, color: true } },
       links: { select: { token: true, emailId: true, views: { select: { startedAt: true }, orderBy: { startedAt: "desc" } } }, orderBy: { createdAt: "asc" } },
       emails: { orderBy: { sentAt: "desc" }, select: { id: true, to: true, sentAt: true, openCount: true, clickCount: true, lastOpenedAt: true } },
@@ -134,6 +134,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 canAccept={canWrite || can(user, "deals:production")}
                 baseUrl={appUrl()}
                 contactEmail={contact?.email ?? null}
+                contactPhone={contact?.phone ?? null}
+                contactFirstName={contact?.firstName ?? null}
                 emailEnabled={emailConfigured()}
               />
             </ul>
@@ -184,7 +186,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           </div>
           {quote.deal && quote.deal._count.quotes > 1 && (
             <p className="text-sm text-slate-500">
-              Este negocio tiene {quote.deal._count.quotes} cotizaciones. <Link className="link" href={`/negocios/${quote.deal.id}`}>Verlas en el negocio</Link>.
+              Este negocio tiene {countLabel(quote.deal._count.quotes, "cotización", "cotizaciones")}. <Link className="link" href={`/negocios/${quote.deal.id}`}>Verlas en el negocio</Link>.
             </p>
           )}
         </div>

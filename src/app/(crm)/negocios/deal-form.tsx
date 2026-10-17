@@ -43,7 +43,7 @@ export function DealForm({
           ))}
         </select>
       </Field>
-      <Field label={hasItems ? "Valor (US$) — calculado desde los productos" : "Valor (US$)"}>
+      <Field label={hasItems ? "Valor sin IVA (US$) — calculado desde los productos" : "Valor sin IVA (US$)"}>
         <input
           name="amount"
           type="number"
