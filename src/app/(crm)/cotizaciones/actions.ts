@@ -9,7 +9,7 @@ import { requirePermission, requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { num, reqStr, str, type ActionState } from "@/lib/forms";
 import { runAction } from "@/lib/run-action";
-import { contactName, toNumber } from "@/lib/format";
+import { contactName, formatMoneyExact, toNumber } from "@/lib/format";
 import { QUOTE_STATUS, computeTotals, parseQuoteLines, quoteCode, type QuoteSnapshot } from "@/lib/quotes";
 import { getCompanySettings } from "@/lib/settings";
 import { renderQuotePdf } from "@/lib/quote-pdf";
@@ -250,7 +250,7 @@ export async function createQuote(_: ActionState, form: FormData) {
         data: { token: randomToken(), quoteId: quote.id, contactId: target.contact?.id ?? null, label: "Enlace para compartir", createdById: user.id },
       });
     }
-    const noteSubject = `Cotización ${quoteCode(quote.year, quote.number)} ${editId ? "corregida antes de enviarla" : "generada"} por US$ ${totals.total.toFixed(2)}`;
+    const noteSubject = `Cotización ${quoteCode(quote.year, quote.number)} ${editId ? "corregida antes de enviarla" : "generada"} · ${formatMoneyExact(totals.total)} con IVA`;
 
     if (!deal) {
       // Sin negocio: la nota queda en el historial del contacto
@@ -393,7 +393,7 @@ export async function acceptQuote(quoteId: string) {
       ? [prisma.activity.create({ data: { type: "CAMBIO_ETAPA", subject: `Etapa: ${deal.stage.name} → ${production.name}`, dealId: deal.id, authorId: user.id, completed: true } })]
       : []),
     prisma.activity.create({
-      data: { type: "NOTA", subject: `Cotización ${code} aceptada por el cliente (US$ ${toNumber(quote.total).toFixed(2)})`, dealId: deal.id, authorId: user.id, completed: true },
+      data: { type: "NOTA", subject: `Cotización ${code} aceptada por el cliente · ${formatMoneyExact(quote.total)} con IVA`, dealId: deal.id, authorId: user.id, completed: true },
     }),
   ]);
   revalidatePath("/cotizaciones");

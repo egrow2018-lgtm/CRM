@@ -42,7 +42,7 @@ export function DealCostCard({
       {hasData && (
         <dl className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
           <div className="flex justify-between">
-            <dt className="text-slate-500">Valor del negocio</dt>
+            <dt className="text-slate-500">Valor del negocio (sin IVA)</dt>
             <dd className="tabular-nums">{formatMoneyExact(amount)}</dd>
           </div>
           <div className="flex justify-between">

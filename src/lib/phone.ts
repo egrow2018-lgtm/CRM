@@ -113,3 +113,10 @@ export function normalizePhone(raw: string | null | undefined) {
   const f = formatPhone(raw);
   return f || null;
 }
+
+/** Enlace de WhatsApp con el mensaje: directo al chat del número si es válido; si no, para elegir el chat. */
+export function whatsappUrl(phone: string | null | undefined, text: string) {
+  const { iso, national } = parsePhone(phone);
+  const to = national.length >= 6 && national.length <= 13 ? `${countryByIso(iso).dial}${national}` : "";
+  return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
+}

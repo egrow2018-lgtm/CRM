@@ -144,3 +144,10 @@ export function parseQuoteLines(raw: unknown) {
     .filter((l) => l.description && l.quantity > 0)
     .slice(0, 100);
 }
+
+/** Mensaje para compartir una cotización por WhatsApp. */
+export function quoteWhatsappText(q: { code: string; firstName: string | null; dealName: string | null; validUntil: string; url: string }) {
+  const hello = q.firstName ? `Hola ${q.firstName}` : "Hola";
+  const what = q.dealName ? `la cotización de ${q.dealName} (${q.code})` : `la cotización ${q.code}`;
+  return `${hello}, te comparto ${what}, válida hasta el ${q.validUntil}: ${q.url}`;
+}

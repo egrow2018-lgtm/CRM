@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeTotals, firstYearFactor, itemFirstYear, parseQuoteLines, quoteCode } from "./quotes";
+import { computeTotals, firstYearFactor, itemFirstYear, parseQuoteLines, quoteCode, quoteWhatsappText } from "./quotes";
 
 test("totales con descuento e IVA 15%", () => {
   const t = computeTotals(
@@ -86,4 +86,18 @@ test("parseQuoteLines: tipo de cobro y plazo", () => {
   assert.equal(b!.termMonths, 12);
   assert.equal(c!.billing, "UNICO");
   assert.equal(c!.termMonths, null);
+});
+
+test("mensaje de WhatsApp de una cotización: saluda por el nombre y dice hasta cuándo vale", () => {
+  assert.equal(
+    quoteWhatsappText({ code: "COT-2026-0003", firstName: "Paola", dealName: "Escuela de liderazgo virtual 2026", validUntil: "31/10/2026", url: "https://crm/d/abc" }),
+    "Hola Paola, te comparto la cotización de Escuela de liderazgo virtual 2026 (COT-2026-0003), válida hasta el 31/10/2026: https://crm/d/abc",
+  );
+});
+
+test("mensaje de WhatsApp sin nombre ni negocio", () => {
+  assert.equal(
+    quoteWhatsappText({ code: "COT-2026-0004", firstName: null, dealName: null, validUntil: "31/10/2026", url: "https://crm/d/x" }),
+    "Hola, te comparto la cotización COT-2026-0004, válida hasta el 31/10/2026: https://crm/d/x",
+  );
 });

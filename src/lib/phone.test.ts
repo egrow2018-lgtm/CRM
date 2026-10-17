@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatPhone, groupNational, parsePhone } from "./phone";
+import { formatPhone, groupNational, parsePhone, whatsappUrl } from "./phone";
 
 test("formato de teléfonos con código de país", () => {
   assert.equal(formatPhone("0995439203"), "+593 99 543 9203");
@@ -20,4 +20,14 @@ test("parsePhone detecta el país por el código más largo", () => {
   assert.deepEqual(parsePhone("+5939 9999 9999"), { iso: "EC", national: "999999999" });
   assert.deepEqual(parsePhone("+1 809 555 1234"), { iso: "DO", national: "5551234" });
   assert.equal(groupNational("24513888", "PA"), "2451 3888");
+});
+
+test("enlace de WhatsApp: va directo al número del contacto", () => {
+  assert.equal(whatsappUrl("+593 99 111 1111", "Hola"), "https://wa.me/593991111111?text=Hola");
+  assert.equal(whatsappUrl("099 111 1111", "Hola"), "https://wa.me/593991111111?text=Hola");
+});
+
+test("enlace de WhatsApp: sin número válido deja elegir el chat", () => {
+  assert.equal(whatsappUrl(null, "Hola Paola"), "https://wa.me/?text=Hola%20Paola");
+  assert.equal(whatsappUrl("123", "Hola"), "https://wa.me/?text=Hola");
 });

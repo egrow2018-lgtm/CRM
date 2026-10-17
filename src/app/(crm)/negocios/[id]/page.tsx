@@ -69,7 +69,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <LineBadge line={deal.businessLine} />
-            <span>{formatMoney(deal.amount)} · Ponderado {formatMoney(weighted)} ({deal.stage.probability}%)</span>
+            <span>{formatMoney(deal.amount)} sin IVA · Ponderado {formatMoney(weighted)} ({deal.stage.probability}%)</span>
             {recurringLabel(deal.recurringMonthly, deal.recurringAnnual) && (
               <span className="badge bg-accent-100 text-brand-800" title="Servicio recurrente (sin IVA). El valor del negocio es el del primer año.">
                 {recurringLabel(deal.recurringMonthly, deal.recurringAnnual)}
@@ -114,7 +114,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             ) : (
               <dl>
                 <InfoRow label="Etapa">{deal.stage.name}</InfoRow>
-                <InfoRow label="Valor">{formatMoneyExact(deal.amount)}</InfoRow>
+                <InfoRow label="Valor (sin IVA)">{formatMoneyExact(deal.amount)}</InfoRow>
                 <InfoRow label="Fecha de cierre">{formatDate(deal.closeDate)}</InfoRow>
                 <InfoRow label="Propietario">{deal.owner?.name}</InfoRow>
                 <InfoRow label="Empresa">
@@ -191,6 +191,8 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             canAccept={canWrite || can(user, "deals:production")}
             baseUrl={appUrl()}
             contactEmail={deal.contact?.email ?? null}
+            contactPhone={deal.contact?.phone ?? null}
+            contactFirstName={deal.contact?.firstName ?? null}
             emailEnabled={emailConfigured()}
           />
 

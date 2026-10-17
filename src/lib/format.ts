@@ -21,6 +21,8 @@ export const formatMoney = (value: Numeric) => money.format(toNumber(value));
 export const formatMoneyExact = (value: Numeric) => moneyExact.format(toNumber(value));
 export const formatDate = (value: Date | null | undefined) => (value ? date.format(value) : "—");
 export const formatLocalDate = (value: Date | null | undefined) => (value ? localDate.format(value) : "—");
+/** "1 cotización", "3 cotizaciones". */
+export const countLabel = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 export const formatDateTime = (value: Date | null | undefined) => (value ? dateTime.format(value) : "—");
 
 /** yyyy-mm-dd para inputs type=date (en UTC, igual que como se guardan). */
