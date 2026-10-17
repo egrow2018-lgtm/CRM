@@ -138,7 +138,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                   <th>Número y línea</th>
                   <th>Estado</th>
                   <th>Negocio y cliente</th>
-                  <th className="text-right">Total con IVA</th>
+                  <th className="text-center">Total con IVA</th>
                   <th>Fechas</th>
                   <th>Envío</th>
                   <th>Etapa y responsable</th>
@@ -175,7 +175,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                         )}
                         </div>
                       </td>
-                      <td className="text-right tabular-nums">{formatMoneyExact(q.total)}</td>
+                      <td className="text-center tabular-nums">{formatMoneyExact(q.total)}</td>
                       <td className="whitespace-nowrap text-xs text-slate-500">
                         <div>Emitida {formatLocalDate(q.createdAt)}</div>
                         <span className={`inline-flex items-center gap-1 ${expired ? "text-red-700" : ""}`}>
