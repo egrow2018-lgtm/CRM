@@ -132,7 +132,8 @@ export function parseQuoteLines(raw: unknown) {
       const billing: Billing = isBilling(o.billing) ? o.billing : "UNICO";
       return {
         productId: typeof o.productId === "string" && o.productId ? o.productId : null,
-        description: String(o.description ?? "").trim().slice(0, 300),
+        // Puede tener varias líneas: se unifican los saltos y se dejan como máximo una línea en blanco
+        description: String(o.description ?? "").replace(/\r\n?/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1000),
         quantity: Math.max(0, n(o.quantity, 1)),
         unitPrice: Math.max(0, n(o.unitPrice)),
         discount: Math.min(100, Math.max(0, n(o.discount))),

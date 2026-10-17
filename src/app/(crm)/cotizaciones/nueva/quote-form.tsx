@@ -267,7 +267,16 @@ export function QuoteForm({
                           </optgroup>
                         ))}
                       </select>
-                      <input value={l.description} onChange={(e) => update(i, { description: e.target.value })} className="input" placeholder="Descripción que verá el cliente" />
+                      <textarea
+                        value={l.description}
+                        onChange={(e) => update(i, { description: e.target.value })}
+                        // Crece con el texto: Enter agrega una línea nueva
+                        rows={Math.min(8, Math.max(2, l.description.split("\n").length))}
+                        maxLength={1000}
+                        className="input resize-y"
+                        placeholder="Descripción que verá el cliente (Enter para otra línea)"
+                        aria-label="Descripción que verá el cliente"
+                      />
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                         <select
                           data-native
