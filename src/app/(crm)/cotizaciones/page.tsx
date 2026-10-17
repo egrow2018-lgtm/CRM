@@ -133,17 +133,13 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
               <thead>
                 <tr>
                   {canWrite && <BulkCheckHeader />}
-                  <th>Número</th>
+                  <th>Número y línea</th>
                   <th>Estado</th>
-                  <th>Negocio</th>
-                  <th>Cliente</th>
-                  <th>Línea</th>
+                  <th>Negocio y cliente</th>
                   <th className="text-right">Total con IVA</th>
-                  <th>Emitida</th>
-                  <th>Válida hasta</th>
+                  <th>Fechas</th>
                   <th>Correo</th>
-                  <th>Etapa del negocio</th>
-                  <th>Responsable</th>
+                  <th>Etapa y responsable</th>
                 </tr>
               </thead>
               <tbody>
@@ -156,13 +152,18 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                       {canWrite && <BulkCheckCell id={q.id} label={quoteCode(q.year, q.number)} />}
                       <td className="whitespace-nowrap">
                         <Link className="link" href={`/cotizaciones/${q.id}`}>{quoteCode(q.year, q.number)}</Link>
-                        <a className="ml-2 text-xs text-slate-400 hover:text-brand-700" href={`/cotizaciones/${q.id}/pdf`} target="_blank" rel="noreferrer">PDF</a>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <LineBadge line={q.deal?.businessLine ?? q.businessLine} />
+                          <a className="text-xs text-slate-400 hover:text-brand-700" href={`/cotizaciones/${q.id}/pdf`} target="_blank" rel="noreferrer">PDF</a>
+                        </div>
                       </td>
                       <td className="whitespace-nowrap"><QuoteStatusSelect id={q.id} status={q.status} disabled={!canWrite} /></td>
-                      <td className="max-w-56 truncate">
-                        {q.deal ? <Link className="hover:underline" href={`/negocios/${q.deal.id}`}>{q.deal.name}</Link> : <span className="text-xs text-slate-400">Sin negocio</span>}
-                      </td>
-                      <td className="max-w-48 truncate">
+                      {/* Negocio y cliente en una sola columna: así entran todas las columnas en una laptop */}
+                      <td className="max-w-56">
+                        <div className="truncate">
+                          {q.deal ? <Link className="hover:underline" href={`/negocios/${q.deal.id}`}>{q.deal.name}</Link> : <span className="text-xs text-slate-400">Sin negocio</span>}
+                        </div>
+                        <div className="truncate text-xs text-slate-500">
                         {q.deal?.company ? (
                           <Link className="hover:underline" href={`/empresas/${q.deal.company.id}`}>{client}</Link>
                         ) : !q.deal && q.contact ? (
@@ -170,17 +171,18 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                         ) : (
                           client
                         )}
+                        </div>
                       </td>
-                      <td><LineBadge line={q.deal?.businessLine ?? q.businessLine} /></td>
                       <td className="text-right tabular-nums">{formatMoneyExact(q.total)}</td>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{formatLocalDate(q.createdAt)}</td>
                       <td className="whitespace-nowrap text-xs text-slate-500">
-                        <span className="inline-flex items-center gap-1">
-                          <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} /> {formatLocalDate(q.validUntil)}
+                        <div>Emitida {formatLocalDate(q.createdAt)}</div>
+                        <span className={`inline-flex items-center gap-1 ${expired ? "text-red-700" : ""}`}>
+                          <SemaforoPunto level={expired ? "rojo" : "verde"} title={expired ? "Vencida" : "Vigente"} /> {expired ? "Venció" : "Válida hasta"} {formatLocalDate(q.validUntil)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap text-xs text-slate-500">{q.sentAt ? `Enviada ${formatLocalDate(q.sentAt)}` : "—"}</td>
                       <td className="whitespace-nowrap text-xs">
+                        <div>
                         {q.deal ? (
                           <span className={q.deal.stage.isWon ? "font-semibold text-emerald-700" : q.deal.stage.isLost ? "text-slate-400" : "text-slate-600"}>
                             {q.deal.stage.name}
@@ -188,8 +190,9 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
+                        </div>
+                        <div className="text-slate-500">{(q.deal ? q.deal.owner?.name : q.contact?.owner?.name) ?? "—"}</div>
                       </td>
-                      <td className="whitespace-nowrap text-xs">{(q.deal ? q.deal.owner?.name : q.contact?.owner?.name) ?? "—"}</td>
                     </tr>
                   );
                 })}
