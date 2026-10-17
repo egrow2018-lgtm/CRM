@@ -101,3 +101,10 @@ test("mensaje de WhatsApp sin nombre ni negocio", () => {
     "Hola, te comparto la cotización COT-2026-0004, válida hasta el 31/10/2026: https://crm/d/x",
   );
 });
+
+test("la descripción conserva los saltos de línea y admite textos largos", () => {
+  const [l] = parseQuoteLines([{ description: "  Curso virtual\r\nIncluye 6 videos\n\n\n\nY 2 rondas de revisión  ", quantity: "1", unitPrice: "10" }]);
+  assert.equal(l!.description, "Curso virtual\nIncluye 6 videos\n\nY 2 rondas de revisión");
+  const [largo] = parseQuoteLines([{ description: "x".repeat(1500), quantity: "1" }]);
+  assert.equal(largo!.description.length, 1000);
+});

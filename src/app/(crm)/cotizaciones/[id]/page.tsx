@@ -155,7 +155,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 {(snap.items ?? []).map((it, i) => (
                   <tr key={i}>
                     <td>
-                      {it.description}
+                      <span className="whitespace-pre-line">{it.description}</span>
                       {it.detail && <div className="text-xs text-slate-400">{it.detail}</div>}
                       {it.billing && it.billing !== "UNICO" && (
                         <div className="text-xs text-accent-700">↻ {BILLING[it.billing].label} · contrato de {it.termMonths ?? DEFAULT_TERM_MONTHS} meses</div>
