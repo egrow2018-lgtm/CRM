@@ -3,6 +3,50 @@
 import { useEffect, useRef, useState } from "react";
 import { previewQuote } from "../actions";
 
+/** Genera el PDF de vista previa con lo que hay en el formulario y devuelve su URL local. */
+async function previewUrl(formId: string): Promise<{ url: string } | { error: string }> {
+  const form = document.getElementById(formId) as HTMLFormElement | null;
+  if (!form) return { error: "No se encontró el formulario." };
+  const res = await previewQuote(new FormData(form));
+  if ("error" in res) return res;
+  const bytes = Uint8Array.from(atob(res.pdf), (c) => c.charCodeAt(0));
+  return { url: URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })) };
+}
+
+/**
+ * En pantallas angostas (celular, tablet) el visor de PDF incrustado no funciona bien:
+ * este botón abre la vista previa en una pestaña nueva.
+ */
+export function PreviewButton({ formId, ready }: { formId: string; ready: boolean }) {
+  function open() {
+    const source = document.getElementById(formId) as HTMLFormElement | null;
+    if (!source) return;
+    // Copia los datos en un formulario aparte y lo envía de verdad (el de la cotización se envía por JavaScript)
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = "/cotizaciones/vista-previa";
+    form.target = "_blank";
+    form.hidden = true;
+    for (const [name, value] of new FormData(source)) {
+      if (typeof value !== "string") continue;
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      form.append(input);
+    }
+    document.body.append(form);
+    form.submit();
+    form.remove();
+  }
+
+  return (
+    <button type="button" className="btn xl:hidden" onClick={open} disabled={!ready}>
+      Ver vista previa (PDF)
+    </button>
+  );
+}
+
 /**
  * Vista previa del PDF tal como lo recibirá el cliente, con lo que hay en el formulario.
  * Se actualiza sola un momento después de cada cambio (no guarda nada ni usa número).
@@ -14,11 +58,10 @@ export function QuotePreview({ formId, ready, changed }: { formId: string; ready
   const seq = useRef(0);
 
   async function refresh() {
-    const form = document.getElementById(formId) as HTMLFormElement | null;
-    if (!form || !ready) return;
+    if (!ready) return;
     const n = ++seq.current;
     setLoading(true);
-    const res = await previewQuote(new FormData(form));
+    const res = await previewUrl(formId);
     if (n !== seq.current) return; // llegó una respuesta más nueva
     setLoading(false);
     if ("error" in res) {
@@ -26,23 +69,21 @@ export function QuotePreview({ formId, ready, changed }: { formId: string; ready
       return;
     }
     setError(null);
-    const bytes = Uint8Array.from(atob(res.pdf), (c) => c.charCodeAt(0));
-    const next = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
     setUrl((old) => {
       if (old) URL.revokeObjectURL(old);
-      return next;
+      return res.url;
     });
   }
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !window.matchMedia("(min-width: 1280px)").matches) return;
     const t = setTimeout(refresh, 1200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [changed, ready]);
 
   return (
-    <div className="xl:sticky xl:top-4 xl:self-start">
+    <div className="hidden xl:sticky xl:top-4 xl:block xl:self-start">
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2">
           <h2 className="text-base">Vista previa</h2>

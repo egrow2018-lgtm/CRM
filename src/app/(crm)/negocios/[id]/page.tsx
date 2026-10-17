@@ -106,8 +106,9 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-1">
+      {/* En el celular primero las cotizaciones, luego los datos y al final el seguimiento; en pantallas grandes, dos columnas */}
+      <div className="grid gap-4 lg:grid-cols-3 lg:grid-rows-[auto_1fr]">
+        <div className="order-2 min-w-0 space-y-4 lg:order-none lg:col-span-1 lg:row-span-2">
           <div className="card p-4">
             {editing ? (
               <DealForm action={updateDeal.bind(null, id)} options={options} deal={deal} hasItems={deal.items.length > 0} />
@@ -182,7 +183,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
           )}
         </div>
 
-        <div className="space-y-4 lg:col-span-2">
+        <div className="order-1 min-w-0 lg:order-none lg:col-span-2">
           <QuotesCard
             dealId={id}
             // La aceptada va primero; las demás, debajo
@@ -195,7 +196,9 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             contactFirstName={deal.contact?.firstName ?? null}
             emailEnabled={emailConfigured()}
           />
+        </div>
 
+        <div className="order-3 min-w-0 space-y-4 lg:order-none lg:col-span-2">
           <ActivityPanel
             zoomEnabled={zoomConfigured()}
             emailEnabled={emailConfigured()}

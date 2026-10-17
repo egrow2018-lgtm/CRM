@@ -48,6 +48,17 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const contact = quote.deal?.contact ?? quote.contact;
   const company = quote.deal ? quote.deal.company : (quote.contact?.company ?? null);
 
+  // Totales: [texto, valor, en negrita, destacado]
+  const recurring = snap.monthly !== undefined;
+  const totals: [string, string, boolean, boolean][] = [
+    ...(recurring ? [["Pago inicial", formatMoneyExact(snap.oneTime ?? 0), false, false] as [string, string, boolean, boolean]] : []),
+    ...((snap.monthly ?? 0) > 0 ? [["Mensualidad (sin IVA)", `${formatMoneyExact(snap.monthly ?? 0)}/mes`, false, true] as [string, string, boolean, boolean]] : []),
+    ...((snap.annual ?? 0) > 0 ? [["Anualidad (sin IVA)", `${formatMoneyExact(snap.annual ?? 0)}/año`, false, true] as [string, string, boolean, boolean]] : []),
+    [recurring ? "Subtotal primer año" : "Subtotal", formatMoneyExact(snap.subtotal), false, false],
+    [`IVA ${snap.ivaPercent}%`, formatMoneyExact(snap.iva), false, false],
+    [recurring ? "Total primer año" : "Total", formatMoneyExact(snap.total), true, false],
+  ];
+
   return (
     <div>
       <div className="mb-2 text-sm"><Link href="/cotizaciones" className="text-slate-500 hover:underline">← Cotizaciones</Link></div>
@@ -92,7 +103,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         }
       />
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="card p-4">
             <dl>
               <InfoRow label="Cliente">
@@ -124,7 +135,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             </div>
           )}
         </div>
-        <div className="space-y-4 lg:col-span-2">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
           <div className="card p-4">
             <ul>
               <QuoteRow
@@ -141,6 +152,34 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             </ul>
           </div>
           <div className="card overflow-x-auto p-4">
+            {/* Celular: un bloque por producto (la tabla no cabe) */}
+            <ul className="divide-y divide-slate-100 sm:hidden">
+              {(snap.items ?? []).map((it, i) => (
+                <li key={i} className="py-3 first:pt-0">
+                  <div className="whitespace-pre-line text-sm">{it.description}</div>
+                  {it.detail && <div className="text-xs text-slate-400">{it.detail}</div>}
+                  {it.billing && it.billing !== "UNICO" && (
+                    <div className="text-xs text-accent-700">↻ {BILLING[it.billing].label} · contrato de {it.termMonths ?? DEFAULT_TERM_MONTHS} meses</div>
+                  )}
+                  <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 text-sm tabular-nums">
+                    <span className="text-slate-500">
+                      {it.quantity} × {formatMoneyExact(it.unitPrice)}{it.billing ? BILLING[it.billing].per : ""}
+                      {it.discount > 0 && ` · desc. ${it.discount}%`}
+                    </span>
+                    <span className="font-medium">{formatMoneyExact(it.subtotal)}{it.billing ? BILLING[it.billing].per : ""}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <dl className="mt-1 space-y-1 border-t border-slate-200 pt-3 text-sm sm:hidden">
+              {totals.map(([label, value, strong]) => (
+                <div key={label} className={`flex justify-between gap-3 ${strong ? "font-semibold" : ""}`}>
+                  <dt className={strong ? "" : "text-slate-500"}>{label}</dt>
+                  <dd className="tabular-nums">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="hidden sm:block">
             <table className="table">
               <thead>
                 <tr>
@@ -167,22 +206,15 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                     <td className="text-right tabular-nums">{formatMoneyExact(it.subtotal)}{it.billing ? BILLING[it.billing].per : ""}</td>
                   </tr>
                 ))}
-                {snap.monthly !== undefined && (
-                  <>
-                    <tr><td colSpan={4} className="text-right text-slate-500">Pago inicial</td><td className="text-right tabular-nums">{formatMoneyExact(snap.oneTime ?? 0)}</td></tr>
-                    {(snap.monthly ?? 0) > 0 && (
-                      <tr><td colSpan={4} className="text-right font-medium text-brand-700">Mensualidad (sin IVA)</td><td className="text-right font-medium tabular-nums text-brand-700">{formatMoneyExact(snap.monthly ?? 0)}/mes</td></tr>
-                    )}
-                    {(snap.annual ?? 0) > 0 && (
-                      <tr><td colSpan={4} className="text-right font-medium text-brand-700">Anualidad (sin IVA)</td><td className="text-right font-medium tabular-nums text-brand-700">{formatMoneyExact(snap.annual ?? 0)}/año</td></tr>
-                    )}
-                  </>
-                )}
-                <tr><td colSpan={4} className="text-right text-slate-500">{snap.monthly !== undefined ? "Subtotal primer año" : "Subtotal"}</td><td className="text-right tabular-nums">{formatMoneyExact(snap.subtotal)}</td></tr>
-                <tr><td colSpan={4} className="text-right text-slate-500">IVA {snap.ivaPercent}%</td><td className="text-right tabular-nums">{formatMoneyExact(snap.iva)}</td></tr>
-                <tr><td colSpan={4} className="text-right font-semibold">{snap.monthly !== undefined ? "Total primer año" : "Total"}</td><td className="text-right font-semibold tabular-nums">{formatMoneyExact(snap.total)}</td></tr>
+                {totals.map(([label, value, strong, accent]) => (
+                  <tr key={label}>
+                    <td colSpan={4} className={`text-right ${strong ? "font-semibold" : accent ? "font-medium text-brand-700" : "text-slate-500"}`}>{label}</td>
+                    <td className={`text-right tabular-nums ${strong ? "font-semibold" : accent ? "font-medium text-brand-700" : ""}`}>{value}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+            </div>
           </div>
           {quote.deal && quote.deal._count.quotes > 1 && (
             <p className="text-sm text-slate-500">

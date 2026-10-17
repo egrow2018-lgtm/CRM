@@ -7,7 +7,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { BILLING, DEFAULT_TERM_MONTHS, computeTotals, isBilling, type Billing } from "@/lib/quotes";
 import { PhoneInput } from "@/components/phone-input";
 import { createQuote } from "../actions";
-import { QuotePreview } from "./quote-preview";
+import { PreviewButton, QuotePreview } from "./quote-preview";
 
 type Deal = { id: string; label: string; lineId: string | null };
 type Option = { id: string; label: string };
@@ -18,6 +18,12 @@ const money = (n: number) => n.toLocaleString("es-EC", { minimumFractionDigits: 
 const num = (v: string) => {
   const n = Number(v.replace(",", "."));
   return Number.isFinite(n) ? n : 0;
+};
+/** Ajusta la altura del cuadro de texto a su contenido (hasta ~12 líneas; después aparece la barra). */
+const fitHeight = (el: HTMLTextAreaElement | null) => {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight + 2, 300)}px`;
 };
 const emptyLine = (): Line => ({ productId: "", description: "", quantity: "1", unitPrice: "", discount: "0", billing: "UNICO", termMonths: String(DEFAULT_TERM_MONTHS) });
 
@@ -67,6 +73,10 @@ export function QuoteForm({
   // Clave única de este formulario: si se pulsa «Generar» dos veces, el servidor no duplica la cotización
   const [requestKey, setRequestKey] = useState("");
   useEffect(() => setRequestKey(crypto.randomUUID()), []);
+  // Reajusta las descripciones cuando cambian sin escribir (producto del catálogo, línea quitada)
+  useEffect(() => {
+    document.querySelectorAll<HTMLTextAreaElement>("#quote-form textarea[data-description]").forEach(fitHeight);
+  }, [lines]);
 
   const deal = direct ? null : (deals.find((d) => d.id === dealId) ?? null);
   const targetLine = direct ? lineId || null : (deal?.lineId ?? null);
@@ -239,90 +249,97 @@ export function QuoteForm({
 
       <div className="card p-4">
         <h2 className="mb-3 text-base">Productos y servicios</h2>
-        <div className="overflow-x-auto">
-          <table className="table min-w-[44rem]">
-            <thead>
-              <tr>
-                <th className="w-[34%]">Producto / descripción</th>
-                <th className="w-20 text-right">Cant.</th>
-                <th className="w-32 text-right">Precio unit.</th>
-                <th className="w-20 text-right">Desc. %</th>
-                <th className="w-28 text-right">Subtotal</th>
-                <th className="w-8" />
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((l, i) => {
-                const sub = num(l.quantity) * num(l.unitPrice) * (1 - Math.min(100, num(l.discount)) / 100);
-                return (
-                  <tr key={i} className="align-top">
-                    <td className="space-y-1.5">
-                      <select value={l.productId} onChange={(e) => pickProduct(i, e.target.value)} className="input" aria-label="Producto del catálogo">
-                        <option value="">— Producto del catálogo (opcional) —</option>
-                        {groupEntries.map(([line, items]) => (
-                          <optgroup key={line} label={line}>
-                            {items.map((p) => (
-                              <option key={p.id} value={p.id}>{p.name}{p.price > 0 ? ` · $${money(p.price)}` : ""}</option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                      <textarea
-                        value={l.description}
-                        onChange={(e) => update(i, { description: e.target.value })}
-                        // Crece con el texto: Enter agrega una línea nueva
-                        rows={Math.min(8, Math.max(2, l.description.split("\n").length))}
-                        maxLength={1000}
-                        className="input resize-y"
-                        placeholder="Descripción que verá el cliente (Enter para otra línea)"
-                        aria-label="Descripción que verá el cliente"
-                      />
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                        <select
-                          data-native
-                          value={l.billing}
-                          onChange={(e) => update(i, { billing: isBilling(e.target.value) ? e.target.value : "UNICO" })}
-                          className="input w-auto py-1 text-xs"
-                          aria-label="Cómo se cobra"
-                        >
-                          {(Object.keys(BILLING) as Billing[]).map((b) => (
-                            <option key={b} value={b}>{BILLING[b].label}</option>
-                          ))}
-                        </select>
-                        {l.billing !== "UNICO" && (
-                          <label className="flex items-center gap-1">
-                            Contrato
-                            <input
-                              value={l.termMonths}
-                              onChange={(e) => update(i, { termMonths: e.target.value.replace(/\D/g, "") })}
-                              inputMode="numeric"
-                              className="input w-14 py-1 text-right text-xs"
-                              aria-label="Plazo del contrato en meses"
-                            />
-                            meses
-                          </label>
-                        )}
-                      </div>
-                    </td>
-                    <td><input value={l.quantity} onChange={(e) => update(i, { quantity: e.target.value })} inputMode="decimal" className="input text-right" /></td>
-                    <td><input value={l.unitPrice} onChange={(e) => update(i, { unitPrice: e.target.value })} inputMode="decimal" className="input text-right" placeholder="0,00" /></td>
-                    <td><input value={l.discount} onChange={(e) => update(i, { discount: e.target.value })} inputMode="decimal" className="input text-right" /></td>
-                    <td className="pt-3.5 text-right font-medium tabular-nums">
+        {/* Una tarjeta por línea: precio, descuento y subtotal siempre a la vista, también en el celular */}
+        <ol className="space-y-3">
+          {lines.map((l, i) => {
+            const sub = num(l.quantity) * num(l.unitPrice) * (1 - Math.min(100, num(l.discount)) / 100);
+            return (
+              <li key={i} className="space-y-2 rounded-lg border border-slate-200 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-slate-500">Línea {i + 1}</span>
+                  {lines.length > 1 && (
+                    <button type="button" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} className="text-xs text-slate-500 hover:text-red-600">
+                      ✕ Quitar
+                    </button>
+                  )}
+                </div>
+                <select value={l.productId} onChange={(e) => pickProduct(i, e.target.value)} className="input" aria-label="Producto del catálogo">
+                  <option value="">— Producto del catálogo (opcional) —</option>
+                  {groupEntries.map(([line, items]) => (
+                    <optgroup key={line} label={line}>
+                      {items.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}{p.price > 0 ? ` · $${money(p.price)}` : ""}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <textarea
+                  value={l.description}
+                  onChange={(e) => {
+                    fitHeight(e.target);
+                    update(i, { description: e.target.value });
+                  }}
+                  // Crece con el texto (también cuando una línea larga se parte en dos): Enter agrega una línea nueva
+                  ref={fitHeight}
+                  data-description
+                  rows={2}
+                  maxLength={1000}
+                  className="input resize-y"
+                  placeholder="Descripción que verá el cliente (Enter para otra línea)"
+                  aria-label="Descripción que verá el cliente"
+                />
+                <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-4">
+                  <label className="text-xs text-slate-500">
+                    Cant.
+                    <input value={l.quantity} onChange={(e) => update(i, { quantity: e.target.value })} inputMode="decimal" className="input mt-1 text-right" />
+                  </label>
+                  <label className="text-xs text-slate-500">
+                    Precio unit.{BILLING[l.billing].per}
+                    <input value={l.unitPrice} onChange={(e) => update(i, { unitPrice: e.target.value })} inputMode="decimal" className="input mt-1 text-right" placeholder="0,00" />
+                  </label>
+                  <label className="text-xs text-slate-500">
+                    Desc. %
+                    <input value={l.discount} onChange={(e) => update(i, { discount: e.target.value })} inputMode="decimal" className="input mt-1 text-right" />
+                  </label>
+                  <div className="text-right text-xs text-slate-500">
+                    Subtotal
+                    <div className="mt-1 py-2 text-sm font-semibold tabular-nums text-slate-800">
                       ${money(Math.round(sub * 100) / 100)}
-                      {BILLING[l.billing].per && <span className="block text-xs font-normal text-slate-500">{BILLING[l.billing].per}</span>}
-                    </td>
-                    <td className="pt-3">
-                      {lines.length > 1 && (
-                        <button type="button" title="Quitar" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-600">✕</button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <button type="button" className="btn btn-sm mt-2" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ Agregar línea</button>
+                      {BILLING[l.billing].per && <span className="font-normal text-slate-500">{BILLING[l.billing].per}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  <select
+                    data-native
+                    value={l.billing}
+                    onChange={(e) => update(i, { billing: isBilling(e.target.value) ? e.target.value : "UNICO" })}
+                    className="input w-auto py-1 text-xs"
+                    aria-label="Cómo se cobra"
+                  >
+                    {(Object.keys(BILLING) as Billing[]).map((b) => (
+                      <option key={b} value={b}>{BILLING[b].label}</option>
+                    ))}
+                  </select>
+                  {l.billing !== "UNICO" && (
+                    <label className="flex items-center gap-1">
+                      Contrato
+                      <input
+                        value={l.termMonths}
+                        onChange={(e) => update(i, { termMonths: e.target.value.replace(/\D/g, "") })}
+                        inputMode="numeric"
+                        className="input w-14 py-1 text-right text-xs"
+                        aria-label="Plazo del contrato en meses"
+                      />
+                      meses
+                    </label>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+        <button type="button" className="btn btn-sm mt-3" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ Agregar línea</button>
 
         <div className="mt-4 flex flex-wrap items-start justify-end gap-4">
           {recurring && (
@@ -377,7 +394,8 @@ export function QuoteForm({
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <PreviewButton formId="quote-form" ready={ready && valid.length > 0} />
         <SubmitButton pendingText={editId ? "Guardando…" : "Generando cotización…"} disabled={!requestKey || !ready || valid.length === 0}>
           {editId ? "Guardar corrección" : "Generar cotización"}
         </SubmitButton>
